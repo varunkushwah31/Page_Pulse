@@ -1,9 +1,13 @@
 package com.pulse.page.web.service;
 
+import com.pulse.page.web.config.MetricsConfig;
 import com.pulse.page.web.document.AuditReportDocument;
 import com.pulse.page.web.entity.AuditReportEntity;
 import com.pulse.page.web.repository.AuditReportJpaRepository;
 import com.pulse.page.web.repository.AuditReportMongoRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
@@ -29,12 +33,16 @@ public class UrlAuditService {
 
     private final AuditReportJpaRepository jpaRepository;
     private final AuditReportMongoRepository mongoRepository;
+    private final MetricsConfig metricsConfig;
 
     @Transactional
+    @CircuitBreaker(name = "scraperEngine", fallbackMethod = "auditFallback")
+    @Retry(name = "scraperEngine")
     public AuditReportEntity auditAndSaveTransient(String rawUrl) throws IOException {
         String validatedUrl = validateUrl(rawUrl);
         String domain = extractDomain(validatedUrl);
 
+        Timer.Sample sample = metricsConfig.startAuditTimer();
         long startTime = System.currentTimeMillis();
         Connection connection = Jsoup.connect(validatedUrl)
                 .timeout(TIMEOUT_MS)
@@ -47,6 +55,7 @@ public class UrlAuditService {
 
         String contentType = response.contentType();
         if (contentType == null || !contentType.toLowerCase().contains("text/html")) {
+            metricsConfig.incrementAuditCounter("audit", "error_content_type");
             throw new IllegalArgumentException(
                     "Target URL content type '" + (contentType != null ? contentType : "unknown") +
                             "' is not text/html. Scraper execution aborted.");
@@ -72,6 +81,11 @@ public class UrlAuditService {
                 .wordCount(wordCount)
                 .contentType(contentType)
                 .build();
+
+        metricsConfig.recordAuditDuration(sample, "audit", "success");
+        metricsConfig.incrementAuditCounter("audit", "success");
+        metricsConfig.recordScrapedUrlSize(doc.html().length());
+        metricsConfig.recordResponseTime("audit", responseTimeMs);
 
         return jpaRepository.save(entity);
     }
@@ -185,5 +199,10 @@ public class UrlAuditService {
             return 0;
         }
         return text.trim().split("\\s+").length;
+    }
+
+    private AuditReportEntity auditFallback(String rawUrl, Exception ex) {
+        log.error("Circuit breaker triggered for URL: {} - {}", rawUrl, ex.getMessage());
+        throw new RuntimeException("Scraper circuit breaker open - service unavailable for: " + rawUrl, ex);
     }
 }

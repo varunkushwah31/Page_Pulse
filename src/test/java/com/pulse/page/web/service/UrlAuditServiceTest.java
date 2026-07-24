@@ -1,5 +1,6 @@
 package com.pulse.page.web.service;
 
+import com.pulse.page.web.config.MetricsConfig;
 import com.pulse.page.web.document.AuditReportDocument;
 import com.pulse.page.web.entity.AuditReportEntity;
 import com.pulse.page.web.repository.AuditReportJpaRepository;
@@ -26,11 +27,14 @@ class UrlAuditServiceTest {
     @Mock
     private AuditReportMongoRepository mongoRepository;
 
+    @Mock
+    private MetricsConfig metricsConfig;
+
     private UrlAuditService service;
 
     @BeforeEach
     void setUp() {
-        service = new UrlAuditService(jpaRepository, mongoRepository);
+        service = new UrlAuditService(jpaRepository, mongoRepository, metricsConfig);
     }
 
     @Test

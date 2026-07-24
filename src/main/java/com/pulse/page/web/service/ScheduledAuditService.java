@@ -9,29 +9,69 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ScheduledAuditService {
 
-    private static final int REGRESSION_THRESHOLD_POINTS = 15;
+    private static final int DEFAULT_REGRESSION_THRESHOLD = 15;
 
     private final ScheduledAuditConfigRepository configRepository;
     private final AuditReportProcessorService processorService;
     private final ApplicationEventPublisher eventPublisher;
+    private final WebhookNotificationService webhookNotificationService;
 
-    public ScheduledAuditConfigEntity registerSchedule(String url, String webhookUrl, int frequencyMinutes) {
+    @Transactional
+    public ScheduledAuditConfigEntity registerSchedule(String url, String webhookUrl, String email, int frequencyMinutes, int regressionThreshold, boolean notifyOnRegressionOnly) {
         ScheduledAuditConfigEntity config = ScheduledAuditConfigEntity.builder()
-            .url(url)
-            .webhookUrl(webhookUrl)
-            .frequencyMinutes(frequencyMinutes > 0 ? frequencyMinutes : 60)
-            .active(true)
-            .build();
+                .url(url)
+                .webhookUrl(webhookUrl)
+                .email(email)
+                .frequencyMinutes(frequencyMinutes > 0 ? frequencyMinutes : 60)
+                .regressionThreshold(regressionThreshold > 0 ? regressionThreshold : DEFAULT_REGRESSION_THRESHOLD)
+                .notifyOnRegressionOnly(notifyOnRegressionOnly)
+                .active(true)
+                .build();
         return configRepository.save(config);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ScheduledAuditConfigEntity> getAllSchedules() {
+        return configRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ScheduledAuditConfigEntity> getSchedule(Long id) {
+        return configRepository.findById(id);
+    }
+
+    @Transactional
+    public Optional<ScheduledAuditConfigEntity> updateSchedule(Long id, String webhookUrl, String email, int frequencyMinutes, int regressionThreshold, boolean notifyOnRegressionOnly, boolean active) {
+        return configRepository.findById(id).map(config -> {
+            if (webhookUrl != null) config.setWebhookUrl(webhookUrl);
+            if (email != null) config.setEmail(email);
+            if (frequencyMinutes > 0) config.setFrequencyMinutes(frequencyMinutes);
+            if (regressionThreshold > 0) config.setRegressionThreshold(regressionThreshold);
+            config.setNotifyOnRegressionOnly(notifyOnRegressionOnly);
+            config.setActive(active);
+            config.setUpdatedAt(Instant.now());
+            return configRepository.save(config);
+        });
+    }
+
+    @Transactional
+    public boolean deleteSchedule(Long id) {
+        return configRepository.findById(id).map(config -> {
+            configRepository.delete(config);
+            return true;
+        }).orElse(false);
     }
 
     @Scheduled(fixedRate = 60000)
@@ -58,7 +98,8 @@ public class ScheduledAuditService {
     }
 
     private void runScheduledAudit(ScheduledAuditConfigEntity config, Instant now) {
-        log.info("Executing scheduled recurring audit for URL: {}", config.getUrl());
+        String correlationId = UUID.randomUUID().toString();
+        log.info("Executing scheduled recurring audit for URL: {} (correlationId: {})", config.getUrl(), correlationId);
         try {
             AuditResponse response = processorService.processAudit(config.getUrl());
             int currentScore = response.getScores() != null ? response.getScores().getOverallScore() : 0;
@@ -66,22 +107,42 @@ public class ScheduledAuditService {
             if (config.getPreviousOverallScore() != null) {
                 int previousScore = config.getPreviousOverallScore();
                 int scoreDrop = previousScore - currentScore;
-                if (scoreDrop >= REGRESSION_THRESHOLD_POINTS) {
-                    log.warn("Score regression detected for {}: previous={}, current={}, drop={}",
-                        config.getUrl(), previousScore, currentScore, scoreDrop);
+                if (scoreDrop >= config.getRegressionThreshold()) {
+                    log.warn("Score regression detected for {}: previous={}, current={}, drop={} (threshold: {})",
+                            config.getUrl(), previousScore, currentScore, scoreDrop, config.getRegressionThreshold());
 
                     eventPublisher.publishEvent(new ScoreRegressionEvent(
-                        this, config.getUrl(), previousScore, currentScore, scoreDrop, config.getWebhookUrl()
+                            this, config.getUrl(), previousScore, currentScore, scoreDrop, config.getWebhookUrl()
                     ));
+
+                    if (config.getWebhookUrl() != null && !config.getWebhookUrl().isBlank()) {
+                        webhookNotificationService.sendRegressionAlert(
+                                config.getWebhookUrl(), config.getUrl(), previousScore, currentScore, scoreDrop, correlationId
+                        );
+                    }
+                } else if (!config.isNotifyOnRegressionOnly() && config.getWebhookUrl() != null) {
+                    webhookNotificationService.sendAuditCompletion(
+                            config.getWebhookUrl(), config.getUrl(), currentScore, "STABLE", correlationId
+                    );
                 }
+            } else if (config.getWebhookUrl() != null && !config.getWebhookUrl().isBlank()) {
+                webhookNotificationService.sendAuditCompletion(
+                        config.getWebhookUrl(), config.getUrl(), currentScore, "BASELINE", correlationId
+                );
             }
 
             config.setPreviousOverallScore(currentScore);
             config.setLastAuditTime(now);
+            config.setUpdatedAt(now);
             configRepository.save(config);
 
         } catch (Exception e) {
             log.error("Scheduled audit failed for URL {}: {}", config.getUrl(), e.getMessage());
+            if (config.getWebhookUrl() != null && !config.getWebhookUrl().isBlank()) {
+                webhookNotificationService.sendAuditCompletion(
+                        config.getWebhookUrl(), config.getUrl(), 0, "FAILED: " + e.getMessage(), correlationId
+                );
+            }
         }
     }
 }

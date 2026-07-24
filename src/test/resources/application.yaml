@@ -1,0 +1,31 @@
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      scraperEngine:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+  retry:
+    instances:
+      scraperEngine:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+
+app:
+  jwt:
+    secret: "YnV0dG9ucyBtYWtlIGV2ZXJ5dGhpbmcgc2VjdXJlIGJ5IGV4Y2hhbmdlIG9mIGRhdGEgaW4gdGhlIGFwcGxpY2F0aW9u"
+    expiration-ms: 86400000
+    refresh-expiration-ms: 604800000

@@ -24,6 +24,9 @@ public class ScheduledAuditConfigEntity {
     @Column(length = 2048)
     private String webhookUrl;
 
+    @Column(length = 255)
+    private String email;
+
     @Builder.Default
     private int frequencyMinutes = 60;
 
@@ -36,4 +39,15 @@ public class ScheduledAuditConfigEntity {
 
     @Builder.Default
     private Instant createdAt = Instant.now();
+
+    @Builder.Default
+    private Instant updatedAt = Instant.now();
+
+    @Column(name = "regression_threshold")
+    @Builder.Default
+    private int regressionThreshold = 15;
+
+    @Column(name = "notify_on_regression_only")
+    @Builder.Default
+    private boolean notifyOnRegressionOnly = true;
 }

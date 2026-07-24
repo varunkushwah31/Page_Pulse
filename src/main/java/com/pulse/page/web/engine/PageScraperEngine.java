@@ -3,6 +3,8 @@ package com.pulse.page.web.engine;
 import com.pulse.page.web.exception.AuditTimeoutException;
 import com.pulse.page.web.exception.NonHtmlContentException;
 import com.pulse.page.web.exception.TargetHostUnreachableException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -33,16 +35,18 @@ public class PageScraperEngine {
         private Document document;
     }
 
+    @CircuitBreaker(name = "scraperEngine", fallbackMethod = "fetchPageFallback")
+    @Retry(name = "scraperEngine")
     public ScrapeResult fetchPage(String targetUrl) throws IOException {
         log.info("Fetching target page for audit: {}", targetUrl);
 
         long startTime = System.currentTimeMillis();
         try {
             Connection connection = Jsoup.connect(targetUrl)
-                .timeout(TIMEOUT_MS)
-                .userAgent(USER_AGENT)
-                .followRedirects(true)
-                .ignoreHttpErrors(true);
+                    .timeout(TIMEOUT_MS)
+                    .userAgent(USER_AGENT)
+                    .followRedirects(true)
+                    .ignoreHttpErrors(true);
 
             Connection.Response response = connection.execute();
             long responseTimeMs = System.currentTimeMillis() - startTime;
@@ -51,20 +55,20 @@ public class PageScraperEngine {
             if (contentType == null || !contentType.toLowerCase().contains("text/html")) {
                 log.warn("Non-HTML response encountered for URL {}: {}", targetUrl, contentType);
                 throw new NonHtmlContentException(
-                    "Target URL content type '" + (contentType != null ? contentType : "unknown") + 
-                    "' is not text/html. Scraper execution aborted."
+                        "Target URL content type '" + (contentType != null ? contentType : "unknown") + 
+                        "' is not text/html. Scraper execution aborted."
                 );
             }
 
             Document document = response.parse();
 
             return ScrapeResult.builder()
-                .targetUrl(targetUrl)
-                .statusCode(response.statusCode())
-                .responseTimeMs(responseTimeMs)
-                .contentType(contentType)
-                .document(document)
-                .build();
+                    .targetUrl(targetUrl)
+                    .statusCode(response.statusCode())
+                    .responseTimeMs(responseTimeMs)
+                    .contentType(contentType)
+                    .document(document)
+                    .build();
 
         } catch (SocketTimeoutException e) {
             log.error("Socket timeout after 5000ms while fetching {}", targetUrl);
@@ -76,5 +80,10 @@ public class PageScraperEngine {
             log.error("Connection refused for {}", targetUrl);
             throw new TargetHostUnreachableException("Connection refused by target server: " + targetUrl, e);
         }
+    }
+
+    private ScrapeResult fetchPageFallback(String targetUrl, Exception ex) {
+        log.error("Circuit breaker triggered for URL: {} - {}", targetUrl, ex.getMessage());
+        throw new RuntimeException("Scraper circuit breaker open - service unavailable: " + targetUrl, ex);
     }
 }

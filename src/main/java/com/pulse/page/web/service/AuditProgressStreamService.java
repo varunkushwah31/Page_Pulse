@@ -21,7 +21,7 @@ public class AuditProgressStreamService {
     public SseEmitter streamAuditProgress(String rawUrl) {
         SseEmitter emitter = new SseEmitter(30000L);
 
-        try (ExecutorService executor = Executors.newSingleThreadExecutor()) {
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             executor.submit(() -> {
                 try {
                     sendStep(emitter, "INIT", 10, "Validating URL syntax & scheme...");

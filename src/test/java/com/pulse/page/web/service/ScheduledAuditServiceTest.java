@@ -32,11 +32,14 @@ class ScheduledAuditServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private WebhookNotificationService webhookNotificationService;
+
     private ScheduledAuditService scheduledAuditService;
 
     @BeforeEach
     void setUp() {
-        scheduledAuditService = new ScheduledAuditService(configRepository, processorService, eventPublisher);
+        scheduledAuditService = new ScheduledAuditService(configRepository, processorService, eventPublisher, webhookNotificationService);
     }
 
     @Test
@@ -50,7 +53,7 @@ class ScheduledAuditServiceTest {
 
         when(configRepository.save(any())).thenReturn(config);
 
-        ScheduledAuditConfigEntity saved = scheduledAuditService.registerSchedule("https://example.com", null, 30);
+        ScheduledAuditConfigEntity saved = scheduledAuditService.registerSchedule("https://example.com", null, null, 30, 15, true);
         assertNotNull(saved);
         assertEquals("https://example.com", saved.getUrl());
     }

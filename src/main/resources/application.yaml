@@ -1,3 +1,20 @@
 spring:
   application:
     name: web
+  datasource:
+    url: jdbc:h2:mem:pagepulse_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://admin:password@localhost:27017/pagepulse_db?authSource=admin}

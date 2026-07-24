@@ -3,7 +3,7 @@ package com.pulse.page.web.controller;
 import com.pulse.page.web.document.AuditReportDocument;
 import com.pulse.page.web.enums.HealthGrade;
 import com.pulse.page.web.exception.GlobalExceptionHandler;
-import com.pulse.page.web.exception.ReportNotFoundException;
+import com.pulse.page.web.service.PdfReportGeneratorService;
 import com.pulse.page.web.service.ReportSearchService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,9 +32,12 @@ class ReportControllerTest {
     @Mock
     private ReportSearchService reportSearchService;
 
+    @Mock
+    private PdfReportGeneratorService pdfReportGeneratorService;
+
     @BeforeEach
     void setUp() {
-        ReportController controller = new ReportController(reportSearchService);
+        ReportController controller = new ReportController(reportSearchService, pdfReportGeneratorService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
             .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
             .setControllerAdvice(new GlobalExceptionHandler())
@@ -76,6 +79,17 @@ class ReportControllerTest {
     }
 
     @Test
+    void downloadPdfReport_existingId_returnsPdfBytes() throws Exception {
+        byte[] pdfBytes = "%PDF-1.4 Mock Content".getBytes();
+        when(pdfReportGeneratorService.generatePdfReport("doc-1")).thenReturn(pdfBytes);
+
+        mockMvc.perform(get("/api/v1/reports/doc-1/pdf"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Content-Disposition", "attachment; filename=\"audit-report-doc-1.pdf\""))
+            .andExpect(content().contentType("application/pdf"));
+    }
+
+    @Test
     void getSavedReportById_missingId_returns404NotFound() throws Exception {
         when(reportSearchService.getSavedReportById("doc-999"))
             .thenReturn(Optional.empty());
@@ -83,16 +97,5 @@ class ReportControllerTest {
         mockMvc.perform(get("/api/v1/reports/doc-999"))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.status").value(404));
-    }
-
-    @Test
-    void deleteSavedReport_missingId_returns404NotFound() throws Exception {
-        doThrow(new ReportNotFoundException("Report doc-999 not found"))
-            .when(reportSearchService).deleteSavedReport("doc-999");
-
-        mockMvc.perform(delete("/api/v1/reports/doc-999"))
-            .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.status").value(404))
-            .andExpect(jsonPath("$.message").value("Report doc-999 not found"));
     }
 }

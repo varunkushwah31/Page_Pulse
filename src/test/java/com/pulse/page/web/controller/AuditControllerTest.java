@@ -9,6 +9,7 @@ import com.pulse.page.web.exception.InvalidUrlException;
 import com.pulse.page.web.exception.TargetHostUnreachableException;
 import com.pulse.page.web.model.AuditScoreBreakdown;
 import com.pulse.page.web.service.AuditPersistenceService;
+import com.pulse.page.web.service.AuditProgressStreamService;
 import com.pulse.page.web.service.AuditReportProcessorService;
 import com.pulse.page.web.service.UrlAuditService;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,9 +41,12 @@ class AuditControllerTest {
     @Mock
     private AuditPersistenceService persistenceService;
 
+    @Mock
+    private AuditProgressStreamService streamService;
+
     @BeforeEach
     void setUp() {
-        AuditController controller = new AuditController(urlAuditService, processorService, persistenceService);
+        AuditController controller = new AuditController(urlAuditService, processorService, persistenceService, streamService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();

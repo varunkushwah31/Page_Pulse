@@ -37,10 +37,10 @@ public class UrlAuditService {
 
         long startTime = System.currentTimeMillis();
         Connection connection = Jsoup.connect(validatedUrl)
-            .timeout(TIMEOUT_MS)
-            .userAgent(USER_AGENT)
-            .followRedirects(true)
-            .ignoreHttpErrors(true);
+                .timeout(TIMEOUT_MS)
+                .userAgent(USER_AGENT)
+                .followRedirects(true)
+                .ignoreHttpErrors(true);
 
         Connection.Response response = connection.execute();
         long responseTimeMs = System.currentTimeMillis() - startTime;
@@ -48,9 +48,8 @@ public class UrlAuditService {
         String contentType = response.contentType();
         if (contentType == null || !contentType.toLowerCase().contains("text/html")) {
             throw new IllegalArgumentException(
-                "Target URL content type '" + (contentType != null ? contentType : "unknown") + 
-                "' is not text/html. Scraper execution aborted."
-            );
+                    "Target URL content type '" + (contentType != null ? contentType : "unknown") +
+                            "' is not text/html. Scraper execution aborted.");
         }
 
         Document doc = response.parse();
@@ -62,17 +61,17 @@ public class UrlAuditService {
         int wordCount = calculateWordCount(doc);
 
         AuditReportEntity entity = AuditReportEntity.builder()
-            .url(validatedUrl)
-            .domain(domain)
-            .httpStatus(response.statusCode())
-            .responseTimeMs(responseTimeMs)
-            .pageTitle(pageTitle)
-            .metaDescription(metaDescription)
-            .h1Count(h1Count)
-            .imagesMissingAltCount(imagesMissingAlt)
-            .wordCount(wordCount)
-            .contentType(contentType)
-            .build();
+                .url(validatedUrl)
+                .domain(domain)
+                .httpStatus(response.statusCode())
+                .responseTimeMs(responseTimeMs)
+                .pageTitle(pageTitle)
+                .metaDescription(metaDescription)
+                .h1Count(h1Count)
+                .imagesMissingAltCount(imagesMissingAlt)
+                .wordCount(wordCount)
+                .contentType(contentType)
+                .build();
 
         return jpaRepository.save(entity);
     }
@@ -80,27 +79,28 @@ public class UrlAuditService {
     @Transactional
     public AuditReportDocument saveAuditReportToMongo(Long tempId) {
         AuditReportEntity transientEntity = jpaRepository.findById(tempId)
-            .orElseThrow(() -> new NoSuchElementException("Temporary H2 audit report record with ID " + tempId + " not found."));
+                .orElseThrow(() -> new NoSuchElementException(
+                        "Temporary H2 audit report record with ID " + tempId + " not found."));
 
         AuditReportDocument document = AuditReportDocument.builder()
-            .originalTempId(transientEntity.getId())
-            .url(transientEntity.getUrl())
-            .domain(transientEntity.getDomain())
-            .httpStatus(transientEntity.getHttpStatus())
-            .responseTimeMs(transientEntity.getResponseTimeMs())
-            .pageTitle(transientEntity.getPageTitle())
-            .metaDescription(transientEntity.getMetaDescription())
-            .h1Count(transientEntity.getH1Count())
-            .imagesMissingAltCount(transientEntity.getImagesMissingAltCount())
-            .wordCount(transientEntity.getWordCount())
-            .contentType(transientEntity.getContentType())
-            .seoScore(transientEntity.getSeoScore())
-            .contentScore(transientEntity.getContentScore())
-            .accessibilityScore(transientEntity.getAccessibilityScore())
-            .performanceScore(transientEntity.getPerformanceScore())
-            .overallScore(transientEntity.getOverallScore())
-            .healthGrade(transientEntity.getHealthGrade())
-            .build();
+                .originalTempId(transientEntity.getId())
+                .url(transientEntity.getUrl())
+                .domain(transientEntity.getDomain())
+                .httpStatus(transientEntity.getHttpStatus())
+                .responseTimeMs(transientEntity.getResponseTimeMs())
+                .pageTitle(transientEntity.getPageTitle())
+                .metaDescription(transientEntity.getMetaDescription())
+                .h1Count(transientEntity.getH1Count())
+                .imagesMissingAltCount(transientEntity.getImagesMissingAltCount())
+                .wordCount(transientEntity.getWordCount())
+                .contentType(transientEntity.getContentType())
+                .seoScore(transientEntity.getSeoScore())
+                .contentScore(transientEntity.getContentScore())
+                .accessibilityScore(transientEntity.getAccessibilityScore())
+                .performanceScore(transientEntity.getPerformanceScore())
+                .overallScore(transientEntity.getOverallScore())
+                .healthGrade(transientEntity.getHealthGrade())
+                .build();
 
         AuditReportDocument savedDocument = mongoRepository.save(document);
         jpaRepository.deleteById(tempId);
@@ -117,7 +117,8 @@ public class UrlAuditService {
             int schemeEnd = trimmed.indexOf("://");
             String scheme = trimmed.substring(0, schemeEnd).toLowerCase();
             if (!scheme.equals("http") && !scheme.equals("https")) {
-                throw new IllegalArgumentException("Invalid URL scheme '" + scheme + "'. Only HTTP and HTTPS are supported.");
+                throw new IllegalArgumentException(
+                        "Invalid URL scheme '" + scheme + "'. Only HTTP and HTTPS are supported.");
             }
         } else {
             trimmed = "https://" + trimmed;
@@ -162,7 +163,8 @@ public class UrlAuditService {
         Element meta = doc.selectFirst("meta[name=description], meta[name=Description], meta[property=og:description]");
         if (meta == null) {
             for (Element el : doc.select("meta")) {
-                if ("description".equalsIgnoreCase(el.attr("name")) || "og:description".equalsIgnoreCase(el.attr("property"))) {
+                if ("description".equalsIgnoreCase(el.attr("name"))
+                        || "og:description".equalsIgnoreCase(el.attr("property"))) {
                     meta = el;
                     break;
                 }
@@ -178,7 +180,7 @@ public class UrlAuditService {
         Document cleanDoc = doc.clone();
         cleanDoc.select("script, style, noscript, svg").remove();
         Element bodyEl = cleanDoc.body();
-        String text = bodyEl != null ? bodyEl.text() : cleanDoc.text();
+        String text = bodyEl.text();
         if (text.isBlank()) {
             return 0;
         }

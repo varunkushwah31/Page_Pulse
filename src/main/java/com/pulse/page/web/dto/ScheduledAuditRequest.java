@@ -23,7 +23,9 @@ public class ScheduledAuditRequest {
     @NotNull(message = "Frequency in minutes is required")
     private Integer frequencyMinutes;
 
-    private Integer regressionThreshold;
+    @Builder.Default
+    private Integer regressionThreshold = 15;
 
-    private Boolean notifyOnRegressionOnly;
+    @Builder.Default
+    private Boolean notifyOnRegressionOnly = true;
 }

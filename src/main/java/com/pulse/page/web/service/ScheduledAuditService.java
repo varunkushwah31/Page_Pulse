@@ -53,14 +53,13 @@ public class ScheduledAuditService {
     }
 
     @Transactional
-    public Optional<ScheduledAuditConfigEntity> updateSchedule(Long id, String webhookUrl, String email, int frequencyMinutes, int regressionThreshold, boolean notifyOnRegressionOnly, boolean active) {
+    public Optional<ScheduledAuditConfigEntity> updateSchedule(Long id, String webhookUrl, String email, int frequencyMinutes, int regressionThreshold, boolean notifyOnRegressionOnly) {
         return configRepository.findById(id).map(config -> {
             if (webhookUrl != null) config.setWebhookUrl(webhookUrl);
             if (email != null) config.setEmail(email);
             if (frequencyMinutes > 0) config.setFrequencyMinutes(frequencyMinutes);
             if (regressionThreshold > 0) config.setRegressionThreshold(regressionThreshold);
             config.setNotifyOnRegressionOnly(notifyOnRegressionOnly);
-            config.setActive(active);
             config.setUpdatedAt(Instant.now());
             return configRepository.save(config);
         });

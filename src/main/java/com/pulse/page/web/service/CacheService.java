@@ -19,7 +19,6 @@ import java.util.Optional;
 public class CacheService {
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final MeterRegistry meterRegistry;
     private final Counter cacheHitCounter;
     private final Counter cacheMissCounter;
     private final Counter rateLimitCounter;
@@ -27,10 +26,10 @@ public class CacheService {
     public static final Duration DEFAULT_TTL = Duration.ofHours(1);
     public static final Duration RATE_LIMIT_TTL = Duration.ofMinutes(1);
     public static final int RATE_LIMIT_MAX_REQUESTS = 60;
+    private static final String SESSION_KEY_PREFIX = "session:";
 
     public CacheService(@Autowired(required = false) RedisTemplate<String, Object> redisTemplate, MeterRegistry meterRegistry) {
         this.redisTemplate = redisTemplate;
-        this.meterRegistry = meterRegistry;
         this.cacheHitCounter = Counter.builder("pagepulse.cache.hit").register(meterRegistry);
         this.cacheMissCounter = Counter.builder("pagepulse.cache.miss").register(meterRegistry);
         this.rateLimitCounter = Counter.builder("pagepulse.ratelimit.exceeded").register(meterRegistry);
@@ -101,7 +100,7 @@ public class CacheService {
     public void storeSession(@NonNull String sessionId, @NonNull Object sessionData, @NonNull Duration ttl) {
         if (redisTemplate == null) return;
         try {
-            String key = "session:" + sessionId;
+            String key = SESSION_KEY_PREFIX + sessionId;
             redisTemplate.opsForValue().set(key, sessionData, ttl);
         } catch (Exception e) {
             log.debug("Session store failed: {}", e.getMessage());
@@ -112,7 +111,7 @@ public class CacheService {
     public Object getSession(@NonNull String sessionId) {
         if (redisTemplate == null) return null;
         try {
-            String key = "session:" + sessionId;
+            String key = SESSION_KEY_PREFIX + sessionId;
             return redisTemplate.opsForValue().get(key);
         } catch (Exception e) {
             log.debug("Session get failed: {}", e.getMessage());
@@ -123,7 +122,7 @@ public class CacheService {
     public void deleteSession(@NonNull String sessionId) {
         if (redisTemplate == null) return;
         try {
-            redisTemplate.delete("session:" + sessionId);
+            redisTemplate.delete(SESSION_KEY_PREFIX + sessionId);
         } catch (Exception e) {
             log.debug("Session delete failed: {}", e.getMessage());
         }

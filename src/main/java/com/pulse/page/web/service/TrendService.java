@@ -12,10 +12,8 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -56,7 +54,7 @@ public class TrendService {
                 .map(report -> extractMetricValue(report, metric))
                 .filter(dp -> dp.getValue() != null)
                 .sorted(Comparator.comparing(TrendResponse.DataPoint::getTimestamp))
-                .collect(Collectors.toList());
+                .toList();
 
         TrendResponse.Summary summary = computeSummary(dataPoints);
 
@@ -96,7 +94,7 @@ public class TrendService {
                             .map(report -> extractMetricValue(report, metric))
                             .filter(dp -> dp.getValue() != null)
                             .sorted(Comparator.comparing(TrendResponse.DataPoint::getTimestamp))
-                            .collect(Collectors.toList());
+                            .toList();
 
                     TrendResponse.Summary summary = computeSummary(dataPoints);
 
@@ -110,7 +108,7 @@ public class TrendService {
                             .summary(summary)
                             .build();
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private TrendResponse.DataPoint extractMetricValue(AuditReportDocument report, String metric) {
@@ -143,7 +141,7 @@ public class TrendService {
 
         List<Double> values = dataPoints.stream()
                 .map(TrendResponse.DataPoint::getValue)
-                .collect(Collectors.toList());
+                .toList();
 
         Double min = values.stream().min(Double::compare).orElse(0.0);
         Double max = values.stream().max(Double::compare).orElse(0.0);

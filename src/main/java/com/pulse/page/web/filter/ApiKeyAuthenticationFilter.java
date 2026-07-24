@@ -24,8 +24,6 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getServletPath();
-
         // Skip for paths that don't require API key auth
         if (shouldNotFilter(request)) {
             filterChain.doFilter(request, response);

@@ -24,8 +24,8 @@ public class ScheduledAuditController {
                 request.getWebhookUrl(),
                 request.getEmail(),
                 request.getFrequencyMinutes(),
-                request.getRegressionThreshold() != null ? request.getRegressionThreshold() : 15,
-                request.getNotifyOnRegressionOnly() != null ? request.getNotifyOnRegressionOnly() : true
+                request.getRegressionThreshold(),
+                request.getNotifyOnRegressionOnly()
         );
         return ResponseEntity.ok(config);
     }
@@ -51,9 +51,8 @@ public class ScheduledAuditController {
                 request.getWebhookUrl(),
                 request.getEmail(),
                 request.getFrequencyMinutes(),
-                request.getRegressionThreshold() != null ? request.getRegressionThreshold() : 15,
-                request.getNotifyOnRegressionOnly() != null ? request.getNotifyOnRegressionOnly() : true,
-                true
+                request.getRegressionThreshold(),
+                request.getNotifyOnRegressionOnly()
         ).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
 

@@ -2,7 +2,6 @@ package com.pulse.page.web.service;
 
 import com.pulse.page.web.dto.ApiKeyResponse;
 import com.pulse.page.web.entity.ApiKeyEntity;
-import com.pulse.page.web.exception.ApiKeyNotFoundException;
 import com.pulse.page.web.repository.ApiKeyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,9 +1,6 @@
 package com.pulse.page.web.service;
 
-import com.pulse.page.web.dto.AuditResponse;
-import com.pulse.page.web.dto.SitemapAuditResponse;
 import com.pulse.page.web.engine.UrlValidationEngine;
-import com.pulse.page.web.model.AuditScoreBreakdown;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

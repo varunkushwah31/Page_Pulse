@@ -1,38 +1,42 @@
-# Multi-stage Dockerfile for PagePulse Web Monolith Application
+# Build stage
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
-# Stage 1: Build stage
-FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /app
 
-# Copy Maven wrapper and POM dependencies
-COPY .mvn/ .mvn
-COPY mvnw pom.xml ./
-RUN ./mvnw dependency:go-offline -B || true
+# Copy pom.xml first to cache dependencies
+COPY pom.xml .
 
-# Copy source code and build production artifact
+# Download dependencies (cached layer)
+RUN mvn dependency:go-offline -B
+
+# Copy source and build
 COPY src ./src
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests -B
 
-# Stage 2: Production runtime stage
-FROM eclipse-temurin:21-jre-alpine AS runner
+# Runtime stage
+FROM eclipse-temurin:21-jre-alpine
+
 WORKDIR /app
 
-# Create non-root system user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Create non-root user
+RUN addgroup -g 1000 -S appgroup && \
+    adduser -u 1000 -S appuser -G appgroup
+
+# Copy built jar from builder stage
+COPY --from=builder /app/target/*.jar app.jar
+
+# Change ownership to non-root user
+RUN chown -R appuser:appgroup /app
+
 USER appuser
 
-# Copy executable jar from builder stage
-COPY --from=builder /app/target/web-*.jar app.jar
-
-# Expose HTTP port
 EXPOSE 8080
 
-# Configure container healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-# Environment defaults
-ENV SPRING_PROFILES_ACTIVE=prod \
-    JAVA_OPTS="-Xms256m -Xmx512m"
-
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["java", "--enable-preview", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

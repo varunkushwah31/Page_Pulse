@@ -17,11 +17,10 @@ spring:
     show-sql: false
   data:
     mongodb:
-      uri: ${MONGO_URI:mongodb://admin:password@localhost:27017/pagepulse_db?authSource=admin}
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://admin:password@mongodb:27017/pagepulse_db?authSource=admin}
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST:mongodb}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
       timeout: 2000ms
       lettuce:
         pool:
@@ -37,6 +36,8 @@ management:
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
   metrics:
     tags:
       application: ${spring.application.name}
@@ -52,6 +53,7 @@ otel:
     attributes:
       service.name: ${spring.application.name}
       service.version: 1.0.0
+      deployment.environment: docker
 
 resilience4j:
   circuitbreaker:

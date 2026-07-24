@@ -1,5 +1,6 @@
 package com.pulse.page.web.security;
 
+import com.pulse.page.web.filter.ApiKeyAuthenticationFilter;
 import com.pulse.page.web.filter.CorrelationIdFilter;
 import com.pulse.page.web.filter.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class SecurityConfig {
     private final UserDetailsServiceImpl userDetailsService;
     private final CorrelationIdFilter correlationIdFilter;
     private final RateLimitFilter rateLimitFilter;
+    private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) {
@@ -60,6 +62,7 @@ public class SecurityConfig {
                 )
                 .addFilterBefore(correlationIdFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(rateLimitFilter, CorrelationIdFilter.class)
+                .addFilterBefore(apiKeyAuthenticationFilter, RateLimitFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

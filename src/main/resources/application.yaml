@@ -18,3 +18,9 @@ spring:
   data:
     mongodb:
       uri: ${MONGO_URI:mongodb://admin:password@localhost:27017/pagepulse_db?authSource=admin}
+
+app:
+  jwt:
+    secret: "YnV0dG9ucyBtYWtlIGV2ZXJ5dGhpbmcgc2VjdXJlIGJ5IGV4Y2hhbmdlIG9mIGRhdGEgaW4gdGhlIGFwcGxpY2F0aW9u"
+    expiration-ms: 86400000
+    refresh-expiration-ms: 604800000

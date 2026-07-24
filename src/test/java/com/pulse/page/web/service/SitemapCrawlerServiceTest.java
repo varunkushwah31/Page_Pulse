@@ -7,8 +7,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.IOException;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -30,7 +28,7 @@ class SitemapCrawlerServiceTest {
     }
 
     @Test
-    void auditSitemap_invalidUrl_throwsIllegalArgumentException() throws IOException {
+    void auditSitemap_invalidUrl_throwsIllegalArgumentException() {
         when(urlValidationEngine.validateAndNormalize(anyString()))
             .thenThrow(new IllegalArgumentException("Invalid sitemap URL"));
 

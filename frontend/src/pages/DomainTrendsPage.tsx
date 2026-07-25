@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TrendConsole } from '../components/TrendConsole';
 
@@ -8,7 +8,7 @@ export const DomainTrendsPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-sm font-mono text-[#8B93A1]">
+      <h2 className="text-sm font-mono text-muted-foreground">
         Historical Domain Performance & SEO Score Trends {domainParam && `(${domainParam})`}
       </h2>
       <TrendConsole />

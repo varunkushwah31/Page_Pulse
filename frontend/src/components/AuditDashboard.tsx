@@ -35,7 +35,8 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({ audit }) => {
     try {
       const doc = await saveReportToMongo(audit.id);
       setSavedId(doc.id);
-    } catch (_) {
+    } catch (err) {
+      console.error('Failed to save report to MongoDB:', err);
     } finally {
       setSaving(false);
     }
@@ -243,7 +244,7 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({ audit }) => {
   );
 };
 
-function SubScoreCard({ title, score, icon: Icon, color }: { title: string; score: number; icon: any; color: string }) {
+function SubScoreCard({ title, score, icon: Icon, color }: Readonly<{ title: string; score: number; icon: any; color: string }>) {
   return (
     <Card className="border-slate-800 bg-slate-900/70 p-4 hover:border-slate-700 transition-all">
       <div className="flex items-center justify-between">
@@ -259,7 +260,7 @@ function SubScoreCard({ title, score, icon: Icon, color }: { title: string; scor
   );
 }
 
-function MetricCard({ label, value, status }: { label: string; value: string; status?: boolean }) {
+function MetricCard({ label, value, status }: Readonly<{ label: string; value: string; status?: boolean }>) {
   return (
     <Card className="border-slate-800 bg-slate-900/70 p-4 hover:border-slate-700 transition-all">
       <div className="flex items-start justify-between gap-3">
@@ -275,7 +276,7 @@ function MetricCard({ label, value, status }: { label: string; value: string; st
   );
 }
 
-function StatBox({ label, value, unit, isWarning }: { label: string; value: any; unit: string; isWarning?: boolean }) {
+function StatBox({ label, value, unit, isWarning }: Readonly<{ label: string; value: any; unit: string; isWarning?: boolean }>) {
   return (
     <Card className={`border-slate-800 bg-slate-900/70 p-4 ${isWarning ? 'border-amber-500/40 bg-amber-500/5' : ''}`}>
       <span className="text-xs font-semibold text-slate-400">{label}</span>

@@ -25,7 +25,8 @@ public class GlobalExceptionHandler {
         IllegalArgumentException.class,
         InvalidUrlException.class,
         NonHtmlContentException.class,
-        MissingServletRequestParameterException.class
+        MissingServletRequestParameterException.class,
+        org.springframework.http.converter.HttpMessageNotReadableException.class
     })
     public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex, HttpServletRequest request) {
         log.warn("Bad request exception at {}: {}", request.getRequestURI(), ex.getMessage());

@@ -2,7 +2,6 @@ package com.pulse.page.web.service;
 
 import com.pulse.page.web.document.AuditReportDocument;
 import com.pulse.page.web.dto.TrendResponse;
-import com.pulse.page.web.repository.AuditReportMongoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
@@ -14,14 +13,14 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TrendService {
 
-    private final AuditReportMongoRepository mongoRepository;
+    private static final String FIELD_SAVED_AT = "savedAt";
+
     private final MongoTemplate mongoTemplate;
 
     public TrendResponse getTrend(String domain, String metric, Integer days, Integer limit) {
@@ -33,8 +32,8 @@ public class TrendService {
 
         Query query = new Query()
                 .addCriteria(Criteria.where("domain").is(domain)
-                        .and("savedAt").gte(from).lte(to))
-                .with(Sort.by(Sort.Direction.ASC, "savedAt"))
+                        .and(FIELD_SAVED_AT).gte(from).lte(to))
+                .with(Sort.by(Sort.Direction.ASC, FIELD_SAVED_AT))
                 .limit(maxResults);
 
         List<AuditReportDocument> reports = mongoTemplate.find(query, AuditReportDocument.class);
@@ -76,8 +75,8 @@ public class TrendService {
 
         Query query = new Query()
                 .addCriteria(Criteria.where("domain").is(domain)
-                        .and("savedAt").gte(from).lte(to))
-                .with(Sort.by(Sort.Direction.ASC, "savedAt"))
+                        .and(FIELD_SAVED_AT).gte(from).lte(to))
+                .with(Sort.by(Sort.Direction.ASC, FIELD_SAVED_AT))
                 .limit(maxResults);
 
         List<AuditReportDocument> reports = mongoTemplate.find(query, AuditReportDocument.class);

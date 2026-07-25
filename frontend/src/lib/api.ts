@@ -71,3 +71,30 @@ export async function auditSitemap(sitemapUrl: string, maxUrls = 15): Promise<Si
 export function getPdfDownloadUrl(reportId: string): string {
   return `${API_BASE}/api/v1/reports/${reportId}/pdf`;
 }
+
+export async function registerUser(username: string, email: string, password: string): Promise<{ accessToken: string; refreshToken: string; user: { id: number; username: string; email: string; role: string } }> {
+  const response = await fetch(`${API_BASE}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, email, password }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Registration failed' }));
+    throw new Error(errorData.message || 'Registration failed');
+  }
+  return response.json();
+}
+
+export async function loginUser(usernameOrEmail: string, password: string): Promise<{ accessToken: string; refreshToken: string; user: { id: number; username: string; email: string; role: string } }> {
+  const response = await fetch(`${API_BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usernameOrEmail, password }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Invalid credentials' }));
+    throw new Error(errorData.message || 'Invalid credentials');
+  }
+  return response.json();
+}
+

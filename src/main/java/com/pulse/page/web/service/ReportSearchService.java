@@ -3,8 +3,8 @@ package com.pulse.page.web.service;
 import com.pulse.page.web.document.AuditReportDocument;
 import com.pulse.page.web.dto.PlatformStatsResponse;
 import com.pulse.page.web.exception.ReportNotFoundException;
-import com.pulse.page.web.repository.AuditReportJpaRepository;
-import com.pulse.page.web.repository.AuditReportMongoRepository;
+import com.pulse.page.web.repository.jpa.AuditReportJpaRepository;
+import com.pulse.page.web.repository.mongo.AuditReportMongoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

@@ -3,7 +3,7 @@ package com.pulse.page.web.service;
 import com.pulse.page.web.document.AuditReportDocument;
 import com.pulse.page.web.enums.HealthGrade;
 import com.pulse.page.web.exception.ReportNotFoundException;
-import com.pulse.page.web.repository.AuditReportMongoRepository;
+import com.pulse.page.web.repository.mongo.AuditReportMongoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

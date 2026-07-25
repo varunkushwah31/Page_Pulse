@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertOctagon, RefreshCw, ArrowLeft, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 
 interface DiagnosticErrorViewProps {
   errorTitle?: string;

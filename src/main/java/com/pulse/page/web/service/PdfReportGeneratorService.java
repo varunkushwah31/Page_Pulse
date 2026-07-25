@@ -6,7 +6,7 @@ import com.lowagie.text.pdf.*;
 import com.pulse.page.web.document.AuditReportDocument;
 import com.pulse.page.web.enums.HealthGrade;
 import com.pulse.page.web.exception.ReportNotFoundException;
-import com.pulse.page.web.repository.AuditReportMongoRepository;
+import com.pulse.page.web.repository.mongo.AuditReportMongoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

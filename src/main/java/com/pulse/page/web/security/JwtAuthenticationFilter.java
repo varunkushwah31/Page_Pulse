@@ -1,7 +1,7 @@
 package com.pulse.page.web.security;
 
 import com.pulse.page.web.entity.UserEntity;
-import com.pulse.page.web.repository.UserRepository;
+import com.pulse.page.web.repository.jpa.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -80,8 +80,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         return path.startsWith("/api/auth/")
                 || path.startsWith("/api/audit")
-                || path.startsWith("/api/v1/sitemap")
+                || path.startsWith("/api/v1/")
                 || path.startsWith("/h2-console")
-                || path.startsWith("/actuator/health");
+                || path.startsWith("/actuator/");
     }
 }

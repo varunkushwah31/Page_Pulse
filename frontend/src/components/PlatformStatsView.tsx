@@ -10,7 +10,7 @@ export const PlatformStatsView: React.FC = () => {
   useEffect(() => {
     fetchPlatformStats()
       .then(setStats)
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   return (

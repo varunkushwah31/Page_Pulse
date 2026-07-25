@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PromptBar } from '../components/PromptBar';
 import { AuditReport } from '../components/AuditReport';
@@ -14,6 +14,7 @@ export const SingleAuditPage: React.FC = () => {
   const [targetUrl, setTargetUrl] = useState(initialUrl);
   const [auditResult, setAuditResult] = useState<AuditResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasRunInitialAudit = useRef(false);
 
   const handleAuditSubmit = async (url: string) => {
     setTargetUrl(url);
@@ -24,18 +25,20 @@ export const SingleAuditPage: React.FC = () => {
     try {
       const result = await runFullAudit(url);
       setAuditResult(result);
-    } catch (err: any) {
-      setError(err.message || 'The site refused the connection or returned an error.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'The site refused the connection or returned an error.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (initialUrl && !auditResult && !loading) {
+    if (initialUrl && !auditResult && !loading && !hasRunInitialAudit.current) {
+      hasRunInitialAudit.current = true;
       handleAuditSubmit(initialUrl);
     }
-  }, [initialUrl]);
+  }, [initialUrl, auditResult, loading]);
 
   return (
     <div className="space-y-6">

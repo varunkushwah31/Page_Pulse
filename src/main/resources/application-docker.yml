@@ -17,9 +17,9 @@ spring:
     show-sql: false
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://admin:password@mongodb:27017/pagepulse_db?authSource=admin}
+      uri: mongodb://admin:password@mongodb:27017/pagepulse_db?authSource=admin
     redis:
-      host: ${REDIS_HOST:mongodb}
+      host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
       timeout: 2000ms
       lettuce:

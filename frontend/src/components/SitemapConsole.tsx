@@ -9,7 +9,7 @@ export const SitemapConsole: React.FC = () => {
   const [result, setResult] = useState<SitemapAuditResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!sitemapUrl.trim() || loading) return;
 
@@ -45,15 +45,19 @@ export const SitemapConsole: React.FC = () => {
           />
 
           <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min="1"
-              max="50"
-              value={maxUrls}
-              onChange={(e) => setMaxUrls(parseInt(e.target.value) || 10)}
-              disabled={loading}
-              className="w-16 bg-[#191D24] border border-[#333A45] rounded px-2 py-2 font-mono text-xs text-[#E7EAEE] text-center focus:outline-none"
-            />
+            <div className="flex items-center gap-1 bg-[#191D24] border border-[#333A45] rounded px-2 py-1 font-mono text-xs">
+              <span className="text-[#565D68] text-[10px] uppercase font-semibold">MAX:</span>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={maxUrls}
+                onChange={(e) => setMaxUrls(Number.parseInt(e.target.value, 10) || 10)}
+                disabled={loading}
+                className="w-10 bg-transparent text-[#E7EAEE] font-bold text-center focus:outline-none"
+              />
+            </div>
+
             <button
               type="submit"
               disabled={loading || !sitemapUrl.trim()}
@@ -71,7 +75,7 @@ export const SitemapConsole: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="text-[#4FD8C4] font-semibold">CRAWL</span>
             <span className="text-[#E7EAEE] truncate">{sitemapUrl}</span>
-            <span className="inline-block w-2 h-4 bg-[#4FD8C4] animate-pulse"></span>
+            <span className="inline-block w-2 h-4 bg-[#4FD8C4] cursor-blink"></span>
           </div>
           <p className="mt-2 text-[11px] text-[#565D68]">
             Processing sitemap index and auditing child URLs concurrently with Java Virtual Threads...
@@ -100,7 +104,7 @@ export const SitemapConsole: React.FC = () => {
 
           <div className="divide-y divide-[#262B33]">
             {result.childAudits?.map((child, idx) => (
-              <div key={idx} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 font-mono text-xs">
+              <div key={(child as any).id ?? `${child.url}-${idx}`} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 font-mono text-xs">
                 <span className="text-[#E7EAEE] break-all max-w-sm">{child.url}</span>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-[#8B93A1]">{child.responseTimeMs} ms</span>

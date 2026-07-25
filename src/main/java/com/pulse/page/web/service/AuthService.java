@@ -5,7 +5,7 @@ import com.pulse.page.web.dto.LoginRequest;
 import com.pulse.page.web.dto.RegisterRequest;
 import com.pulse.page.web.entity.UserEntity;
 import com.pulse.page.web.exception.AuthenticationException;
-import com.pulse.page.web.repository.UserRepository;
+import com.pulse.page.web.repository.jpa.UserRepository;
 import com.pulse.page.web.security.JwtUtil;
 import com.pulse.page.web.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -70,7 +70,7 @@ public class AuthService {
             userRepository.save(user);
 
             return generateAuthResponse(user);
-        } catch (BadCredentialsException e) {
+        } catch (BadCredentialsException ex) {
             throw new AuthenticationException("Invalid username/email or password");
         }
     }

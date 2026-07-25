@@ -237,17 +237,18 @@
 					</excludes>
 				</configuration>
 			</plugin>
-			<plugin>
+<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<executions>
-<execution>
+				<execution>
 					<id>default-compile</id>
 					<phase>compile</phase>
 					<goals>
 						<goal>compile</goal>
 					</goals>
 					<configuration>
+						<release>25</release>
 						<compilerArgs>
 							<arg>--enable-preview</arg>
 						</compilerArgs>
@@ -270,6 +271,7 @@
 						<goal>testCompile</goal>
 					</goals>
 					<configuration>
+						<release>25</release>
 						<compilerArgs>
 							<arg>--enable-preview</arg>
 						</compilerArgs>

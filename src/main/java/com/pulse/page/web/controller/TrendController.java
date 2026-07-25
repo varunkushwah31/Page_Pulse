@@ -17,7 +17,7 @@ public class TrendController {
 
     @GetMapping("/{domain}/trends")
     public ResponseEntity<TrendResponse> getTrend(
-            @PathVariable String domain,
+            @PathVariable("domain") String domain,
             @RequestParam(required = false, defaultValue = "overallScore") String metric,
             @RequestParam(required = false, defaultValue = "30") Integer days,
             @RequestParam(required = false, defaultValue = "100") Integer limit) {
@@ -28,7 +28,7 @@ public class TrendController {
 
     @GetMapping("/{domain}/trends/all")
     public ResponseEntity<List<TrendResponse>> getAllTrends(
-            @PathVariable String domain,
+            @PathVariable("domain") String domain,
             @RequestParam(required = false, defaultValue = "30") Integer days,
             @RequestParam(required = false, defaultValue = "100") Integer limit) {
 

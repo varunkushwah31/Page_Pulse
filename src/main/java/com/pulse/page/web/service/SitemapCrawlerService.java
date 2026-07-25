@@ -36,24 +36,42 @@ public class SitemapCrawlerService {
             .parser(Parser.xmlParser())
             .get();
 
-        Elements locs = xmlDoc.select("loc");
-        List<String> targetUrls = new ArrayList<>();
-        int limit = Math.min(maxUrls > 0 ? maxUrls : 15, locs.size());
-
-        for (int i = 0; i < limit; i++) {
-            Element loc = locs.get(i);
-            String url = loc.text().trim();
-            if (!url.isBlank()) {
-                targetUrls.add(url);
-            }
-        }
-
+        List<String> targetUrls = extractTargetUrls(xmlDoc, maxUrls);
         if (targetUrls.isEmpty()) {
             throw new IllegalArgumentException("No valid URL locations found in sitemap: " + sitemapUrl);
         }
 
         log.info("Auditing {} URLs concurrently using Java Virtual Threads", targetUrls.size());
+        List<AuditResponse> childAudits = executeConcurrentAudits(targetUrls);
 
+        double avgScore = childAudits.stream()
+            .mapToInt(a -> a.getScores() != null ? a.getScores().getOverallScore() : 0)
+            .average()
+            .orElse(0.0);
+
+        return SitemapAuditResponse.builder()
+            .sitemapUrl(sitemapUrl)
+            .totalUrlsAudited(childAudits.size())
+            .averageOverallScore(Math.round(avgScore * 100.0) / 100.0)
+            .childAudits(childAudits)
+            .build();
+    }
+
+    private List<String> extractTargetUrls(Document xmlDoc, int maxUrls) {
+        Elements locs = xmlDoc.select("loc");
+        List<String> targetUrls = new ArrayList<>();
+        int limit = Math.min(maxUrls > 0 ? maxUrls : 15, locs.size());
+
+        for (int i = 0; i < limit; i++) {
+            String url = locs.get(i).text().trim();
+            if (!url.isBlank()) {
+                targetUrls.add(url);
+            }
+        }
+        return targetUrls;
+    }
+
+    private List<AuditResponse> executeConcurrentAudits(List<String> targetUrls) {
         List<AuditResponse> childAudits = Collections.synchronizedList(new ArrayList<>());
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -69,30 +87,23 @@ public class SitemapCrawlerService {
                 .toList();
 
             for (Future<AuditResponse> future : futures) {
-                try {
-                    AuditResponse res = future.get(10, TimeUnit.SECONDS);
-                    if (res != null) {
-                        childAudits.add(res);
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.warn("Interrupted waiting for virtual thread audit result: {}", e.getMessage());
-                } catch (Exception e) {
-                    log.warn("Error waiting for virtual thread audit result: {}", e.getMessage());
-                }
+                collectFutureResult(future, childAudits);
             }
         }
+        return childAudits;
+    }
 
-        double avgScore = childAudits.stream()
-            .mapToInt(a -> a.getScores() != null ? a.getScores().getOverallScore() : 0)
-            .average()
-            .orElse(0.0);
-
-        return SitemapAuditResponse.builder()
-            .sitemapUrl(sitemapUrl)
-            .totalUrlsAudited(childAudits.size())
-            .averageOverallScore(Math.round(avgScore * 100.0) / 100.0)
-            .childAudits(childAudits)
-            .build();
+    private void collectFutureResult(Future<AuditResponse> future, List<AuditResponse> childAudits) {
+        try {
+            AuditResponse res = future.get(10, TimeUnit.SECONDS);
+            if (res != null) {
+                childAudits.add(res);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted waiting for virtual thread audit result: {}", e.getMessage());
+        } catch (Exception e) {
+            log.warn("Error waiting for virtual thread audit result: {}", e.getMessage());
+        }
     }
 }

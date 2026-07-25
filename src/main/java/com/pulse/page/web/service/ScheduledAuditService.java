@@ -3,7 +3,7 @@ package com.pulse.page.web.service;
 import com.pulse.page.web.dto.AuditResponse;
 import com.pulse.page.web.entity.ScheduledAuditConfigEntity;
 import com.pulse.page.web.event.ScoreRegressionEvent;
-import com.pulse.page.web.repository.ScheduledAuditConfigRepository;
+import com.pulse.page.web.repository.jpa.ScheduledAuditConfigRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -104,30 +104,9 @@ public class ScheduledAuditService {
             int currentScore = response.getScores() != null ? response.getScores().getOverallScore() : 0;
 
             if (config.getPreviousOverallScore() != null) {
-                int previousScore = config.getPreviousOverallScore();
-                int scoreDrop = previousScore - currentScore;
-                if (scoreDrop >= config.getRegressionThreshold()) {
-                    log.warn("Score regression detected for {}: previous={}, current={}, drop={} (threshold: {})",
-                            config.getUrl(), previousScore, currentScore, scoreDrop, config.getRegressionThreshold());
-
-                    eventPublisher.publishEvent(new ScoreRegressionEvent(
-                            this, config.getUrl(), previousScore, currentScore, scoreDrop, config.getWebhookUrl()
-                    ));
-
-                    if (config.getWebhookUrl() != null && !config.getWebhookUrl().isBlank()) {
-                        webhookNotificationService.sendRegressionAlert(
-                                config.getWebhookUrl(), config.getUrl(), previousScore, currentScore, scoreDrop, correlationId
-                        );
-                    }
-                } else if (!config.isNotifyOnRegressionOnly() && config.getWebhookUrl() != null) {
-                    webhookNotificationService.sendAuditCompletion(
-                            config.getWebhookUrl(), config.getUrl(), currentScore, "STABLE", correlationId
-                    );
-                }
-            } else if (config.getWebhookUrl() != null && !config.getWebhookUrl().isBlank()) {
-                webhookNotificationService.sendAuditCompletion(
-                        config.getWebhookUrl(), config.getUrl(), currentScore, "BASELINE", correlationId
-                );
+                processScoreComparison(config, currentScore, correlationId);
+            } else {
+                notifyBaselineCompletion(config, currentScore, correlationId);
             }
 
             config.setPreviousOverallScore(currentScore);
@@ -139,9 +118,40 @@ public class ScheduledAuditService {
             log.error("Scheduled audit failed for URL {}: {}", config.getUrl(), e.getMessage());
             if (config.getWebhookUrl() != null && !config.getWebhookUrl().isBlank()) {
                 webhookNotificationService.sendAuditCompletion(
-                        config.getWebhookUrl(), config.getUrl(), 0, "FAILED: " + e.getMessage(), correlationId
+                        config.getWebhookUrl(), config.getUrl(), 0, "FAILED", correlationId
                 );
             }
+        }
+    }
+
+    private void processScoreComparison(ScheduledAuditConfigEntity config, int currentScore, String correlationId) {
+        int previousScore = config.getPreviousOverallScore();
+        int scoreDrop = previousScore - currentScore;
+        if (scoreDrop >= config.getRegressionThreshold()) {
+            log.warn("Score regression detected for {}: previous={}, current={}, drop={} (threshold: {})",
+                    config.getUrl(), previousScore, currentScore, scoreDrop, config.getRegressionThreshold());
+
+            eventPublisher.publishEvent(new ScoreRegressionEvent(
+                    this, config.getUrl(), previousScore, currentScore, scoreDrop, config.getWebhookUrl()
+            ));
+
+            if (config.getWebhookUrl() != null && !config.getWebhookUrl().isBlank()) {
+                webhookNotificationService.sendRegressionAlert(
+                        config.getWebhookUrl(), config.getUrl(), previousScore, currentScore, scoreDrop, correlationId
+                );
+            }
+        } else if (!config.isNotifyOnRegressionOnly() && config.getWebhookUrl() != null) {
+            webhookNotificationService.sendAuditCompletion(
+                    config.getWebhookUrl(), config.getUrl(), currentScore, "STABLE", correlationId
+            );
+        }
+    }
+
+    private void notifyBaselineCompletion(ScheduledAuditConfigEntity config, int currentScore, String correlationId) {
+        if (config.getWebhookUrl() != null && !config.getWebhookUrl().isBlank()) {
+            webhookNotificationService.sendAuditCompletion(
+                    config.getWebhookUrl(), config.getUrl(), currentScore, "BASELINE", correlationId
+            );
         }
     }
 }

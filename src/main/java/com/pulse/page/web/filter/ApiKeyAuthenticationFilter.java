@@ -1,10 +1,13 @@
 package com.pulse.page.web.filter;
 
+import com.pulse.page.web.service.ApiKeyService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -18,17 +21,29 @@ import java.io.IOException;
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String API_KEY_HEADER = "X-API-Key";
-    public static final String API_KEY_PREFIX = "pp_";
+    private static final String API_KEY_PREFIX = "ppk_";
+    private final ApiKeyService apiKeyService;
+
+    public ApiKeyAuthenticationFilter(@Lazy ApiKeyService apiKeyService) {
+        this.apiKeyService = apiKeyService;
+    }
+
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        return path.startsWith("/api/auth/")
+                || path.startsWith("/api/audit")
+                || path.startsWith("/api/v1/")
+                || path.startsWith("/actuator/")
+                || path.startsWith("/h2-console")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs");
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-
-        // Skip for paths that don't require API key auth
-        if (shouldNotFilter(request)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
 
         String apiKey = request.getHeader(API_KEY_HEADER);
 
@@ -38,38 +53,34 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         }
 
         // Validate API key format
-        if (apiKey.length() < 35) { // pp_ + 32 chars
+        if (apiKey.length() < 35) { // ppk_ + 32 chars
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             response.getWriter().write("""
                 {
                     "status": 401,
                     "error": "Unauthorized",
-                    "message": "Invalid API key format"
+                    "message": "Invalid credentials"
                 }
                 """);
             return;
         }
 
-        // In a real implementation, you would validate against a database
-        // For now, we just check format and let it pass through
-        // You would inject a service to validate the key
+        // Validate API key against database
+        if (!apiKeyService.isValidApiKey(apiKey)) {
+            log.warn("Invalid API key attempt: {}***", apiKey.substring(0, Math.min(10, apiKey.length())));
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+                {
+                    "status": 401,
+                    "error": "Unauthorized",
+                    "message": "Invalid credentials"
+                }
+                """);
+            return;
+        }
 
         filterChain.doFilter(request, response);
-    }
-
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getServletPath();
-        return path.startsWith("/api/auth/")
-                || path.startsWith("/api/audit")
-                || path.startsWith("/api/v1/sitemap")
-                || path.startsWith("/api/v1/competitor-comparison")
-                || path.startsWith("/api/v1/scheduled-audits")
-                || path.startsWith("/api/audit/batch")
-                || path.startsWith("/actuator/")
-                || path.startsWith("/h2-console")
-                || path.startsWith("/swagger-ui")
-                || path.startsWith("/v3/api-docs");
     }
 }

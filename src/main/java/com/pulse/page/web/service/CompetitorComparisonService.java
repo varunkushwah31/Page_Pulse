@@ -12,12 +12,14 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CompetitorComparisonService {
+
+    private static final String STATUS_SUCCESS = "SUCCESS";
+    private static final String STATUS_FAILED = "FAILED";
 
     private final AuditReportProcessorService processorService;
     private final CacheService cacheService;
@@ -33,68 +35,73 @@ public class CompetitorComparisonService {
                 request.getUrls().size(), correlationId);
 
         List<CompetitorComparisonResponse.CompetitorResult> results = request.getUrls().stream()
-                .map(url -> {
-                    try {
-                        Optional<AuditResponse> cached = cacheService.getCachedAudit(url);
-                        AuditResponse response = cached.orElseGet(() -> {
-                            try {
-                                return processorService.processAudit(url);
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        });
+                .map(this::processSingleUrl)
+                .toList();
 
-                        CompetitorComparisonResponse.CompetitorResult result = CompetitorComparisonResponse.CompetitorResult.builder()
-                                .url(url)
-                                .overallScore(response.getScores() != null ? response.getScores().getOverallScore() : 0)
-                                .seoScore(response.getScores() != null ? response.getScores().getSeoScore() : 0)
-                                .contentScore(response.getScores() != null ? response.getScores().getContentScore() : 0)
-                                .accessibilityScore(response.getScores() != null ? response.getScores().getAccessibilityScore() : 0)
-                                .performanceScore(response.getScores() != null ? response.getScores().getPerformanceScore() : 0)
-                                .healthGrade(response.getScores() != null ? response.getScores().getHealthGrade().name() : "UNKNOWN")
-                                .responseTimeMs(response.getResponseTimeMs())
-                                .wordCount(response.getContentMetrics() != null ? response.getContentMetrics().getWordCount() : 0)
-                                .h1Count(response.getContentMetrics() != null ? response.getContentMetrics().getHeadingCounts() != null ? response.getContentMetrics().getHeadingCounts().getOrDefault("h1", 0) : 0 : 0)
-                                .imagesMissingAlt(response.getAccessibilityMetrics() != null ? response.getAccessibilityMetrics().getImagesMissingAltCount() : 0)
-                                .status("SUCCESS")
-                                .cached(cached.isPresent())
-                                .build();
-
-                        return result;
-
-                    } catch (Exception e) {
-                        log.warn("Competitor audit failed for {}: {}", url, e.getMessage());
-                        return CompetitorComparisonResponse.CompetitorResult.builder()
-                                .url(url)
-                                .status("FAILED")
-                                .error(e.getMessage())
-                                .build();
-                    }
-                })
-                .collect(Collectors.toList());
-
-        // Calculate rankings
         List<CompetitorComparisonResponse.CompetitorResult> successful = results.stream()
-                .filter(r -> "SUCCESS".equals(r.getStatus()))
+                .filter(r -> STATUS_SUCCESS.equals(r.getStatus()))
                 .sorted(Comparator.comparingInt(CompetitorComparisonResponse.CompetitorResult::getOverallScore).reversed())
-                .collect(Collectors.toList());
+                .toList();
 
-        // Assign ranks
         for (int i = 0; i < successful.size(); i++) {
             successful.get(i).setRank(i + 1);
         }
 
-        // Generate summary
         CompetitorComparisonResponse.Summary summary = generateSummary(successful);
 
         return CompetitorComparisonResponse.builder()
                 .correlationId(correlationId)
                 .totalCompetitors(request.getUrls().size())
-                .successfulAudits((int) results.stream().filter(r -> "SUCCESS".equals(r.getStatus())).count())
-                .failedAudits((int) results.stream().filter(r -> "FAILED".equals(r.getStatus())).count())
+                .successfulAudits((int) results.stream().filter(r -> STATUS_SUCCESS.equals(r.getStatus())).count())
+                .failedAudits((int) results.stream().filter(r -> STATUS_FAILED.equals(r.getStatus())).count())
                 .results(results)
                 .summary(summary)
                 .generatedAt(java.time.Instant.now())
+                .build();
+    }
+
+    private CompetitorComparisonResponse.CompetitorResult processSingleUrl(String url) {
+        try {
+            Optional<AuditResponse> cached = cacheService.getCachedAudit(url);
+            AuditResponse response = cached.orElseGet(() -> {
+                try {
+                    return processorService.processAudit(url);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+
+            return buildSuccessResult(url, response, cached.isPresent());
+        } catch (Exception ex) {
+            log.warn("Competitor audit failed for {}: {}", url, ex.getMessage());
+            return CompetitorComparisonResponse.CompetitorResult.builder()
+                    .url(url)
+                    .status(STATUS_FAILED)
+                    .error(ex.getMessage())
+                    .build();
+        }
+    }
+
+    private CompetitorComparisonResponse.CompetitorResult buildSuccessResult(String url, AuditResponse response, boolean isCached) {
+        int h1Count = 0;
+        if (response.getContentMetrics() != null && response.getContentMetrics().getHeadingCounts() != null) {
+            h1Count = response.getContentMetrics().getHeadingCounts().getOrDefault("h1", 0);
+        }
+
+        return CompetitorComparisonResponse.CompetitorResult.builder()
+                .url(url)
+                .overallScore(response.getScores() != null ? response.getScores().getOverallScore() : 0)
+                .seoScore(response.getScores() != null ? response.getScores().getSeoScore() : 0)
+                .contentScore(response.getScores() != null ? response.getScores().getContentScore() : 0)
+                .accessibilityScore(response.getScores() != null ? response.getScores().getAccessibilityScore() : 0)
+                .performanceScore(response.getScores() != null ? response.getScores().getPerformanceScore() : 0)
+                .healthGrade(response.getScores() != null ? response.getScores().getHealthGrade().name() : "UNKNOWN")
+                .responseTimeMs(response.getResponseTimeMs())
+                .wordCount(response.getContentMetrics() != null ? response.getContentMetrics().getWordCount() : 0)
+                .h1Count(h1Count)
+                .imagesMissingAlt(response.getAccessibilityMetrics() != null ? response.getAccessibilityMetrics().getImagesMissingAltCount() : 0)
+                .status(STATUS_SUCCESS)
+                .cached(isCached)
                 .build();
     }
 

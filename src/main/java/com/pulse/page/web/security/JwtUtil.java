@@ -3,6 +3,7 @@ package com.pulse.page.web.security;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,11 +19,13 @@ import java.util.function.Function;
 
 @Component
 @Slf4j
+@SuppressWarnings("java:S2143")
 public class JwtUtil {
 
     @Value("${app.jwt.secret}")
     private String secret;
 
+    @Getter
     @Value("${app.jwt.expiration-ms}")
     private long expirationMs;
 
@@ -105,10 +108,6 @@ public class JwtUtil {
             log.debug("JWT validation failed: {}", e.getMessage());
             return false;
         }
-    }
-
-    public long getExpirationMs() {
-        return expirationMs;
     }
 
     public String extractTokenFromHeader(String authHeader) {

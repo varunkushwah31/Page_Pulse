@@ -4,7 +4,10 @@ import com.pulse.page.web.dto.AuditResponse;
 import com.pulse.page.web.dto.BatchAuditRequest;
 import com.pulse.page.web.dto.BatchAuditResponse;
 import com.pulse.page.web.entity.BatchAuditJobEntity;
-import com.pulse.page.web.repository.BatchAuditJobRepository;
+import com.pulse.page.web.entity.BatchAuditResultEntity;
+import com.pulse.page.web.exception.AuditExecutionException;
+import com.pulse.page.web.repository.jpa.BatchAuditJobRepository;
+import com.pulse.page.web.repository.jpa.BatchAuditResultRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,8 +28,10 @@ import java.util.concurrent.Executors;
 public class BatchAuditService {
 
     private final BatchAuditJobRepository jobRepository;
+    private final BatchAuditResultRepository resultRepository;
     private final AuditReportProcessorService processorService;
     private final CacheService cacheService;
+    private final WebhookNotificationService webhookService;
 
     @Transactional
     public BatchAuditResponse submitBatchAudit(BatchAuditRequest request) {
@@ -112,8 +117,8 @@ public class BatchAuditService {
             AuditResponse response = cached.orElseGet(() -> {
                 try {
                     return processorService.processAudit(url);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                } catch (IOException ex) {
+                    throw new AuditExecutionException("Failed to process audit for URL: " + url, ex);
                 }
             });
 
@@ -146,11 +151,37 @@ public class BatchAuditService {
     }
 
     private void addResultToJob(String jobId, BatchAuditResponse.BatchAuditUrlResult result) {
-        // Results stored via individual URL processing
+        BatchAuditResultEntity resultEntity = BatchAuditResultEntity.builder()
+                .jobId(jobId)
+                .url(result.getUrl())
+                .status(result.getStatus())
+                .auditId(result.getAuditId() != null ? result.getAuditId().toString() : null)
+                .overallScore(result.getOverallScore())
+                .errorMessage(result.getError())
+                .build();
+        resultRepository.save(resultEntity);
+        log.debug("Batch URL result stored for job {}: {} ({})", jobId, result.getUrl(), result.getStatus());
     }
 
     private void sendWebhookCallback(BatchAuditJobEntity job) {
-        log.info("Sending batch audit completion webhook to {}", job.getWebhookUrl());
+        if (job.getWebhookUrl() == null || job.getWebhookUrl().isBlank()) {
+            log.debug("No webhook URL configured for batch job {}", job.getJobId());
+            return;
+        }
+
+        try {
+            webhookService.sendBatchAuditCompletion(
+                    job.getWebhookUrl(),
+                    job.getJobId(),
+                    job.getTotalUrls(),
+                    job.getCompletedUrls(),
+                    job.getFailedUrls(),
+                    job.getCorrelationId()
+            );
+            log.info("Batch audit completion webhook sent to {}", job.getWebhookUrl());
+        } catch (Exception e) {
+            log.error("Failed to send webhook callback for batch job {}: {}", job.getJobId(), e.getMessage(), e);
+        }
     }
 
     private BatchAuditResponse mapToResponse(BatchAuditJobEntity entity) {

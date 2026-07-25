@@ -7,24 +7,51 @@
 @import "@fontsource/ibm-plex-sans/600.css";
 
 :root {
-  --bg: #0A0C0F;
-  --surface: #12151A;
-  --surface-raised: #191D24;
+  /* DESIGN.md Color Tokens (§5) */
+  --background: #0A0C0F;
+  --foreground: #E7EAEE;
+  --card: #12151A;
+  --card-foreground: #E7EAEE;
+  --popover: #191D24;
+  --popover-foreground: #E7EAEE;
+  --primary: #4FD8C4;
+  --primary-foreground: #0A0C0F;
+  --secondary: #191D24;
+  --secondary-foreground: #E7EAEE;
+  --muted: #12151A;
+  --muted-foreground: #8B93A1;
+  --accent: #191D24;
+  --accent-foreground: #E7EAEE;
+  --destructive: #F87171;
+  --destructive-foreground: #0A0C0F;
   --border: #262B33;
-  --border-strong: #333A45;
-  --text: #E7EAEE;
-  --text-muted: #8B93A1;
-  --text-faint: #565D68;
-  --accent: #4FD8C4;
-  --pass: #4ADE80;
-  --warn: #FBBF24;
-  --fail: #F87171;
+  --input: #333A45;
+  --ring: #4FD8C4;
+  --radius: 0.5rem;
+
+  /* Project-specific semantic tokens (§5) */
+  --success: #4ADE80;
+  --success-foreground: #0A0C0F;
+  --warning: #FBBF24;
+  --warning-foreground: #0A0C0F;
   --info: #7AA2F7;
+  --info-foreground: #0A0C0F;
+
+  /* Alias tokens for backward compatibility */
+  --bg: var(--background);
+  --surface: var(--card);
+  --surface-raised: var(--popover);
+  --text: var(--foreground);
+  --text-muted: var(--muted-foreground);
+  --text-faint: #565D68;
+  --pass: var(--success);
+  --warn: var(--warning);
+  --fail: var(--destructive);
 }
 
 body {
-  background-color: var(--bg);
-  color: var(--text);
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   margin: 0;
   padding: 0;
@@ -42,7 +69,7 @@ body {
 /* Background grid pattern */
 .bg-grid-pattern {
   background-size: 32px 32px;
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(38, 43, 51, 0.4) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(38, 43, 51, 0.4) 1px, transparent 1px);
 }
@@ -68,6 +95,18 @@ body {
   animation: cursor-blink 1s infinite steps(1, start);
 }
 
+/* Hide native number input scroll/spin buttons */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-scan-rail {
     animation: none;
@@ -79,4 +118,29 @@ body {
     animation: none;
     opacity: 1;
   }
+}
+
+/* shadcn/ui compatible focus ring */
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }

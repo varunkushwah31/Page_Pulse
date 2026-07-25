@@ -3,14 +3,22 @@ package com.pulse.page.web.controller;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
-/**
- * Controller to forward client-side SPA routing requests to index.html.
- * Prevents 404 errors on browser page refreshes for non-API routes.
- */
 @Controller
 public class SpaForwardingController {
 
-    @GetMapping(value = { "/", "/{path:[^\\.]*}", "/**/{path:[^\\.]*}" })
+    @GetMapping(value = {
+        "/",
+        "/audit",
+        "/sitemap",
+        "/batch",
+        "/schedule",
+        "/compare",
+        "/trend",
+        "/reports",
+        "/stats",
+        "/telemetry",
+        "/dashboard"
+    })
     public String forwardSpaRoutes() {
         return "forward:/index.html";
     }

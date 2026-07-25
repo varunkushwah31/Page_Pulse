@@ -44,7 +44,7 @@ public class AuditProgressStreamService {
                     log.error("Error streaming SSE progress for {}: {}", rawUrl, e.getMessage());
                     try {
                         emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
-                    } catch (Exception ignored) {
+                    } catch (Exception ex) {
                         // Intentionally ignore emitter send failures during error handling
                     }
                     emitter.completeWithError(e);

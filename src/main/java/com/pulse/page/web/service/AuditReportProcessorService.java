@@ -11,7 +11,7 @@ import com.pulse.page.web.engine.extractor.PerformanceMetricsExtractor;
 import com.pulse.page.web.engine.extractor.SeoMetricsExtractor;
 import com.pulse.page.web.entity.AuditReportEntity;
 import com.pulse.page.web.model.*;
-import com.pulse.page.web.repository.AuditReportJpaRepository;
+import com.pulse.page.web.repository.jpa.AuditReportJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

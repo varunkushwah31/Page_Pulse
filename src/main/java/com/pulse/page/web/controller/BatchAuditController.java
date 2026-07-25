@@ -24,7 +24,7 @@ public class BatchAuditController {
     }
 
     @GetMapping("/{jobId}")
-    public ResponseEntity<BatchAuditResponse> getJobStatus(@PathVariable String jobId) {
+    public ResponseEntity<BatchAuditResponse> getJobStatus(@PathVariable("jobId") String jobId) {
         return batchAuditService.getJobStatus(jobId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

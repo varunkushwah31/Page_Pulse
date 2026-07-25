@@ -4,7 +4,7 @@ import com.pulse.page.web.dto.AuditResponse;
 import com.pulse.page.web.entity.ScheduledAuditConfigEntity;
 import com.pulse.page.web.event.ScoreRegressionEvent;
 import com.pulse.page.web.model.AuditScoreBreakdown;
-import com.pulse.page.web.repository.ScheduledAuditConfigRepository;
+import com.pulse.page.web.repository.jpa.ScheduledAuditConfigRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

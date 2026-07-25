@@ -3,8 +3,8 @@ package com.pulse.page.web.service;
 import com.pulse.page.web.config.MetricsConfig;
 import com.pulse.page.web.document.AuditReportDocument;
 import com.pulse.page.web.entity.AuditReportEntity;
-import com.pulse.page.web.repository.AuditReportJpaRepository;
-import com.pulse.page.web.repository.AuditReportMongoRepository;
+import com.pulse.page.web.repository.jpa.AuditReportJpaRepository;
+import com.pulse.page.web.repository.mongo.AuditReportMongoRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.micrometer.core.instrument.Timer;
@@ -30,6 +30,7 @@ public class UrlAuditService {
     private static final int TIMEOUT_MS = 5000;
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PagePulse/2.0 Enterprise Engine";
     private static final String CONTENT_ATTR = "content";
+    private static final String METRIC_AUDIT_NAME = "audit";
 
     private final AuditReportJpaRepository jpaRepository;
     private final AuditReportMongoRepository mongoRepository;
@@ -55,7 +56,7 @@ public class UrlAuditService {
 
         String contentType = response.contentType();
         if (contentType == null || !contentType.toLowerCase().contains("text/html")) {
-            metricsConfig.incrementAuditCounter("audit", "error_content_type");
+            metricsConfig.incrementAuditCounter(METRIC_AUDIT_NAME, "error_content_type");
             throw new IllegalArgumentException(
                     "Target URL content type '" + (contentType != null ? contentType : "unknown") +
                             "' is not text/html. Scraper execution aborted.");
@@ -82,10 +83,10 @@ public class UrlAuditService {
                 .contentType(contentType)
                 .build();
 
-        metricsConfig.recordAuditDuration(sample, "audit", "success");
-        metricsConfig.incrementAuditCounter("audit", "success");
+        metricsConfig.recordAuditDuration(sample, METRIC_AUDIT_NAME, "success");
+        metricsConfig.incrementAuditCounter(METRIC_AUDIT_NAME, "success");
         metricsConfig.recordScrapedUrlSize(doc.html().length());
-        metricsConfig.recordResponseTime("audit", responseTimeMs);
+        metricsConfig.recordResponseTime(METRIC_AUDIT_NAME, responseTimeMs);
 
         return jpaRepository.save(entity);
     }
@@ -201,7 +202,7 @@ public class UrlAuditService {
         return text.trim().split("\\s+").length;
     }
 
-    private AuditReportEntity auditFallback(String rawUrl, Exception ex) {
+    public AuditReportEntity auditFallback(String rawUrl, Exception ex) {
         log.error("Circuit breaker triggered for URL: {} - {}", rawUrl, ex.getMessage());
         throw new RuntimeException("Scraper circuit breaker open - service unavailable for: " + rawUrl, ex);
     }

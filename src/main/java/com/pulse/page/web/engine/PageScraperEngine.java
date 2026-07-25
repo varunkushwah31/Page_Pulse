@@ -82,7 +82,7 @@ public class PageScraperEngine {
         }
     }
 
-    private ScrapeResult fetchPageFallback(String targetUrl, Exception ex) {
+    public ScrapeResult fetchPageFallback(String targetUrl, Exception ex) {
         log.error("Circuit breaker triggered for URL: {} - {}", targetUrl, ex.getMessage());
         throw new RuntimeException("Scraper circuit breaker open - service unavailable: " + targetUrl, ex);
     }

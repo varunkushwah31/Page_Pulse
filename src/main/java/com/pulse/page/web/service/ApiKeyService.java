@@ -2,9 +2,10 @@ package com.pulse.page.web.service;
 
 import com.pulse.page.web.dto.ApiKeyResponse;
 import com.pulse.page.web.entity.ApiKeyEntity;
-import com.pulse.page.web.repository.ApiKeyRepository;
+import com.pulse.page.web.repository.jpa.ApiKeyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,11 +17,16 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ApiKeyService {
 
     private final ApiKeyRepository apiKeyRepository;
     private final PasswordEncoder passwordEncoder;
+
+    public ApiKeyService(ApiKeyRepository apiKeyRepository, @Lazy PasswordEncoder passwordEncoder) {
+        this.apiKeyRepository = apiKeyRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
 
     @Transactional
     public ApiKeyResponse createApiKey(String name) {
@@ -49,6 +55,23 @@ public class ApiKeyService {
         return apiKeyRepository.findByActiveTrue().stream()
                 .map(ApiKeyResponse::fromWithoutKey)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isValidApiKey(String rawKey) {
+        if (rawKey == null || rawKey.isBlank()) {
+            return false;
+        }
+
+        String prefix = extractPrefix(rawKey);
+        if (prefix == null) {
+            return false;
+        }
+
+        return apiKeyRepository.findByKeyPrefix(prefix)
+                .filter(entity -> entity.isActive() && entity.getExpiresAt().isAfter(Instant.now()))
+                .map(entity -> passwordEncoder.matches(rawKey, entity.getKeyHash()))
+                .orElse(false);
     }
 
     @Transactional(readOnly = true)

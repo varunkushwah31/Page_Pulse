@@ -1,6 +1,6 @@
 package com.pulse.page.web.security;
 
-import com.pulse.page.web.repository.UserRepository;
+import com.pulse.page.web.repository.jpa.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;

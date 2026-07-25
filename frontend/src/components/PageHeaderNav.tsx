@@ -1,40 +1,48 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { Activity, Zap, Server, ShieldCheck, BarChart3, GitBranch, Clock, Users, Settings } from 'lucide-react';
 
 export const PageHeaderNav: React.FC = () => {
   const navItems = [
-    { path: '/', label: 'Audit', command: 'audit' },
-    { path: '/sitemap', label: 'Sitemap', command: 'sitemap' },
-    { path: '/compare', label: 'Compare', command: 'compare' },
-    { path: '/trend', label: 'Trend', command: 'trend' },
-    { path: '/reports', label: 'Archive', command: 'reports' },
-    { path: '/telemetry', label: 'Telemetry', command: 'stats' },
+    { path: '/', command: 'audit', icon: Zap, label: 'Single Audit' },
+    { path: '/sitemap', command: 'sitemap', icon: Server, label: 'Sitemap Crawler' },
+    { path: '/batch', command: 'batch', icon: GitBranch, label: 'Batch Auditor' },
+    { path: '/scheduled', command: 'schedule', icon: Clock, label: 'Scheduled Audits' },
+    { path: '/compare', command: 'compare', icon: Users, label: 'Competitor Compare' },
+    { path: '/trend', command: 'trend', icon: BarChart3, label: 'Domain Trends' },
+    { path: '/reports', command: 'reports', icon: ShieldCheck, label: 'Saved Reports' },
+    { path: '/telemetry', command: 'stats', icon: Settings, label: 'Platform Stats' },
+    { path: '/auth', command: 'auth', icon: Activity, label: 'Auth Console' },
   ];
 
   return (
-    <nav className="flex flex-wrap items-center justify-between gap-2 border-b border-[#262B33] pb-3">
+    <nav className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-3 mb-6">
       <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.path === '/'}
-            className={({ isActive }) =>
-              `rounded px-3 py-1.5 font-semibold transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-[#191D24] text-[#4FD8C4] border border-[#333A45] shadow-sm'
-                  : 'text-[#8B93A1] hover:text-[#E7EAEE] hover:bg-[#12151A]'
-              }`
-            }
-          >
-            <span className="text-[#565D68] mr-1">$</span>
-            {item.command}
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.path === '/'}
+              className={({ isActive }) =>
+                `flex items-center gap-2 rounded-lg px-3.5 py-1.5 font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-[var(--popover)] text-[var(--primary)] border border-[var(--border)] shadow-sm'
+                    : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]'
+                }`
+              }
+            >
+              <Icon className="size-4" />
+              <span className="text-[var(--text-faint)] mr-1">$</span>
+              {item.command}
+            </NavLink>
+          );
+        })}
       </div>
 
-      <span className="font-mono text-[11px] text-[#565D68]">
-        ROUTE: <strong className="text-[#4FD8C4] uppercase">Multi-Page Navigation</strong>
+      <span className="font-mono text-[11px] text-[var(--text-faint)]">
+        ROUTE: <strong className="text-[var(--primary)] uppercase">Multi-Page Navigation</strong>
       </span>
     </nav>
   );

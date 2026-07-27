@@ -11,11 +11,13 @@ import { PlatformStatsPage } from './pages/PlatformStatsPage';
 import { AuthPage } from './pages/AuthPage';
 import { Footer } from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
+import { SeoHead } from './components/SeoHead';
 
 export function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <SeoHead />
         <div className="min-h-screen bg-background text-foreground font-sans relative overflow-x-hidden bg-grid-pattern pb-12">
           {/* 2px Scan-rail Signature Element */}
           <div className="fixed top-0 left-0 right-0 h-[2px] bg-card z-50 overflow-hidden">

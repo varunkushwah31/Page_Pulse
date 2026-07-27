@@ -14,6 +14,11 @@ export interface SeoMetrics {
   robotsDirective: string | null;
   isFollowable: boolean;
   isIndexable: boolean;
+  hasFavicon?: boolean;
+  hasViewportMeta?: boolean;
+  hasOgImage?: boolean;
+  hasStructuredData?: boolean;
+  seoRecommendations?: string[];
 }
 
 export interface ContentMetrics {

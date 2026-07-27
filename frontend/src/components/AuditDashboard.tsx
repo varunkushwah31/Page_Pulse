@@ -20,7 +20,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { AuditResponse, HealthGrade } from '../types';
-import { saveReportToMongo, getPdfDownloadUrl, downloadPdfReport } from '../lib/api';
+import { saveReportToMongo, downloadPdfReport } from '../lib/api';
 
 interface AuditDashboardProps {
   audit: AuditResponse;

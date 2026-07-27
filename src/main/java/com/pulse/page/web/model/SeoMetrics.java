@@ -29,4 +29,10 @@ public class SeoMetrics {
     private boolean isIndexable;
     private boolean isFollowable;
     private String robotsDirective;
+
+    private boolean hasFavicon;
+    private boolean hasViewportMeta;
+    private boolean hasOgImage;
+    private boolean hasStructuredData;
+    private java.util.List<String> seoRecommendations;
 }

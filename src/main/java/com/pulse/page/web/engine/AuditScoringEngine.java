@@ -40,19 +40,25 @@ public class AuditScoringEngine {
             }
         }
         if (seo.isHasMetaDescription()) {
-            score += 25;
+            score += 20;
             if (seo.getDescriptionLength() >= 120 && seo.getDescriptionLength() <= 160) {
                 score += 10;
             }
         }
         if (seo.getCanonicalUrl() != null) {
-            score += 15;
+            score += 10;
         }
         if (seo.getOpenGraphTags() != null && !seo.getOpenGraphTags().isEmpty()) {
             score += 10;
         }
         if (seo.isIndexable()) {
             score += 10;
+        }
+        if (seo.isHasViewportMeta()) {
+            score += 5;
+        }
+        if (seo.isHasFavicon()) {
+            score += 5;
         }
         return Math.min(100, score);
     }

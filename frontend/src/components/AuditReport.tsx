@@ -66,23 +66,23 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const timingWidth = Math.min(100, Math.max(5, (responseTimeMs / 3000) * 100));
   const timingColor = responseTimeMs <= 800 ? 'bg-success' : responseTimeMs <= 2000 ? 'bg-warning' : 'bg-destructive';
 
-  const seoMetrics = audit.seoMetrics || {};
-  const contentMetrics = audit.contentMetrics || {};
-  const accessibilityMetrics = audit.accessibilityMetrics || {};
-  const scores = audit.scores || {};
+  const seoMetrics = audit.seoMetrics;
+  const contentMetrics = audit.contentMetrics;
+  const accessibilityMetrics = audit.accessibilityMetrics;
+  const scores = audit.scores;
 
-  const pageTitle = seoMetrics.pageTitle || null;
-  const metaDescription = seoMetrics.metaDescription || null;
-  const h1Count = contentMetrics.headingCounts?.['h1'] ?? 0;
-  const imagesMissingAlt = accessibilityMetrics.imagesMissingAltCount ?? 0;
-  const wordCount = contentMetrics.wordCount ?? 0;
+  const pageTitle = seoMetrics?.pageTitle ?? null;
+  const metaDescription = seoMetrics?.metaDescription ?? null;
+  const h1Count = contentMetrics?.headingCounts?.['h1'] ?? 0;
+  const imagesMissingAlt = accessibilityMetrics?.imagesMissingAltCount ?? 0;
+  const wordCount = contentMetrics?.wordCount ?? 0;
 
-  const overallScore = scores.overallScore ?? 0;
-  const seoScore = scores.seoScore ?? 0;
-  const contentScore = scores.contentScore ?? 0;
-  const accessibilityScore = scores.accessibilityScore ?? 0;
-  const performanceScore = scores.performanceScore ?? 0;
-  const healthGrade = scores.healthGrade || 'POOR';
+  const overallScore = scores?.overallScore ?? 0;
+  const seoScore = scores?.seoScore ?? 0;
+  const contentScore = scores?.contentScore ?? 0;
+  const accessibilityScore = scores?.accessibilityScore ?? 0;
+  const performanceScore = scores?.performanceScore ?? 0;
+  const healthGrade = scores?.healthGrade || 'POOR';
 
   const getGradeColor = (grade: string) => {
     switch (grade) {
@@ -224,28 +224,41 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           </div>
         </div>
 
-        {/* Additional SEO Metrics */}
-        {seoMetrics.canonicalUrl && (
-          <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-            <div className="w-full sm:w-[180px] shrink-0 font-mono text-xs text-[var(--text-faint)] uppercase tracking-wider">
-              Canonical URL
-            </div>
-            <div className="flex-1 font-sans text-sm text-foreground break-all">
-              <span>{seoMetrics.canonicalUrl}</span>
-            </div>
+        {/* Additional SEO Compliance & Badges */}
+        <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
+          <div className="w-full sm:w-[180px] shrink-0 font-mono text-xs text-[var(--text-faint)] uppercase tracking-wider">
+            SEO Compliance
           </div>
-        )}
+          <div className="flex-1 flex flex-wrap gap-2">
+            <span className={`inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold ${seoMetrics?.hasViewportMeta ? 'bg-success/10 text-success border border-success/30' : 'bg-destructive/10 text-destructive border border-destructive/30'}`}>
+              {seoMetrics?.hasViewportMeta ? '✓ Mobile Viewport Meta' : '✗ Missing Viewport Meta'}
+            </span>
+            <span className={`inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold ${seoMetrics?.hasFavicon ? 'bg-success/10 text-success border border-success/30' : 'bg-warning/10 text-warning border border-warning/30'}`}>
+              {seoMetrics?.hasFavicon ? '✓ Favicon Icon' : '! Missing Favicon'}
+            </span>
+            <span className={`inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold ${seoMetrics?.hasOgImage ? 'bg-success/10 text-success border border-success/30' : 'bg-warning/10 text-warning border border-warning/30'}`}>
+              {seoMetrics?.hasOgImage ? '✓ OpenGraph Image' : '! Missing OG Image'}
+            </span>
+            <span className={`inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold ${seoMetrics?.hasStructuredData ? 'bg-success/10 text-success border border-success/30' : 'bg-muted/50 text-muted-foreground border border-border'}`}>
+              {seoMetrics?.hasStructuredData ? '✓ JSON-LD Schema' : 'No Schema.org Data'}
+            </span>
+          </div>
+        </div>
 
-        {seoMetrics.robotsDirective && (
-          <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6">
-            <div className="w-full sm:w-[180px] shrink-0 font-mono text-xs text-[var(--text-faint)] uppercase tracking-wider">
-              Robots Directive
+        {/* SEO Recommendations & Action Plan */}
+        {seoMetrics?.seoRecommendations && seoMetrics.seoRecommendations.length > 0 && (
+          <div className="p-4 sm:p-5 bg-[#12151A]/60">
+            <div className="font-mono text-xs text-[#4FD8C4] uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
+              <span>⚡ SEO Optimization Recommendations ({seoMetrics.seoRecommendations.length})</span>
             </div>
-            <div className="flex-1">
-              <span className="inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold bg-muted/50 text-muted-foreground border border-border">
-                {seoMetrics.robotsDirective}
-              </span>
-            </div>
+            <ul className="space-y-2">
+              {seoMetrics.seoRecommendations.map((rec, idx) => (
+                <li key={`${rec}-${idx}`} className="flex items-start gap-2 text-xs font-sans text-[#E7EAEE]">
+                  <span className="text-[#F59E0B] shrink-0 font-mono">→</span>
+                  <span>{rec}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

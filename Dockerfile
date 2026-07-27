@@ -10,7 +10,7 @@ RUN apk add --no-cache curl
 RUN addgroup -g 1000 -S appgroup && \
     adduser -u 1000 -S appuser -G appgroup
 
-# Copy the pre-built jar
+# Copy the pre-built executable jar artifact
 COPY target/*.jar app.jar
 
 # Change ownership to non-root user

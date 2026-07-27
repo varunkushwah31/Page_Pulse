@@ -13,7 +13,7 @@ export const BatchAuditorConsole: React.FC = () => {
   const [savingMap, setSavingMap] = useState<Record<number, boolean>>({});
   const [downloadingPdfMap, setDownloadingPdfMap] = useState<Record<number, boolean>>({});
 
-  const handleBatchAudit = async (e: React.FormEvent) => {
+  const handleBatchAudit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     const urls = urlListText
       .split('\n')

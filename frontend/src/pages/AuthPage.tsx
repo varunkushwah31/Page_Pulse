@@ -45,7 +45,7 @@ export const AuthPage: React.FC = () => {
     return { score, label: 'Strong', color: 'bg-[#4ADE80] text-[#4ADE80]' };
   }, [signupPassword]);
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -78,7 +78,7 @@ export const AuthPage: React.FC = () => {
     }
   };
 
-  const handleSignupSubmit = async (e: React.FormEvent) => {
+  const handleSignupSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);

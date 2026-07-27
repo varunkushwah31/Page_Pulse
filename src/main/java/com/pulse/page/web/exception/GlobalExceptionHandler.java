@@ -96,6 +96,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(error);
     }
 
+    @ExceptionHandler(org.jsoup.HttpStatusException.class)
+    public ResponseEntity<ErrorResponse> handleJsoupHttpStatusException(org.jsoup.HttpStatusException ex, HttpServletRequest request) {
+        log.warn("Jsoup HTTP status exception at {}: Status {} for URL {}", request.getRequestURI(), ex.getStatusCode(), ex.getUrl());
+        HttpStatus status = ex.getStatusCode() == 404 ? HttpStatus.NOT_FOUND : HttpStatus.BAD_GATEWAY;
+        String message = ex.getStatusCode() == 403 
+            ? "Access to target URL '" + ex.getUrl() + "' was blocked by the host server (HTTP 403 Forbidden)." 
+            : "Target server returned HTTP " + ex.getStatusCode() + " for URL: " + ex.getUrl();
+
+        ErrorResponse error = new ErrorResponse(
+            Instant.now(),
+            status.value(),
+            status.getReasonPhrase(),
+            message,
+            request.getRequestURI()
+        );
+        return ResponseEntity.status(status).body(error);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception at {}: ", request.getRequestURI(), ex);

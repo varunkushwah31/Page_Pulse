@@ -3,6 +3,7 @@ import type {
   AuditReportDocument,
   SitemapAuditResponse,
   PlatformStatsResponse,
+  TrendResponse,
 } from '../types';
 
 const API_BASE = '';
@@ -84,6 +85,26 @@ export function getPdfDownloadUrl(reportId: string): string {
   return `${API_BASE}/api/v1/reports/${reportId}/pdf`;
 }
 
+export async function downloadPdfReport(reportId: string, customFilename?: string): Promise<void> {
+  const url = getPdfDownloadUrl(reportId);
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Failed to download PDF report' }));
+    throw new Error(errorData.message || 'Failed to download PDF report');
+  }
+  const blob = await response.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = customFilename || `audit-report-${reportId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}
+
 export async function registerUser(username: string, email: string, password: string): Promise<{ accessToken: string; refreshToken: string; user: { id: number; username: string; email: string; role: string } }> {
   const response = await fetch(`${API_BASE}/api/auth/register`, {
     method: 'POST',
@@ -106,6 +127,25 @@ export async function loginUser(usernameOrEmail: string, password: string): Prom
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: 'Invalid credentials' }));
     throw new Error(errorData.message || 'Invalid credentials');
+  }
+  return response.json();
+}
+
+export async function fetchDomainTrends(domain: string, metric = 'overallScore', days = 30): Promise<TrendResponse> {
+  let cleanDomain = domain.trim();
+  try {
+    if (cleanDomain.startsWith('http://') || cleanDomain.startsWith('https://')) {
+      const parsed = new URL(cleanDomain);
+      cleanDomain = parsed.hostname;
+    } else if (cleanDomain.includes('/')) {
+      cleanDomain = cleanDomain.split('/')[0];
+    }
+  } catch (_) {}
+
+  const response = await fetch(`${API_BASE}/api/v1/reports/${encodeURIComponent(cleanDomain)}/trends?metric=${metric}&days=${days}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Trend data lookup failed for domain.' }));
+    throw new Error(errorData.message || 'Trend data lookup failed for domain.');
   }
   return response.json();
 }

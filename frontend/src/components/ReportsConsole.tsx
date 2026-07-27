@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { AuditReportDocument } from '../types';
-import { fetchSavedReports, deleteSavedReport, getPdfDownloadUrl } from '../lib/api';
+import { fetchSavedReports, deleteSavedReport, downloadPdfReport } from '../lib/api';
 
 export const ReportsConsole: React.FC = () => {
   const [reports, setReports] = useState<AuditReportDocument[]>([]);
@@ -81,14 +81,12 @@ export const ReportsConsole: React.FC = () => {
 
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="font-bold text-[#E7EAEE]">{report.overallScore} / 100</span>
-                  <a
-                    href={getPdfDownloadUrl(report.id)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded border border-[#4FD8C4]/30 bg-[#4FD8C4]/10 px-2.5 py-1 text-[#4FD8C4] hover:bg-[#4FD8C4]/20 transition-all text-[11px]"
+                  <button
+                    onClick={() => downloadPdfReport(report.id)}
+                    className="rounded border border-[#4FD8C4]/30 bg-[#4FD8C4]/10 px-2.5 py-1 text-[#4FD8C4] hover:bg-[#4FD8C4]/20 transition-all text-[11px] cursor-pointer"
                   >
                     PDF
-                  </a>
+                  </button>
                   <button
                     onClick={() => handleDelete(report.id)}
                     className="text-[#565D68] hover:text-[#F87171] transition-colors cursor-pointer text-[11px]"

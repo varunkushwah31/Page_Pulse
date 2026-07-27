@@ -6,6 +6,8 @@ import com.lowagie.text.pdf.*;
 import com.pulse.page.web.document.AuditReportDocument;
 import com.pulse.page.web.enums.HealthGrade;
 import com.pulse.page.web.exception.ReportNotFoundException;
+import com.pulse.page.web.entity.AuditReportEntity;
+import com.pulse.page.web.repository.jpa.AuditReportJpaRepository;
 import com.pulse.page.web.repository.mongo.AuditReportMongoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 public class PdfReportGeneratorService {
 
     private final AuditReportMongoRepository mongoRepository;
+    private final AuditReportJpaRepository jpaRepository;
 
     private static final Color COLOR_PRIMARY = new Color(15, 23, 42);      // Slate 900
     private static final Color COLOR_ACCENT = new Color(37, 99, 235);      // Blue 600
@@ -37,10 +40,23 @@ public class PdfReportGeneratorService {
     private static final Font FONT_GRADE = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.WHITE);
 
     public byte[] generatePdfReport(String reportId) {
-        log.info("Generating OpenPDF State-of-the-Art Audit Report for Mongo ID: {}", reportId);
+        log.info("Generating OpenPDF State-of-the-Art Audit Report for ID: {}", reportId);
 
         AuditReportDocument doc = mongoRepository.findById(reportId)
-            .orElseThrow(() -> new ReportNotFoundException("Report with ID '" + reportId + "' not found for PDF export."));
+            .orElseGet(() -> {
+                try {
+                    Long tempId = Long.parseLong(reportId);
+                    return jpaRepository.findById(tempId)
+                        .map(this::mapEntityToDocument)
+                        .orElse(null);
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            });
+
+        if (doc == null) {
+            throw new ReportNotFoundException("Report with ID '" + reportId + "' not found for PDF export.");
+        }
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         com.lowagie.text.Document pdfDoc = new com.lowagie.text.Document(PageSize.A4, 36, 36, 36, 45);
@@ -223,6 +239,30 @@ public class PdfReportGeneratorService {
             case NEEDS_IMPROVEMENT -> new Color(245, 158, 11); // Amber
             case POOR -> new Color(239, 68, 68);             // Crimson Red
         };
+    }
+
+    private AuditReportDocument mapEntityToDocument(AuditReportEntity entity) {
+        return AuditReportDocument.builder()
+            .id(String.valueOf(entity.getId()))
+            .originalTempId(entity.getId())
+            .url(entity.getUrl())
+            .domain(entity.getDomain())
+            .httpStatus(entity.getHttpStatus())
+            .responseTimeMs(entity.getResponseTimeMs())
+            .pageTitle(entity.getPageTitle())
+            .metaDescription(entity.getMetaDescription())
+            .h1Count(entity.getH1Count())
+            .imagesMissingAltCount(entity.getImagesMissingAltCount())
+            .wordCount(entity.getWordCount())
+            .contentType(entity.getContentType())
+            .seoScore(entity.getSeoScore())
+            .contentScore(entity.getContentScore())
+            .accessibilityScore(entity.getAccessibilityScore())
+            .performanceScore(entity.getPerformanceScore())
+            .overallScore(entity.getOverallScore())
+            .healthGrade(entity.getHealthGrade())
+            .savedAt(entity.getCreatedAt())
+            .build();
     }
 
     private static class HeaderFooterPageEvent extends PdfPageEventHelper {

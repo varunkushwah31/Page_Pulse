@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { AuditResponse } from '../types';
-import { saveReportToMongo, getPdfDownloadUrl } from '../lib/api';
+import { saveReportToMongo, downloadPdfReport } from '../lib/api';
 import { Download, Database, Lock, AlertCircle } from 'lucide-react';
 
 interface AuditReportProps {
@@ -19,6 +19,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -33,12 +34,12 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
     setSaving(true);
     try {
       const doc = await saveReportToMongo(audit.id);
-      setSavedMessage(`Audit stored permanently in MongoDB! (ID: ${doc.id})`);
-    } catch (err) {
+      setSavedMessage(`Saved permanently! Document ID: ${doc.id}`);
+    } catch (err: unknown) {
       if (err instanceof Error && err.message === 'AUTH_REQUIRED') {
         setShowLoginPrompt(true);
       } else {
-        setSavedMessage(err instanceof Error ? err.message : 'Failed to save to database.');
+        setSavedMessage('Failed to save report.');
       }
     } finally {
       setSaving(false);
@@ -50,9 +51,15 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
     navigate('/auth', { state: { from: location.pathname, auditId: audit.id } });
   };
 
-  const handlePdfDownload = () => {
-    const url = getPdfDownloadUrl(audit.id.toString());
-    window.open(url, '_blank');
+  const handlePdfDownload = async () => {
+    setDownloadingPdf(true);
+    try {
+      await downloadPdfReport(audit.id.toString());
+    } catch (err) {
+      console.error('PDF download error:', err);
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   const responseTimeMs = audit.responseTimeMs || 0;
@@ -259,10 +266,11 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             <>
               <button
                 onClick={handlePdfDownload}
-                className="rounded border border-input bg-popover px-3 py-1.5 font-mono text-xs font-semibold text-primary hover:bg-accent transition-all cursor-pointer"
+                disabled={downloadingPdf}
+                className="rounded border border-input bg-popover px-3 py-1.5 font-mono text-xs font-semibold text-primary hover:bg-accent transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
               >
-                <Download className="size-3 mr-1" />
-                PDF
+                <Download className="size-3" />
+                {downloadingPdf ? 'Downloading...' : 'PDF'}
               </button>
               <button
                 onClick={handleSaveToMongo}

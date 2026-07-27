@@ -5,7 +5,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { AuditReportDocument } from '../types';
-import { fetchSavedReports, deleteSavedReport, getPdfDownloadUrl } from '../lib/api';
+import { fetchSavedReports, deleteSavedReport, downloadPdfReport } from '../lib/api';
 
 export const ReportsArchive: React.FC = () => {
   const [reports, setReports] = useState<AuditReportDocument[]>([]);
@@ -103,14 +103,12 @@ export const ReportsArchive: React.FC = () => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <a
-                        href={getPdfDownloadUrl(report.id)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-md border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400 hover:bg-blue-500/20 transition-all"
+                      <button
+                        onClick={() => downloadPdfReport(report.id)}
+                        className="inline-flex items-center gap-1 rounded-md border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400 hover:bg-blue-500/20 transition-all cursor-pointer"
                       >
                         <Download className="size-3.5" /> PDF
-                      </a>
+                      </button>
                       <Button
                         onClick={() => handleDelete(report.id)}
                         variant="ghost"

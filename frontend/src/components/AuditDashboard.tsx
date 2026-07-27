@@ -11,6 +11,7 @@ import {
   Check,
   Copy,
   Download,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +20,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { AuditResponse, HealthGrade } from '../types';
-import { saveReportToMongo, getPdfDownloadUrl } from '../lib/api';
+import { saveReportToMongo, getPdfDownloadUrl, downloadPdfReport } from '../lib/api';
 
 interface AuditDashboardProps {
   audit: AuditResponse;
@@ -29,6 +30,7 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({ audit }) => {
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const handleSaveToMongo = async () => {
     setSaving(true);
@@ -39,6 +41,19 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({ audit }) => {
       console.error('Failed to save report to MongoDB:', err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePdfDownload = async () => {
+    const reportId = savedId || (audit.id ? audit.id.toString() : '');
+    if (!reportId) return;
+    setDownloadingPdf(true);
+    try {
+      await downloadPdfReport(reportId);
+    } catch (err) {
+      console.error('Failed to download PDF:', err);
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
@@ -112,16 +127,25 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({ audit }) => {
             </TooltipContent>
           </Tooltip>
 
-          {savedId && (
-            <a
-              href={getPdfDownloadUrl(savedId)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-400 hover:bg-blue-500/20 active:scale-95 transition-all"
-            >
-              <Download className="size-4" /> Export PDF
-            </a>
-          )}
+          <Button
+            onClick={handlePdfDownload}
+            disabled={downloadingPdf}
+            variant="outline"
+            size="sm"
+            className="border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 active:scale-95 transition-all cursor-pointer font-semibold"
+          >
+            {downloadingPdf ? (
+              <>
+                <Loader2 className="mr-1.5 size-4 animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="mr-1.5 size-4" />
+                Export PDF
+              </>
+            )}
+          </Button>
 
           <Button
             onClick={handleSaveToMongo}

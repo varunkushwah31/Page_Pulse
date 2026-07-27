@@ -11,7 +11,7 @@ export const DomainTrendsPage: React.FC = () => {
       <h2 className="text-sm font-mono text-muted-foreground">
         Historical Domain Performance & SEO Score Trends {domainParam && `(${domainParam})`}
       </h2>
-      <TrendConsole />
+      <TrendConsole initialDomain={domainParam} />
     </div>
   );
 };

@@ -111,3 +111,30 @@ export interface AuditProgress {
   percentage: number;
   message: string;
 }
+
+export interface TrendDataPoint {
+  timestamp: string;
+  value: number;
+  auditId?: number;
+}
+
+export interface TrendSummary {
+  min?: number;
+  max?: number;
+  average?: number;
+  latest?: number;
+  previous?: number;
+  change?: number;
+  changePercent?: number;
+  trend?: string;
+}
+
+export interface TrendResponse {
+  domain: string;
+  metric: string;
+  from: string;
+  to: string;
+  dataPoints: number;
+  data: TrendDataPoint[];
+  summary?: TrendSummary;
+}

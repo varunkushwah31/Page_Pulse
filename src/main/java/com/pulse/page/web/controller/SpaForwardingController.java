@@ -17,7 +17,9 @@ public class SpaForwardingController {
         "/reports",
         "/stats",
         "/telemetry",
-        "/dashboard"
+        "/dashboard",
+        "/profile",
+        "/landing"
     })
     public String forwardSpaRoutes() {
         return "forward:/index.html";

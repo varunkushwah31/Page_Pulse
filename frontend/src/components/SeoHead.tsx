@@ -3,8 +3,12 @@ import { useLocation } from 'react-router-dom';
 
 const ROUTE_SEO: Record<string, { title: string; description: string }> = {
   '/': {
-    title: 'Single URL Real-Time Audit | Page Pulse',
-    description: 'Perform instant DOM scraping, SEO scoring, and accessibility audits for any target web page.',
+    title: 'Page Pulse | Enterprise Web Performance, SEO & Accessibility Auditing Engine',
+    description: 'Perform instant DOM scraping, SEO scoring, accessibility audits, sitemap crawling, and executable OpenPDF exports.',
+  },
+  '/landing': {
+    title: 'Page Pulse | Enterprise Web Performance, SEO & Accessibility Auditing Engine',
+    description: 'Perform instant DOM scraping, SEO scoring, accessibility audits, sitemap crawling, and executable OpenPDF exports.',
   },
   '/audit': {
     title: 'Single URL Real-Time Audit | Page Pulse',
@@ -37,6 +41,10 @@ const ROUTE_SEO: Record<string, { title: string; description: string }> = {
   '/telemetry': {
     title: 'Platform Telemetry & System Status | Page Pulse',
     description: 'View real-time Spring Boot, MongoDB Atlas, Redis cache, and JVM memory system metrics.',
+  },
+  '/profile': {
+    title: 'User Account & API Key Settings | Page Pulse',
+    description: 'Manage your user profile, REST API access keys, saved MongoDB reports, and active background monitors.',
   },
   '/auth': {
     title: 'Authentication & Database Access | Page Pulse',

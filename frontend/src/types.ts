@@ -167,3 +167,10 @@ export interface ScheduledAuditRequest {
   regressionThreshold?: number;
   notifyOnRegressionOnly?: boolean;
 }
+
+export interface ApiKeyResponse {
+  id?: string;
+  name: string;
+  apiKey: string;
+  createdAt: string;
+}

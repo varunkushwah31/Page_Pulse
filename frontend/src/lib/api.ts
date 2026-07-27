@@ -6,6 +6,7 @@ import type {
   TrendResponse,
   ScheduledAuditConfig,
   ScheduledAuditRequest,
+  ApiKeyResponse,
 } from '../types';
 
 const API_BASE = '';
@@ -190,5 +191,34 @@ export async function deleteScheduledAudit(id: number): Promise<void> {
   if (!response.ok) {
     throw new Error('Failed to delete scheduled audit configuration.');
   }
+}
+
+export async function createApiKey(name: string): Promise<ApiKeyResponse> {
+  const response = await fetch(`${API_BASE}/api/v1/api-keys`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ name }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to generate API Key.');
+  }
+  return response.json();
+}
+
+export async function fetchApiKeys(): Promise<ApiKeyResponse[]> {
+  const response = await fetch(`${API_BASE}/api/v1/api-keys`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    return [];
+  }
+  return response.json();
+}
+
+export async function revokeApiKey(id: string): Promise<void> {
+  await fetch(`${API_BASE}/api/v1/api-keys/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
 }
 

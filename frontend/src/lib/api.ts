@@ -4,6 +4,8 @@ import type {
   SitemapAuditResponse,
   PlatformStatsResponse,
   TrendResponse,
+  ScheduledAuditConfig,
+  ScheduledAuditRequest,
 } from '../types';
 
 const API_BASE = '';
@@ -148,5 +150,45 @@ export async function fetchDomainTrends(domain: string, metric = 'overallScore',
     throw new Error(errorData.message || 'Trend data lookup failed for domain.');
   }
   return response.json();
+}
+
+export async function fetchScheduledAudits(): Promise<ScheduledAuditConfig[]> {
+  const response = await fetch(`${API_BASE}/api/v1/scheduled-audits`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch scheduled audit monitors.');
+  }
+  return response.json();
+}
+
+export async function createScheduledAudit(data: ScheduledAuditRequest): Promise<ScheduledAuditConfig> {
+  const response = await fetch(`${API_BASE}/api/v1/scheduled-audits`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Failed to create scheduled audit configuration.' }));
+    throw new Error(errorData.message || 'Failed to create scheduled audit configuration.');
+  }
+  return response.json();
+}
+
+export async function toggleScheduledAudit(id: number): Promise<ScheduledAuditConfig> {
+  const response = await fetch(`${API_BASE}/api/v1/scheduled-audits/${id}/toggle`, {
+    method: 'PATCH',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to toggle scheduled audit active status.');
+  }
+  return response.json();
+}
+
+export async function deleteScheduledAudit(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/v1/scheduled-audits/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete scheduled audit configuration.');
+  }
 }
 

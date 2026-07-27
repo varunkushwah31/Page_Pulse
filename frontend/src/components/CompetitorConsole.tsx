@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { AuditResponse } from '../types';
-import { runFullAudit } from '../lib/api';
+import { runFullAudit, downloadPdfReport } from '../lib/api';
 
 export const CompetitorConsole: React.FC = () => {
   const [url1, setUrl1] = useState('');
@@ -23,19 +23,31 @@ export const CompetitorConsole: React.FC = () => {
       ]);
       setAudit1(res1);
       setAudit2(res2);
-    } catch (err: any) {
-      setError(err.message || 'Competitor comparison scan failed.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Competitor comparison scan failed.');
     } finally {
       setLoading(false);
     }
   };
 
+  const getWinnerHighlight = (val1: number, val2: number, higherIsBetter = true) => {
+    if (val1 === val2) return { site1: '', site2: '' };
+    if (higherIsBetter) {
+      return val1 > val2
+        ? { site1: 'text-[#4ADE80] font-bold', site2: 'text-[#8B93A1]' }
+        : { site1: 'text-[#8B93A1]', site2: 'text-[#4ADE80] font-bold' };
+    }
+    return val1 < val2
+      ? { site1: 'text-[#4ADE80] font-bold', site2: 'text-[#8B93A1]' }
+      : { site1: 'text-[#8B93A1]', site2: 'text-[#4ADE80] font-bold' };
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-mono text-xs">
       {/* Terminal Prompt Bar for Compare */}
       <form onSubmit={handleCompare} className="w-full">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-lg border border-[#333A45] bg-[#12151A] p-1.5 focus-within:ring-2 focus-within:ring-[#4FD8C4] focus-within:ring-offset-2 focus-within:ring-offset-[#0A0C0F]">
-          <div className="flex items-center gap-1.5 pl-2 pr-1 font-mono text-xs text-[#565D68] select-none">
+          <div className="flex items-center gap-1.5 pl-2 pr-1 text-[#565D68] select-none">
             <span className="text-[#4FD8C4] font-bold">$</span>
             <span className="text-[#8B93A1]">compare</span>
           </div>
@@ -46,10 +58,10 @@ export const CompetitorConsole: React.FC = () => {
             value={url1}
             onChange={(e) => setUrl1(e.target.value)}
             disabled={loading}
-            className="flex-1 bg-transparent px-2.5 py-1.5 font-mono text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none"
+            className="flex-1 bg-transparent px-2.5 py-1.5 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none"
           />
 
-          <span className="font-mono text-xs text-[#565D68] text-center">vs</span>
+          <span className="text-[#565D68] text-center font-bold px-1">VS</span>
 
           <input
             type="text"
@@ -57,13 +69,13 @@ export const CompetitorConsole: React.FC = () => {
             value={url2}
             onChange={(e) => setUrl2(e.target.value)}
             disabled={loading}
-            className="flex-1 bg-transparent px-2.5 py-1.5 font-mono text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none"
+            className="flex-1 bg-transparent px-2.5 py-1.5 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none"
           />
 
           <button
             type="submit"
             disabled={loading || !url1.trim() || !url2.trim()}
-            className="rounded border border-[#333A45] bg-[#191D24] px-4 py-2 font-mono text-xs font-semibold text-[#4FD8C4] hover:bg-[#262B33] active:bg-[#333A45] disabled:opacity-40 transition-all cursor-pointer"
+            className="rounded border border-[#333A45] bg-[#191D24] px-4 py-2 font-semibold text-[#4FD8C4] hover:bg-[#262B33] active:bg-[#333A45] disabled:opacity-40 transition-all cursor-pointer"
           >
             {loading ? 'Comparing...' : 'Run'}
           </button>
@@ -72,11 +84,11 @@ export const CompetitorConsole: React.FC = () => {
 
       {/* Loading State */}
       {loading && (
-        <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-4 font-mono text-xs text-[#8B93A1]">
+        <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-4 text-[#8B93A1]">
           <div className="flex items-center gap-2">
             <span className="text-[#4FD8C4] font-semibold">COMPARE</span>
-            <span className="text-[#E7EAEE]">{url1} vs {url2}</span>
-            <span className="inline-block w-2 h-4 bg-[#4FD8C4] animate-pulse"></span>
+            <span className="text-[#E7EAEE] truncate">{url1} vs {url2}</span>
+            <span className="inline-block w-2 h-4 bg-[#4FD8C4] cursor-blink"></span>
           </div>
           <p className="mt-2 text-[11px] text-[#565D68]">
             Executing parallel DOM scrapers and evaluating comparative metrics...
@@ -86,20 +98,34 @@ export const CompetitorConsole: React.FC = () => {
 
       {/* Error State */}
       {error && (
-        <div className="rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 p-4 font-mono text-xs text-[#F87171]">
+        <div className="rounded-lg border border-[#F87171]/40 bg-[#F87171]/10 p-4 text-[#F87171]">
           <span>{error}</span>
         </div>
       )}
 
       {/* Comparison Matrix */}
       {audit1 && audit2 && !loading && (
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden font-mono text-xs">
-          <div className="bg-[#191D24] p-4 border-b border-[#262B33] font-semibold text-[#565D68] uppercase tracking-wider">
-            Side-by-Side Diagnostic Matrix
+        <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden">
+          <div className="bg-[#191D24] p-4 border-b border-[#262B33] flex items-center justify-between">
+            <span className="font-semibold text-[#565D68] uppercase tracking-wider">Side-by-Side Diagnostic Matrix</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => downloadPdfReport(audit1.id.toString())}
+                className="rounded border border-[#4FD8C4]/30 bg-[#4FD8C4]/10 px-2.5 py-1 text-[#4FD8C4] text-[11px] hover:bg-[#4FD8C4]/20 transition-all cursor-pointer"
+              >
+                PDF Site A
+              </button>
+              <button
+                onClick={() => downloadPdfReport(audit2.id.toString())}
+                className="rounded border border-[#7AA2F7]/30 bg-[#7AA2F7]/10 px-2.5 py-1 text-[#7AA2F7] text-[11px] hover:bg-[#7AA2F7]/20 transition-all cursor-pointer"
+              >
+                PDF Site B
+              </button>
+            </div>
           </div>
 
           <div className="divide-y divide-[#262B33]">
-            {/* Headers */}
+            {/* Table Headers */}
             <div className="p-4 grid grid-cols-3 text-center bg-[#0A0C0F] text-[#8B93A1] font-bold">
               <div>Metric</div>
               <div className="truncate px-2 text-[#4FD8C4]">{audit1.domain || 'Site A'}</div>
@@ -107,32 +133,123 @@ export const CompetitorConsole: React.FC = () => {
             </div>
 
             {/* Overall Score */}
+            {(() => {
+              const score1 = audit1.scores?.overallScore || 0;
+              const score2 = audit2.scores?.overallScore || 0;
+              const h = getWinnerHighlight(score1, score2, true);
+              return (
+                <div className="p-4 grid grid-cols-3 text-center items-center">
+                  <div className="text-[#565D68] uppercase tracking-wider font-semibold">Overall Score</div>
+                  <div className={`text-base ${h.site1}`}>{score1} / 100</div>
+                  <div className={`text-base ${h.site2}`}>{score2} / 100</div>
+                </div>
+              );
+            })()}
+
+            {/* Health Grade */}
             <div className="p-4 grid grid-cols-3 text-center items-center">
-              <div className="text-[#565D68] uppercase tracking-wider font-semibold">Overall Score</div>
-              <div className="text-lg font-bold text-[#4ADE80]">{audit1.scores?.overallScore || 0} / 100</div>
-              <div className="text-lg font-bold text-[#4ADE80]">{audit2.scores?.overallScore || 0} / 100</div>
+              <div className="text-[#565D68] uppercase tracking-wider font-semibold">Health Grade</div>
+              <div className="text-[#E7EAEE] font-bold">{audit1.scores?.healthGrade?.replace('_', ' ') || 'N/A'}</div>
+              <div className="text-[#E7EAEE] font-bold">{audit2.scores?.healthGrade?.replace('_', ' ') || 'N/A'}</div>
             </div>
+
+            {/* SEO Sub-Score */}
+            {(() => {
+              const s1 = audit1.scores?.seoScore || 0;
+              const s2 = audit2.scores?.seoScore || 0;
+              const h = getWinnerHighlight(s1, s2, true);
+              return (
+                <div className="p-4 grid grid-cols-3 text-center items-center">
+                  <div className="text-[#565D68] uppercase tracking-wider font-semibold">SEO Score</div>
+                  <div className={h.site1}>{s1} / 100</div>
+                  <div className={h.site2}>{s2} / 100</div>
+                </div>
+              );
+            })()}
+
+            {/* Content Sub-Score */}
+            {(() => {
+              const s1 = audit1.scores?.contentScore || 0;
+              const s2 = audit2.scores?.contentScore || 0;
+              const h = getWinnerHighlight(s1, s2, true);
+              return (
+                <div className="p-4 grid grid-cols-3 text-center items-center">
+                  <div className="text-[#565D68] uppercase tracking-wider font-semibold">Content Score</div>
+                  <div className={h.site1}>{s1} / 100</div>
+                  <div className={h.site2}>{s2} / 100</div>
+                </div>
+              );
+            })()}
+
+            {/* Accessibility Sub-Score */}
+            {(() => {
+              const s1 = audit1.scores?.accessibilityScore || 0;
+              const s2 = audit2.scores?.accessibilityScore || 0;
+              const h = getWinnerHighlight(s1, s2, true);
+              return (
+                <div className="p-4 grid grid-cols-3 text-center items-center">
+                  <div className="text-[#565D68] uppercase tracking-wider font-semibold">A11y Score</div>
+                  <div className={h.site1}>{s1} / 100</div>
+                  <div className={h.site2}>{s2} / 100</div>
+                </div>
+              );
+            })()}
+
+            {/* Performance Sub-Score */}
+            {(() => {
+              const s1 = audit1.scores?.performanceScore || 0;
+              const s2 = audit2.scores?.performanceScore || 0;
+              const h = getWinnerHighlight(s1, s2, true);
+              return (
+                <div className="p-4 grid grid-cols-3 text-center items-center">
+                  <div className="text-[#565D68] uppercase tracking-wider font-semibold">Performance Score</div>
+                  <div className={h.site1}>{s1} / 100</div>
+                  <div className={h.site2}>{s2} / 100</div>
+                </div>
+              );
+            })()}
 
             {/* Latency */}
-            <div className="p-4 grid grid-cols-3 text-center items-center">
-              <div className="text-[#565D68] uppercase tracking-wider font-semibold">Latency (ms)</div>
-              <div className="text-[#E7EAEE]">{audit1.responseTimeMs} ms</div>
-              <div className="text-[#E7EAEE]">{audit2.responseTimeMs} ms</div>
-            </div>
+            {(() => {
+              const t1 = audit1.responseTimeMs || 0;
+              const t2 = audit2.responseTimeMs || 0;
+              const h = getWinnerHighlight(t1, t2, false);
+              return (
+                <div className="p-4 grid grid-cols-3 text-center items-center">
+                  <div className="text-[#565D68] uppercase tracking-wider font-semibold">Latency</div>
+                  <div className={h.site1}>{t1} ms</div>
+                  <div className={h.site2}>{t2} ms</div>
+                </div>
+              );
+            })()}
 
             {/* Word Count */}
-            <div className="p-4 grid grid-cols-3 text-center items-center">
-              <div className="text-[#565D68] uppercase tracking-wider font-semibold">Word Count</div>
-              <div className="text-[#E7EAEE]">{audit1.contentMetrics?.wordCount || 0}</div>
-              <div className="text-[#E7EAEE]">{audit2.contentMetrics?.wordCount || 0}</div>
-            </div>
+            {(() => {
+              const w1 = audit1.contentMetrics?.wordCount || 0;
+              const w2 = audit2.contentMetrics?.wordCount || 0;
+              const h = getWinnerHighlight(w1, w2, true);
+              return (
+                <div className="p-4 grid grid-cols-3 text-center items-center">
+                  <div className="text-[#565D68] uppercase tracking-wider font-semibold">Word Count</div>
+                  <div className={h.site1}>{w1} words</div>
+                  <div className={h.site2}>{w2} words</div>
+                </div>
+              );
+            })()}
 
             {/* Missing Alt Images */}
-            <div className="p-4 grid grid-cols-3 text-center items-center">
-              <div className="text-[#565D68] uppercase tracking-wider font-semibold">Missing Alt Tags</div>
-              <div className="text-[#E7EAEE]">{audit1.accessibilityMetrics?.imagesMissingAltCount || 0}</div>
-              <div className="text-[#E7EAEE]">{audit2.accessibilityMetrics?.imagesMissingAltCount || 0}</div>
-            </div>
+            {(() => {
+              const m1 = audit1.accessibilityMetrics?.imagesMissingAltCount || 0;
+              const m2 = audit2.accessibilityMetrics?.imagesMissingAltCount || 0;
+              const h = getWinnerHighlight(m1, m2, false);
+              return (
+                <div className="p-4 grid grid-cols-3 text-center items-center">
+                  <div className="text-[#565D68] uppercase tracking-wider font-semibold">Missing Alt Images</div>
+                  <div className={h.site1}>{m1} missing</div>
+                  <div className={h.site2}>{m2} missing</div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

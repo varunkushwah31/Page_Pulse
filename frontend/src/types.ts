@@ -143,3 +143,27 @@ export interface TrendResponse {
   data: TrendDataPoint[];
   summary?: TrendSummary;
 }
+
+export interface ScheduledAuditConfig {
+  id: number;
+  url: string;
+  webhookUrl: string | null;
+  email: string | null;
+  frequencyMinutes: number;
+  lastAuditTime: string | null;
+  previousOverallScore: number | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  regressionThreshold: number;
+  notifyOnRegressionOnly: boolean;
+}
+
+export interface ScheduledAuditRequest {
+  url: string;
+  webhookUrl?: string | null;
+  email?: string | null;
+  frequencyMinutes?: number;
+  regressionThreshold?: number;
+  notifyOnRegressionOnly?: boolean;
+}

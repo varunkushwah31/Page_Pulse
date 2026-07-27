@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { loginUser, registerUser } from '../lib/api';
 
 export const AuthPage: React.FC = () => {
@@ -23,12 +24,19 @@ export const AuthPage: React.FC = () => {
   // Active User State
   const [currentUser, setCurrentUser] = useState<{ username: string; email: string; role: string } | null>(null);
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check if user was redirected from audit save
+  const redirectState = location.state as { from?: string; auditId?: number } | undefined;
+  const isAuditSaveRedirect = redirectState?.from && redirectState?.auditId;
+
   useEffect(() => {
     const savedUser = localStorage.getItem('pagepulse_user');
     if (savedUser) {
       try {
         setCurrentUser(JSON.parse(savedUser));
-      } catch (e) {
+      } catch {
         localStorage.removeItem('pagepulse_user');
       }
     }
@@ -53,8 +61,20 @@ export const AuthPage: React.FC = () => {
       setCurrentUser(userProfile);
       setSuccessMessage(`Welcome back, ${res.user.username}! Session active.`);
       setLoginPassword('');
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Login failed. Please check credentials.');
+      
+      // Handle redirect after login
+      if (isAuditSaveRedirect) {
+        // The user will be redirected back to the audit page
+        // They can click "Save to Database" again now that they're authenticated
+        navigate(redirectState.from!, { replace: true });
+      } else if (redirectState?.from) {
+        navigate(redirectState.from, { replace: true });
+      } else {
+        navigate('/');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login failed. Please check credentials.';
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -85,8 +105,16 @@ export const AuthPage: React.FC = () => {
       setSuccessMessage(`Account created successfully! Welcome, ${res.user.username}.`);
       setSignupPassword('');
       setSignupConfirmPassword('');
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Registration failed.');
+      
+      // Handle redirect after signup
+      if (redirectState?.from) {
+        navigate(redirectState.from, { replace: true });
+      } else {
+        navigate('/');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Registration failed.';
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -172,6 +200,14 @@ export const AuthPage: React.FC = () => {
       ) : (
         /* Unauthenticated Auth Form View */
         <div className="rounded border border-[#262B33] bg-[#12151A] p-6 space-y-6">
+          {/* Redirect Message */}
+          {isAuditSaveRedirect && (
+            <div className="rounded border border-[#4FD8C4]/40 bg-[#4FD8C4]/10 p-3 text-xs text-[#4FD8C4] flex items-center gap-2">
+              <span className="font-bold mr-1">INFO:</span> 
+              <span>You were redirected here to authenticate before saving your audit report. Sign in or create an account to continue.</span>
+            </div>
+          )}
+
           {/* Mode Switcher Tabs */}
           <div className="flex border-b border-[#262B33] gap-2">
             <button

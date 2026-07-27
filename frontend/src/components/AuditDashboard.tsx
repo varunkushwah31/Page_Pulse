@@ -191,8 +191,8 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({ audit }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <MetricCard label="Page Title" value={audit.seoMetrics?.pageTitle || 'Missing'} status={audit.seoMetrics?.hasTitle} />
             <MetricCard label="Meta Description" value={audit.seoMetrics?.metaDescription || 'Missing'} status={audit.seoMetrics?.hasMetaDescription} />
-            <MetricCard label="Robots Directive" value={audit.seoMetrics?.robotsDirective || 'Default (index, follow)'} status={audit.seoMetrics?.indexable} />
-            <MetricCard label="Canonical Link" value={audit.seoMetrics?.canonicalUrl || 'Not specified'} status={!!audit.seoMetrics?.canonicalUrl} />
+<MetricCard label="Indexable" value={audit.seoMetrics?.isIndexable ? 'Yes' : 'No'} status={audit.seoMetrics?.isIndexable} />
+          <MetricCard label="Followable" value={audit.seoMetrics?.isFollowable ? 'Yes' : 'No'} status={audit.seoMetrics?.isFollowable} />
           </div>
         </TabsContent>
 

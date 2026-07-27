@@ -6,52 +6,52 @@
 @import "@fontsource/ibm-plex-sans/500.css";
 @import "@fontsource/ibm-plex-sans/600.css";
 
-:root {
+@theme {
   /* DESIGN.md Color Tokens (§5) */
-  --background: #0A0C0F;
-  --foreground: #E7EAEE;
-  --card: #12151A;
-  --card-foreground: #E7EAEE;
-  --popover: #191D24;
-  --popover-foreground: #E7EAEE;
-  --primary: #4FD8C4;
-  --primary-foreground: #0A0C0F;
-  --secondary: #191D24;
-  --secondary-foreground: #E7EAEE;
-  --muted: #12151A;
-  --muted-foreground: #8B93A1;
-  --accent: #191D24;
-  --accent-foreground: #E7EAEE;
-  --destructive: #F87171;
-  --destructive-foreground: #0A0C0F;
-  --border: #262B33;
-  --input: #333A45;
-  --ring: #4FD8C4;
+  --color-background: #0A0C0F;
+  --color-foreground: #E7EAEE;
+  --color-card: #12151A;
+  --color-card-foreground: #E7EAEE;
+  --color-popover: #191D24;
+  --color-popover-foreground: #E7EAEE;
+  --color-primary: #4FD8C4;
+  --color-primary-foreground: #0A0C0F;
+  --color-secondary: #191D24;
+  --color-secondary-foreground: #E7EAEE;
+  --color-muted: #12151A;
+  --color-muted-foreground: #8B93A1;
+  --color-accent: #191D24;
+  --color-accent-foreground: #E7EAEE;
+  --color-destructive: #F87171;
+  --color-destructive-foreground: #0A0C0F;
+  --color-border: #262B33;
+  --color-input: #333A45;
+  --color-ring: #4FD8C4;
   --radius: 0.5rem;
 
   /* Project-specific semantic tokens (§5) */
-  --success: #4ADE80;
-  --success-foreground: #0A0C0F;
-  --warning: #FBBF24;
-  --warning-foreground: #0A0C0F;
-  --info: #7AA2F7;
-  --info-foreground: #0A0C0F;
+  --color-success: #4ADE80;
+  --color-success-foreground: #0A0C0F;
+  --color-warning: #FBBF24;
+  --color-warning-foreground: #0A0C0F;
+  --color-info: #7AA2F7;
+  --color-info-foreground: #0A0C0F;
 
   /* Alias tokens for backward compatibility */
-  --bg: var(--background);
-  --surface: var(--card);
-  --surface-raised: var(--popover);
-  --text: var(--foreground);
-  --text-muted: var(--muted-foreground);
-  --text-faint: #565D68;
-  --pass: var(--success);
-  --warn: var(--warning);
-  --fail: var(--destructive);
+  --color-bg: var(--color-background);
+  --color-surface: var(--color-card);
+  --color-surface-raised: var(--color-popover);
+  --color-text: var(--color-foreground);
+  --color-text-muted: var(--color-muted-foreground);
+  --color-text-faint: #565D68;
+  --color-pass: var(--color-success);
+  --color-warn: var(--color-warning);
+  --color-fail: var(--color-destructive);
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
   font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   margin: 0;
   padding: 0;
@@ -122,7 +122,7 @@ input[type="number"] {
 
 /* shadcn/ui compatible focus ring */
 *:focus-visible {
-  outline: 2px solid var(--ring);
+  outline: 2px solid var(--color-ring);
   outline-offset: 2px;
 }
 
@@ -133,14 +133,14 @@ input[type="number"] {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: var(--color-background);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--color-border);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--muted-foreground);
+  background: var(--color-muted-foreground);
 }

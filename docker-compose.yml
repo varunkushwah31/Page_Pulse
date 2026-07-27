@@ -1,6 +1,17 @@
-version: '3.8'
-
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pagepulse-frontend
+    ports:
+      - "5174:80"
+    depends_on:
+      - app
+    networks:
+      - pagepulse-network
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -10,13 +21,13 @@ services:
       - "8082:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_DATA_MONGODB_URI=mongodb://admin:password@mongodb:27017/pagepulse_db?authSource=admin
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
-      - MONGO_URI=mongodb://admin:password@mongodb:27017/pagepulse_db?authSource=admin
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dspring.data.mongodb.uri=mongodb://admin:password@mongodb:27017/pagepulse_db?authSource=admin
+      - SERVER_PORT=8080
+      - APP_CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dspring.profiles.active=docker -Dspring.data.mongodb.uri=mongodb://admin:password@mongodb:27017/pagepulse_db?authSource=admin -Dspring.mongodb.uri=mongodb://admin:password@mongodb:27017/pagepulse_db?authSource=admin
     depends_on:
       mongodb:
         condition: service_healthy

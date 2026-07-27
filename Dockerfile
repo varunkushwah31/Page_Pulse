@@ -1,5 +1,5 @@
 # Build stage - just copy the pre-built jar
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 WORKDIR /app
 

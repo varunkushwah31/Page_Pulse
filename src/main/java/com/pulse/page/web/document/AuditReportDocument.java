@@ -54,4 +54,6 @@ public class AuditReportDocument {
 
     @Builder.Default
     private Instant savedAt = Instant.now();
+
+    private Long userId;
 }

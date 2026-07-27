@@ -12,8 +12,8 @@ export interface SeoMetrics {
   openGraphTags: Record<string, string>;
   twitterCardTags: Record<string, string>;
   robotsDirective: string | null;
-  followable: boolean;
-  indexable: boolean;
+  isFollowable: boolean;
+  isIndexable: boolean;
 }
 
 export interface ContentMetrics {

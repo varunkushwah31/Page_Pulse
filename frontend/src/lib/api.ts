@@ -7,6 +7,14 @@ import type {
 
 const API_BASE = '';
 
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('pagepulse_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+  };
+}
+
 export async function runFullAudit(url: string): Promise<AuditResponse> {
   const response = await fetch(`${API_BASE}/api/audit/run`, {
     method: 'POST',
@@ -23,8 +31,12 @@ export async function runFullAudit(url: string): Promise<AuditResponse> {
 export async function saveReportToMongo(tempId: number): Promise<AuditReportDocument> {
   const response = await fetch(`${API_BASE}/api/audit/save/${tempId}`, {
     method: 'POST',
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('AUTH_REQUIRED');
+    }
     throw new Error('Failed to save report to MongoDB');
   }
   return response.json();

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import type { AuditResponse } from '../types';
-import { saveReportToMongo } from '../lib/api';
-import { Download, Database } from 'lucide-react';
-import { getPdfDownloadUrl } from '../lib/api';
+import { saveReportToMongo, getPdfDownloadUrl } from '../lib/api';
+import { Download, Database, Lock, AlertCircle } from 'lucide-react';
 
 interface AuditReportProps {
   audit: AuditResponse;
@@ -18,17 +18,36 @@ const getStatusColor = (status: number): string => {
 export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isAuthenticated = !!localStorage.getItem('pagepulse_token');
 
   const handleSaveToMongo = async () => {
+    if (!isAuthenticated) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
     setSaving(true);
     try {
       const doc = await saveReportToMongo(audit.id);
       setSavedMessage(`Audit stored permanently in MongoDB! (ID: ${doc.id})`);
     } catch (err) {
-      setSavedMessage(err instanceof Error ? err.message : 'Failed to save to database.');
+      if (err instanceof Error && err.message === 'AUTH_REQUIRED') {
+        setShowLoginPrompt(true);
+      } else {
+        setSavedMessage(err instanceof Error ? err.message : 'Failed to save to database.');
+      }
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleLoginPromptAction = () => {
+    setShowLoginPrompt(false);
+    navigate('/auth', { state: { from: location.pathname, auditId: audit.id } });
   };
 
   const handlePdfDownload = () => {
@@ -256,6 +275,43 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           )}
         </div>
       </div>
+
+      {/* Login Prompt Modal */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3 text-center mx-auto">
+              <div className="size-12 rounded-full bg-destructive/10 border border-destructive/30 flex items-center justify-center mx-auto">
+                <Lock className="size-6 text-destructive" />
+              </div>
+              <div>
+                <h3 className="font-mono text-lg font-semibold text-foreground">Authentication Required</h3>
+                <p className="text-sm text-muted-foreground mt-1">You must be logged in to save audits to the database.</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground text-center">
+                Save this audit report to your personal MongoDB collection for future reference and comparison.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowLoginPrompt(false)}
+                  className="flex-1 rounded border border-input bg-popover px-4 py-2 font-mono text-xs font-semibold text-muted-foreground hover:bg-accent transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLoginPromptAction}
+                  className="flex-1 rounded border border-primary bg-primary px-4 py-2 font-mono text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer"
+                >
+                  <AlertCircle className="size-3 mr-1 inline-block" />
+                  Sign In to Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -2,17 +2,17 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { AuditResponse } from '../types';
 import { saveReportToMongo, downloadPdfReport } from '../lib/api';
-import { Download, Database, Lock, AlertCircle } from 'lucide-react';
+import { Download, Database, Lock, AlertCircle, FileText, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 
 interface AuditReportProps {
   audit: AuditResponse;
 }
 
 const getStatusColor = (status: number): string => {
-  if (status >= 200 && status < 300) return 'text-success border-success/30 bg-success/10';
-  if (status >= 300 && status < 400) return 'text-info border-info/30 bg-info/10';
-  if (status >= 400 && status < 500) return 'text-warning border-warning/30 bg-warning/10';
-  return 'text-destructive border-destructive/30 bg-destructive/10';
+  if (status >= 200 && status < 300) return 'text-[#4ADE80] border-[#4ADE80]/30 bg-[#4ADE80]/10';
+  if (status >= 300 && status < 400) return 'text-[#7AA2F7] border-[#7AA2F7]/30 bg-[#7AA2F7]/10';
+  if (status >= 400 && status < 500) return 'text-[#FBBF24] border-[#FBBF24]/30 bg-[#FBBF24]/10';
+  return 'text-[#F87171] border-[#F87171]/30 bg-[#F87171]/10';
 };
 
 export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
@@ -64,7 +64,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
   const responseTimeMs = audit.responseTimeMs || 0;
   const timingWidth = Math.min(100, Math.max(5, (responseTimeMs / 3000) * 100));
-  const timingColor = responseTimeMs <= 800 ? 'bg-success' : responseTimeMs <= 2000 ? 'bg-warning' : 'bg-destructive';
+  const timingColor = responseTimeMs <= 800 ? 'bg-[#4ADE80]' : responseTimeMs <= 2000 ? 'bg-[#FBBF24]' : 'bg-[#F87171]';
 
   const seoMetrics = audit.seoMetrics;
   const contentMetrics = audit.contentMetrics;
@@ -86,117 +86,165 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
   const getGradeColor = (grade: string) => {
     switch (grade) {
-      case 'EXCELLENT': return 'text-success border-success/30 bg-success/10';
-      case 'GOOD': return 'text-info border-info/30 bg-info/10';
-      case 'NEEDS_IMPROVEMENT': return 'text-warning border-warning/30 bg-warning/10';
-      default: return 'text-destructive border-destructive/30 bg-destructive/10';
+      case 'EXCELLENT': return 'text-[#4ADE80] border-[#4ADE80]/30 bg-[#4ADE80]/10';
+      case 'GOOD': return 'text-[#4FD8C4] border-[#4FD8C4]/30 bg-[#4FD8C4]/10';
+      case 'NEEDS_IMPROVEMENT': return 'text-[#FBBF24] border-[#FBBF24]/30 bg-[#FBBF24]/10';
+      default: return 'text-[#F87171] border-[#F87171]/30 bg-[#F87171]/10';
     }
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-2xl space-y-0">
+    <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden shadow-2xl space-y-0 font-mono text-xs">
       {/* Report Header Strip */}
-      <div className="bg-popover px-5 py-4 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="bg-[#191D24] px-5 py-4 border-b border-[#262B33] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="space-y-1">
-          <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground">
-            Audit Target
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#565D68]">
+            Audit Target URL
           </span>
-          <div className="font-mono text-sm text-foreground font-medium break-all">{audit.url}</div>
+          <div className="font-mono text-sm text-[#E7EAEE] font-medium break-all">{audit.url}</div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center rounded-full border px-3 py-1 font-mono text-xs font-bold ${getStatusColor(audit.httpStatus)}`}>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${getStatusColor(audit.httpStatus)}`}>
             HTTP {audit.httpStatus}
           </span>
         </div>
       </div>
 
-      {/* Health Grade & Score Summary */}
-      <div className="p-5 border-b border-border grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div className="sm:col-span-2 space-y-1">
-          <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground">
-            Overall Health Grade
-          </span>
-          <div className="flex items-center gap-3">
-            <span className={`inline-flex items-center rounded-full border px-3 py-1 font-mono text-xs font-bold ${getGradeColor(healthGrade)}`}>
-              {healthGrade.replace('_', ' ')}
+      {/* Health Grade & 4-Way Sub-Scores Breakdown */}
+      <div className="p-5 border-b border-[#262B33] space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#565D68]">
+              Overall Health Grade
             </span>
-            <span className="font-mono text-2xl font-bold text-foreground">{overallScore}/100</span>
+            <div className="flex items-center gap-3">
+              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${getGradeColor(healthGrade)}`}>
+                {healthGrade.replace('_', ' ')}
+              </span>
+              <span className="text-3xl font-extrabold text-[#E7EAEE]">{overallScore} / 100</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePdfDownload}
+              disabled={downloadingPdf}
+              className="rounded border border-[#4FD8C4]/40 bg-[#4FD8C4]/10 px-3 py-1.5 font-semibold text-[#4FD8C4] hover:bg-[#4FD8C4]/20 transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+            >
+              <Download className="size-3.5" />
+              <span>{downloadingPdf ? 'Generating PDF...' : 'Export PDF'}</span>
+            </button>
+            <button
+              onClick={handleSaveToMongo}
+              disabled={saving}
+              className="rounded border border-[#333A45] bg-[#191D24] px-4 py-1.5 font-semibold text-[#E7EAEE] hover:border-[#4FD8C4] hover:text-[#4FD8C4] transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+            >
+              <Database className="size-3.5 text-[#4ADE80]" />
+              <span>{saving ? 'Saving...' : 'Save to DB'}</span>
+            </button>
           </div>
         </div>
-        <div className="text-center">
-          <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground block mb-1">SEO</span>
-          <span className="font-mono text-xl font-bold text-foreground">{seoScore}</span>
-        </div>
-        <div className="text-center">
-          <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Content</span>
-          <span className="font-mono text-xl font-bold text-foreground">{contentScore}</span>
-        </div>
-        <div className="text-center">
-          <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground block mb-1">A11y</span>
-          <span className="font-mono text-xl font-bold text-foreground">{accessibilityScore}</span>
-        </div>
-        <div className="text-center">
-          <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Perf</span>
-          <span className="font-mono text-xl font-bold text-foreground">{performanceScore}</span>
+
+        {/* 4-Way Sub-Score Visual Progress Bars Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+          <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-[#8B93A1]">SEO Score</span>
+              <span className="font-bold text-[#4FD8C4]">{seoScore}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
+              <div className="h-full bg-[#4FD8C4] transition-all" style={{ width: `${seoScore}%` }}></div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-[#8B93A1]">Content Score</span>
+              <span className="font-bold text-[#7AA2F7]">{contentScore}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
+              <div className="h-full bg-[#7AA2F7] transition-all" style={{ width: `${contentScore}%` }}></div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-[#8B93A1]">Accessibility</span>
+              <span className="font-bold text-[#4ADE80]">{accessibilityScore}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
+              <div className="h-full bg-[#4ADE80] transition-all" style={{ width: `${accessibilityScore}%` }}></div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-[#8B93A1]">Performance</span>
+              <span className="font-bold text-[#FBBF24]">{performanceScore}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
+              <div className="h-full bg-[#FBBF24] transition-all" style={{ width: `${performanceScore}%` }}></div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Key Performance Metrics Bar */}
-      <div className="p-5 border-b border-border grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Latency & Content-Type Telemetry Bar */}
+      <div className="p-5 border-b border-[#262B33] grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <div className="flex justify-between items-baseline font-mono text-xs mb-1">
-            <span className="text-muted-foreground">Response Time</span>
-            <span className="text-foreground font-semibold">{responseTimeMs} ms</span>
+          <div className="flex justify-between items-baseline text-xs mb-1">
+            <span className="text-[#8B93A1]">Response Latency</span>
+            <span className="text-[#E7EAEE] font-semibold">{responseTimeMs} ms</span>
           </div>
-          <div className="w-full h-1.5 bg-background rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-[#0A0C0F] rounded-full overflow-hidden">
             <div className={`h-full ${timingColor} transition-all duration-300`} style={{ width: `${timingWidth}%` }}></div>
           </div>
         </div>
 
-        <div className="flex flex-col justify-center font-mono text-xs">
-          <span className="text-muted-foreground">Content Type</span>
-          <span className="text-foreground font-semibold mt-1 truncate">{audit.contentType || 'text/html'}</span>
+        <div className="flex flex-col justify-center text-xs">
+          <span className="text-[#8B93A1]">Content Type Header</span>
+          <span className="text-[#E7EAEE] font-semibold mt-1 truncate">{audit.contentType || 'text/html'}</span>
         </div>
       </div>
 
-      {/* Detailed Page-level Rows */}
-      <div className="divide-y divide-border">
+      {/* Detailed Technical Metric Rows */}
+      <div className="divide-y divide-[#262B33]">
         {/* Page Title */}
         <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 font-mono text-xs text-[var(--text-faint)] uppercase tracking-wider">
+          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
             Page Title
           </div>
-          <div className="flex-1 font-sans text-sm text-foreground">
+          <div className="flex-1 font-sans text-sm text-[#E7EAEE]">
             {pageTitle ? (
               <span>{pageTitle}</span>
             ) : (
-              <span className="font-mono text-xs italic text-muted-foreground">No {'<title>'} found</span>
+              <span className="font-mono text-xs italic text-[#8B93A1]">No {'<title>'} found</span>
             )}
           </div>
         </div>
 
         {/* Meta Description */}
         <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 font-mono text-xs text-[var(--text-faint)] uppercase tracking-wider">
+          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
             Meta Description
           </div>
-          <div className="flex-1 font-sans text-sm text-foreground leading-relaxed">
+          <div className="flex-1 font-sans text-sm text-[#E7EAEE] leading-relaxed">
             {metaDescription ? (
               <span>{metaDescription}</span>
             ) : (
-              <span className="font-mono text-xs italic text-muted-foreground">No meta description found</span>
+              <span className="font-mono text-xs italic text-[#8B93A1]">No meta description tag found</span>
             )}
           </div>
         </div>
 
         {/* H1 Count */}
         <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 font-mono text-xs text-[var(--text-faint)] uppercase tracking-wider">
+          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
             H1 Heading Count
           </div>
           <div className="flex-1">
-            <span className={`inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold ${h1Count === 1 ? 'bg-success/10 text-success border border-success/30' : 'bg-warning/10 text-warning border border-warning/30'}`}>
+            <span className={`inline-flex items-center rounded px-2.5 py-0.5 text-xs font-bold ${h1Count === 1 ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30'}`}>
               {h1Count} {h1Count === 1 ? 'H1 tag' : 'H1 tags'}
             </span>
           </div>
@@ -204,11 +252,11 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
         {/* Missing Alt Images */}
         <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 font-mono text-xs text-[var(--text-faint)] uppercase tracking-wider">
+          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
             Missing Alt Images
           </div>
           <div className="flex-1">
-            <span className={`inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold ${imagesMissingAlt === 0 ? 'bg-success/10 text-success border border-success/30' : 'bg-destructive/10 text-destructive border border-destructive/30'}`}>
+            <span className={`inline-flex items-center rounded px-2.5 py-0.5 text-xs font-bold ${imagesMissingAlt === 0 ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
               {imagesMissingAlt} missing alt {imagesMissingAlt === 1 ? 'tag' : 'tags'}
             </span>
           </div>
@@ -216,117 +264,93 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
         {/* Word Count */}
         <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 font-mono text-xs text-[var(--text-faint)] uppercase tracking-wider">
+          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
             Approx. Word Count
           </div>
-          <div className="flex-1 font-mono text-sm font-semibold text-foreground">
+          <div className="flex-1 text-sm font-semibold text-[#E7EAEE]">
             {wordCount} words
           </div>
         </div>
 
-        {/* Additional SEO Compliance & Badges */}
+        {/* SEO Metadata Compliance Tags */}
         <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 font-mono text-xs text-[var(--text-faint)] uppercase tracking-wider">
-            SEO Compliance
+          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
+            SEO Tags Compliance
           </div>
           <div className="flex-1 flex flex-wrap gap-2">
-            <span className={`inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold ${seoMetrics?.hasViewportMeta ? 'bg-success/10 text-success border border-success/30' : 'bg-destructive/10 text-destructive border border-destructive/30'}`}>
-              {seoMetrics?.hasViewportMeta ? '✓ Mobile Viewport Meta' : '✗ Missing Viewport Meta'}
+            <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasViewportMeta ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
+              {seoMetrics?.hasViewportMeta ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
+              <span>Mobile Viewport Meta</span>
             </span>
-            <span className={`inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold ${seoMetrics?.hasFavicon ? 'bg-success/10 text-success border border-success/30' : 'bg-warning/10 text-warning border border-warning/30'}`}>
-              {seoMetrics?.hasFavicon ? '✓ Favicon Icon' : '! Missing Favicon'}
+            <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasFavicon ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30'}`}>
+              {seoMetrics?.hasFavicon ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+              <span>Favicon Icon</span>
             </span>
-            <span className={`inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold ${seoMetrics?.hasOgImage ? 'bg-success/10 text-success border border-success/30' : 'bg-warning/10 text-warning border border-warning/30'}`}>
-              {seoMetrics?.hasOgImage ? '✓ OpenGraph Image' : '! Missing OG Image'}
+            <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasOgImage ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30'}`}>
+              {seoMetrics?.hasOgImage ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+              <span>OpenGraph Image</span>
             </span>
-            <span className={`inline-flex items-center rounded px-2.5 py-0.5 font-mono text-xs font-bold ${seoMetrics?.hasStructuredData ? 'bg-success/10 text-success border border-success/30' : 'bg-muted/50 text-muted-foreground border border-border'}`}>
-              {seoMetrics?.hasStructuredData ? '✓ JSON-LD Schema' : 'No Schema.org Data'}
+            <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasStructuredData ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#191D24] text-[#8B93A1] border border-[#262B33]'}`}>
+              {seoMetrics?.hasStructuredData ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
+              <span>JSON-LD Schema</span>
             </span>
           </div>
         </div>
 
-        {/* SEO Recommendations & Action Plan */}
+        {/* Actionable Recommendations Plan */}
         {seoMetrics?.seoRecommendations && seoMetrics.seoRecommendations.length > 0 && (
-          <div className="p-4 sm:p-5 bg-[#12151A]/60">
-            <div className="font-mono text-xs text-[#4FD8C4] uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
-              <span>⚡ SEO Optimization Recommendations ({seoMetrics.seoRecommendations.length})</span>
+          <div className="p-4 sm:p-5 bg-[#0A0C0F]/60 space-y-3">
+            <div className="text-xs text-[#4FD8C4] uppercase tracking-wider font-bold flex items-center gap-1.5">
+              <FileText className="size-4 text-[#4FD8C4]" />
+              <span>SEO Optimization Recommendations ({seoMetrics.seoRecommendations.length})</span>
             </div>
-            <ul className="space-y-2">
+            <div className="space-y-2">
               {seoMetrics.seoRecommendations.map((rec, idx) => (
-                <li key={`${rec}-${idx}`} className="flex items-start gap-2 text-xs font-sans text-[#E7EAEE]">
-                  <span className="text-[#F59E0B] shrink-0 font-mono">→</span>
+                <div key={`${rec}-${idx}`} className="flex items-start gap-2.5 text-xs font-sans text-[#E7EAEE] bg-[#12151A] p-2.5 rounded border border-[#262B33]">
+                  <span className="text-[#FBBF24] shrink-0 font-mono font-bold">→</span>
                   <span>{rec}</span>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Save Action Bar */}
-      <div className="bg-popover p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
-        <span className="font-mono text-xs text-muted-foreground">
-          {savedMessage || 'Promote this audit to permanent cloud persistence.'}
-        </span>
-
-        <div className="flex items-center gap-2">
-          {savedMessage ? (
-            <span className="inline-flex items-center rounded border border-success/30 bg-success/10 px-3 py-1.5 font-mono text-xs font-semibold text-success">
-              <Database className="size-3 mr-1" />
-              Saved to MongoDB
-            </span>
-          ) : (
-            <>
-              <button
-                onClick={handlePdfDownload}
-                disabled={downloadingPdf}
-                className="rounded border border-input bg-popover px-3 py-1.5 font-mono text-xs font-semibold text-primary hover:bg-accent transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
-              >
-                <Download className="size-3" />
-                {downloadingPdf ? 'Downloading...' : 'PDF'}
-              </button>
-              <button
-                onClick={handleSaveToMongo}
-                disabled={saving}
-                className="rounded border border-input bg-card px-4 py-2 font-mono text-xs font-semibold text-primary hover:border-primary hover:bg-accent transition-all cursor-pointer disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save to Database'}
-              </button>
-            </>
-          )}
+      {/* Permanent Save Confirmation Footer */}
+      {savedMessage && (
+        <div className="bg-[#4ADE80]/10 p-4 border-t border-[#4ADE80]/30 text-[#4ADE80] flex items-center gap-2">
+          <CheckCircle2 className="size-4 shrink-0 text-[#4ADE80]" />
+          <span>{savedMessage}</span>
         </div>
-      </div>
+      )}
 
       {/* Login Prompt Modal */}
       {showLoginPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="bg-[#12151A] border border-[#262B33] rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
             <div className="flex items-center gap-3 text-center mx-auto">
-              <div className="size-12 rounded-full bg-destructive/10 border border-destructive/30 flex items-center justify-center mx-auto">
-                <Lock className="size-6 text-destructive" />
+              <div className="size-12 rounded-full bg-[#F87171]/10 border border-[#F87171]/30 flex items-center justify-center mx-auto text-[#F87171]">
+                <Lock className="size-6" />
               </div>
               <div>
-                <h3 className="font-mono text-lg font-semibold text-foreground">Authentication Required</h3>
-                <p className="text-sm text-muted-foreground mt-1">You must be logged in to save audits to the database.</p>
+                <h3 className="font-mono text-base font-bold text-[#E7EAEE]">Authentication Required</h3>
+                <p className="text-xs text-[#8B93A1] mt-1 font-sans">You must be signed in to save reports to MongoDB Atlas.</p>
               </div>
             </div>
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground text-center">
-                Save this audit report to your personal MongoDB collection for future reference and comparison.
-              </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowLoginPrompt(false)}
-                  className="flex-1 rounded border border-input bg-popover px-4 py-2 font-mono text-xs font-semibold text-muted-foreground hover:bg-accent transition-all cursor-pointer"
+                  className="flex-1 rounded border border-[#333A45] bg-[#191D24] px-4 py-2 font-mono text-xs font-semibold text-[#8B93A1] hover:bg-[#262B33] transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleLoginPromptAction}
-                  className="flex-1 rounded border border-primary bg-primary px-4 py-2 font-mono text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer"
+                  className="flex-1 rounded border border-[#4FD8C4] bg-[#4FD8C4] px-4 py-2 font-mono text-xs font-semibold text-[#0A0C0F] hover:bg-[#4FD8C4]/90 transition-all cursor-pointer inline-flex items-center justify-center gap-1"
                 >
-                  <AlertCircle className="size-3 mr-1 inline-block" />
-                  Sign In to Save
+                  <AlertCircle className="size-3.5" />
+                  <span>Sign In</span>
                 </button>
               </div>
             </div>

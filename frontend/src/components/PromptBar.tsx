@@ -15,31 +15,59 @@ export const PromptBar: React.FC<PromptBarProps> = ({ onAuditSubmit, isLoading, 
     onAuditSubmit(url.trim());
   };
 
+  const quickUrls = [
+    'https://leetcode.com',
+    'https://github.com',
+    'https://codeforces.com',
+    'https://wikipedia.org',
+  ];
+
   return (
-    <form onSubmit={handleSubmit} className="w-full">
-      <div className="flex items-center rounded-lg border border-input bg-card p-1.5 transition-all focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background">
-        <div className="flex items-center gap-1.5 pl-2 pr-1 font-mono text-xs text-muted-foreground select-none">
-          <span className="text-primary font-bold">$</span>
-          <span className="hidden sm:inline">audit</span>
+    <div className="space-y-2 w-full font-mono text-xs">
+      <form onSubmit={handleSubmit} className="w-full">
+        <div className="flex items-center rounded-lg border border-[#333A45] bg-[#12151A] p-1.5 transition-all focus-within:ring-2 focus-within:ring-[#4FD8C4] focus-within:ring-offset-2 focus-within:ring-offset-[#0A0C0F]">
+          <div className="flex items-center gap-1.5 pl-2 pr-1 text-[#8B93A1] select-none font-mono">
+            <span className="text-[#4FD8C4] font-bold">$</span>
+            <span className="text-[#8B93A1]">audit</span>
+          </div>
+
+          <input
+            type="text"
+            placeholder="https://example.com"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            disabled={isLoading}
+            className="flex-1 bg-transparent px-2.5 py-2 font-mono text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none disabled:opacity-50"
+          />
+
+          <button
+            type="submit"
+            disabled={isLoading || !url.trim()}
+            className="rounded border border-[#333A45] bg-[#191D24] px-4 py-2 font-mono text-xs font-semibold text-[#4FD8C4] hover:bg-[#262B33] active:bg-[#333A45] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          >
+            {isLoading ? 'Running...' : 'Run'}
+          </button>
         </div>
+      </form>
 
-        <input
-          type="text"
-          placeholder="https://example.com"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          disabled={isLoading}
-          className="flex-1 bg-transparent px-2.5 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
-        />
-
-        <button
-          type="submit"
-          disabled={isLoading || !url.trim()}
-          className="rounded border border-input bg-popover px-4 py-2 font-mono text-xs font-semibold text-primary hover:bg-accent active:bg-border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {isLoading ? 'Running...' : 'Run'}
-        </button>
+      {/* Quick Target URL Shortcuts */}
+      <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#565D68] pl-1">
+        <span>Quick Test:</span>
+        {quickUrls.map((sampleUrl) => (
+          <button
+            key={sampleUrl}
+            type="button"
+            disabled={isLoading}
+            onClick={() => {
+              setUrl(sampleUrl);
+              onAuditSubmit(sampleUrl);
+            }}
+            className="rounded border border-[#262B33] bg-[#12151A] px-2 py-0.5 text-[#8B93A1] hover:text-[#4FD8C4] hover:border-[#4FD8C4]/40 transition-all cursor-pointer disabled:opacity-50"
+          >
+            {sampleUrl.replace('https://', '')}
+          </button>
+        ))}
       </div>
-    </form>
+    </div>
   );
 };

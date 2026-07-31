@@ -38,10 +38,11 @@ export async function saveReportToMongo(tempId: number): Promise<AuditReportDocu
     headers: getAuthHeaders(),
   });
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 || response.status === 403) {
       throw new Error('AUTH_REQUIRED');
     }
-    throw new Error('Failed to save report to MongoDB');
+    const errorData = await response.json().catch(() => ({ message: 'Failed to save report to MongoDB' }));
+    throw new Error(errorData.message || 'Failed to save report to MongoDB');
   }
   return response.json();
 }

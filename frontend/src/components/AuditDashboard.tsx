@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Globe,
   Clock,
@@ -29,16 +30,38 @@ interface AuditDashboardProps {
 export const AuditDashboard: React.FC<AuditDashboardProps> = ({ audit }) => {
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSaveToMongo = async () => {
+    setSaveError(null);
+    if (!audit.id) {
+      setSaveError('Missing audit ID.');
+      return;
+    }
+
+    const token = localStorage.getItem('pagepulse_token');
+    if (!token) {
+      navigate('/auth', { state: { from: location.pathname, auditId: audit.id } });
+      return;
+    }
+
     setSaving(true);
     try {
       const doc = await saveReportToMongo(audit.id);
       setSavedId(doc.id);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save report to MongoDB:', err);
+      if (err?.message === 'AUTH_REQUIRED') {
+        localStorage.removeItem('pagepulse_token');
+        localStorage.removeItem('pagepulse_user');
+        navigate('/auth', { state: { from: location.pathname, auditId: audit.id } });
+      } else {
+        setSaveError(err?.message || 'Failed to save report.');
+      }
     } finally {
       setSaving(false);
     }
@@ -166,6 +189,12 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({ audit }) => {
           </Button>
         </div>
       </div>
+
+      {saveError && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-xs text-red-400 font-medium">
+          ⚠️ {saveError}
+        </div>
+      )}
 
       {/* Main Score Overview Grid */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">

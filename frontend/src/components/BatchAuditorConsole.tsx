@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import type { AuditResponse, HealthGrade } from '../types';
+import type { AuditResponse, HealthGrade, SeoMetrics, ContentMetrics, AccessibilityMetrics } from '../types';
 import { runFullAudit, downloadPdfReport, saveReportToMongo } from '../lib/api';
-import { ChevronDown, ChevronUp, Download, BookmarkPlus, Check, ExternalLink, Loader2, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, BookmarkPlus, Check, Loader2 } from 'lucide-react';
 
 export const BatchAuditorConsole: React.FC = () => {
   const [urlListText, setUrlListText] = useState('');
@@ -11,6 +11,7 @@ export const BatchAuditorConsole: React.FC = () => {
   const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
   const [savedMap, setSavedMap] = useState<Record<number, string>>({});
   const [savingMap, setSavingMap] = useState<Record<number, boolean>>({});
+  const [saveErrorMap, setSaveErrorMap] = useState<Record<number, string>>({});
   const [downloadingPdfMap, setDownloadingPdfMap] = useState<Record<number, boolean>>({});
 
   const handleBatchAudit = async (e: React.SubmitEvent) => {
@@ -69,11 +70,20 @@ export const BatchAuditorConsole: React.FC = () => {
 
   const handleSaveReport = async (audit: AuditResponse, idx: number) => {
     setSavingMap((prev) => ({ ...prev, [idx]: true }));
+    setSaveErrorMap((prev) => ({ ...prev, [idx]: '' }));
     try {
       const doc = await saveReportToMongo(audit.id);
       setSavedMap((prev) => ({ ...prev, [idx]: doc.id }));
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to save batch report:', err);
+      if (err instanceof Error && err.message === 'AUTH_REQUIRED') {
+        localStorage.removeItem('pagepulse_token');
+        localStorage.removeItem('pagepulse_user');
+        setSaveErrorMap((prev) => ({ ...prev, [idx]: 'Authentication required to save report.' }));
+      } else {
+        const msg = err instanceof Error ? err.message : 'Failed to save report to database.';
+        setSaveErrorMap((prev) => ({ ...prev, [idx]: msg }));
+      }
     } finally {
       setSavingMap((prev) => ({ ...prev, [idx]: false }));
     }
@@ -195,10 +205,10 @@ export const BatchAuditorConsole: React.FC = () => {
           <div className="divide-y divide-[#262B33]">
             {results.map((r, idx) => {
               const isExpanded = expandedIndices.has(idx);
-              const scores = r.scores || { seoScore: 0, contentScore: 0, accessibilityScore: 0, performanceScore: 0, overallScore: 0 };
-              const seo = r.seoMetrics || {};
-              const content = r.contentMetrics || {};
-              const accessibility = r.accessibilityMetrics || {};
+              const scores = r.scores || { seoScore: 0, contentScore: 0, accessibilityScore: 0, performanceScore: 0, overallScore: 0, healthGrade: 'POOR' as HealthGrade };
+              const seo: Partial<SeoMetrics> = r.seoMetrics || {};
+              const content: Partial<ContentMetrics> = r.contentMetrics || {};
+              const accessibility: Partial<AccessibilityMetrics> = r.accessibilityMetrics || {};
               const isSaved = !!savedMap[idx];
               const isSaving = !!savingMap[idx];
               const isDownloadingPdf = !!downloadingPdfMap[idx];
@@ -321,8 +331,12 @@ export const BatchAuditorConsole: React.FC = () => {
 
                       {/* Item Action Bar */}
                       <div className="flex items-center justify-between pt-1">
-                        <span className="text-[#565D68] text-[11px]">
-                          {isSaved ? `Saved to MongoDB Atlas (Doc ID: ${savedMap[idx]})` : 'Transient audit result.'}
+                        <span className={`text-[11px] ${saveErrorMap[idx] ? 'text-[#F87171]' : 'text-[#565D68]'}`}>
+                          {isSaved
+                            ? `Saved to MongoDB Atlas (Doc ID: ${savedMap[idx]})`
+                            : saveErrorMap[idx]
+                            ? `Save failed: ${saveErrorMap[idx]}`
+                            : 'Transient audit result.'}
                         </span>
 
                         <div className="flex items-center gap-2">

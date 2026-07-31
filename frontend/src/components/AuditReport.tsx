@@ -18,6 +18,7 @@ const getStatusColor = (status: number): string => {
 export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const navigate = useNavigate();
@@ -26,6 +27,14 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const isAuthenticated = !!localStorage.getItem('pagepulse_token');
 
   const handleSaveToMongo = async () => {
+    setSaveError(null);
+    setSavedMessage(null);
+
+    if (!audit.id) {
+      setSaveError('Cannot save report: missing temporary audit ID.');
+      return;
+    }
+
     if (!isAuthenticated) {
       setShowLoginPrompt(true);
       return;
@@ -37,9 +46,12 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
       setSavedMessage(`Saved permanently! Document ID: ${doc.id}`);
     } catch (err: unknown) {
       if (err instanceof Error && err.message === 'AUTH_REQUIRED') {
+        localStorage.removeItem('pagepulse_token');
+        localStorage.removeItem('pagepulse_user');
         setShowLoginPrompt(true);
       } else {
-        setSavedMessage('Failed to save report.');
+        const msg = err instanceof Error ? err.message : 'Failed to save report to database.';
+        setSaveError(msg);
       }
     } finally {
       setSaving(false);
@@ -321,6 +333,14 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
         <div className="bg-[#4ADE80]/10 p-4 border-t border-[#4ADE80]/30 text-[#4ADE80] flex items-center gap-2">
           <CheckCircle2 className="size-4 shrink-0 text-[#4ADE80]" />
           <span>{savedMessage}</span>
+        </div>
+      )}
+
+      {/* Save Error Footer */}
+      {saveError && (
+        <div className="bg-[#F87171]/10 p-4 border-t border-[#F87171]/30 text-[#F87171] flex items-center gap-2">
+          <AlertCircle className="size-4 shrink-0 text-[#F87171]" />
+          <span>{saveError}</span>
         </div>
       )}
 

@@ -46,6 +46,20 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("""
+                                {
+                                    "timestamp": "%s",
+                                    "status": 401,
+                                    "error": "Unauthorized",
+                                    "message": "Authentication is required to save audit reports to MongoDB Atlas.",
+                                    "path": "%s"
+                                }
+                                """.formatted(java.time.Instant.now().toString(), request.getRequestURI()));
+                        }))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()

@@ -134,4 +134,23 @@ class AuditControllerTest {
             .andExpect(status().isBadGateway())
             .andExpect(jsonPath("$.status").value(502));
     }
+
+    @Test
+    void saveAuditToMongo_postEndpoint_returnsSavedDocument() throws Exception {
+        com.pulse.page.web.document.AuditReportDocument doc = com.pulse.page.web.document.AuditReportDocument.builder()
+            .id("doc-123")
+            .originalTempId(1L)
+            .url("https://example.com")
+            .domain("example.com")
+            .overallScore(95)
+            .healthGrade(HealthGrade.EXCELLENT)
+            .build();
+
+        when(persistenceService.saveAuditReportToMongo(1L)).thenReturn(doc);
+
+        mockMvc.perform(post("/api/audit/save/1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value("doc-123"))
+            .andExpect(jsonPath("$.url").value("https://example.com"));
+    }
 }

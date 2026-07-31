@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import type { AuditResponse } from '../types';
 import { saveReportToMongo, downloadPdfReport } from '../lib/api';
 import { Download, Database, Lock, AlertCircle, FileText, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import { AiFixConsole } from './AiFixConsole';
+import { AdvancedEngineConsole } from './AdvancedEngineConsole';
 
 interface AuditReportProps {
   audit: AuditResponse;
@@ -326,6 +328,16 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Advanced Engine Metrics (Core Web Vitals, Security/SSL, Link Inspector) */}
+      <div className="p-4 sm:p-5 border-t border-[#262B33] bg-[#0A0C0F]/40">
+        <AdvancedEngineConsole audit={audit} />
+      </div>
+
+      {/* AI Actionable Fix Suggestions */}
+      <div className="p-4 sm:p-5 border-t border-[#262B33] bg-[#0A0C0F]/40">
+        <AiFixConsole audit={audit} />
       </div>
 
       {/* Permanent Save Confirmation Footer */}

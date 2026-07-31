@@ -22,6 +22,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { AuditResponse, HealthGrade } from '../types';
 import { saveReportToMongo, downloadPdfReport } from '../lib/api';
+import { AiFixConsole } from './AiFixConsole';
+import { AdvancedEngineConsole } from './AdvancedEngineConsole';
 
 interface AuditDashboardProps {
   audit: AuditResponse;
@@ -293,6 +295,12 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({ audit }) => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Advanced Engine Metrics (Core Web Vitals, Security/SSL, Link Inspector) */}
+      <AdvancedEngineConsole audit={audit} />
+
+      {/* AI Actionable Fix Suggestions */}
+      <AiFixConsole audit={audit} />
     </div>
   );
 };

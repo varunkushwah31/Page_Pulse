@@ -1,10 +1,8 @@
 package com.pulse.page.web.service;
 
 import com.pulse.page.web.dto.AuditResponse;
-import com.pulse.page.web.engine.AuditScoringEngine;
-import com.pulse.page.web.engine.PageScraperEngine;
+import com.pulse.page.web.engine.*;
 import com.pulse.page.web.engine.PageScraperEngine.ScrapeResult;
-import com.pulse.page.web.engine.UrlValidationEngine;
 import com.pulse.page.web.engine.extractor.AccessibilityMetricsExtractor;
 import com.pulse.page.web.engine.extractor.ContentMetricsExtractor;
 import com.pulse.page.web.engine.extractor.PerformanceMetricsExtractor;
@@ -35,6 +33,9 @@ public class AuditReportProcessorService {
     private final AccessibilityMetricsExtractor accessibilityExtractor;
     private final PerformanceMetricsExtractor performanceExtractor;
     private final AuditScoringEngine scoringEngine;
+    private final SslInspectionEngine sslInspectionEngine;
+    private final LinkInspectionEngine linkInspectionEngine;
+    private final PageSpeedMetricsEngine pageSpeedMetricsEngine;
     private final AuditReportJpaRepository jpaRepository;
     private final CacheService cacheService;
 
@@ -57,6 +58,10 @@ public class AuditReportProcessorService {
         ContentMetrics content = contentExtractor.extract(scrapeResult.getDocument());
         AccessibilityMetrics a11y = accessibilityExtractor.extract(scrapeResult.getDocument());
         PerformanceMetrics perf = performanceExtractor.extract(scrapeResult);
+
+        CoreWebVitals vitals = pageSpeedMetricsEngine.calculateWebVitals(scrapeResult);
+        SecurityMetrics security = sslInspectionEngine.inspectSecurity(normalizedUrl, scrapeResult);
+        LinkInspectionMetrics links = linkInspectionEngine.inspectLinks(normalizedUrl, scrapeResult.getDocument());
 
         AuditScoreBreakdown scores = scoringEngine.calculateScore(seo, content, a11y, perf);
 
@@ -92,6 +97,9 @@ public class AuditReportProcessorService {
             .contentMetrics(content)
             .accessibilityMetrics(a11y)
             .performanceMetrics(perf)
+            .coreWebVitals(vitals)
+            .linkMetrics(links)
+            .securityMetrics(security)
             .scores(scores)
             .cached(false)
             .build();

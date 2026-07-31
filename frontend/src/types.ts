@@ -48,6 +48,44 @@ export interface PerformanceMetrics {
   secureSsl: boolean;
 }
 
+export interface CoreWebVitals {
+  lcpMs: number;
+  inpMs: number;
+  clsRatio: number;
+  fcpMs: number;
+  ttfbMs: number;
+  overallGrade: 'GOOD' | 'NEEDS_IMPROVEMENT' | 'POOR';
+}
+
+export interface BrokenLinkInfo {
+  url: string;
+  anchorText: string;
+  statusCode: number;
+  statusMessage: string;
+  external: boolean;
+}
+
+export interface LinkInspectionMetrics {
+  totalLinksFound: number;
+  workingLinksCount: number;
+  brokenLinksCount: number;
+  redirectLinksCount: number;
+  brokenLinks: BrokenLinkInfo[];
+}
+
+export interface SecurityMetrics {
+  isHttps: boolean;
+  sslValid: boolean;
+  daysUntilSslExpiry: number;
+  sslIssuer: string;
+  tlsVersion: string;
+  cipherSuite: string;
+  securityHeadersPresent: Record<string, boolean>;
+  missingSecurityHeadersCount: number;
+  mixedContentCount: number;
+  hasMixedContent: boolean;
+}
+
 export interface AuditScoreBreakdown {
   seoScore: number;
   contentScore: number;
@@ -68,6 +106,9 @@ export interface AuditResponse {
   contentMetrics: ContentMetrics;
   accessibilityMetrics: AccessibilityMetrics;
   performanceMetrics: PerformanceMetrics;
+  coreWebVitals?: CoreWebVitals;
+  linkMetrics?: LinkInspectionMetrics;
+  securityMetrics?: SecurityMetrics;
   scores: AuditScoreBreakdown;
   cached: boolean;
   timestamp: string;
@@ -173,4 +214,13 @@ export interface ApiKeyResponse {
   name: string;
   apiKey: string;
   createdAt: string;
+}
+
+export interface AiRecommendation {
+  category: 'SEO' | 'ACCESSIBILITY' | 'CONTENT' | 'PERFORMANCE';
+  issue: string;
+  title: string;
+  codeSnippet: string;
+  explanation: string;
+  impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
 }

@@ -7,6 +7,7 @@ import type {
   ScheduledAuditConfig,
   ScheduledAuditRequest,
   ApiKeyResponse,
+  AiRecommendation,
 } from '../types';
 
 const API_BASE = '';
@@ -221,5 +222,17 @@ export async function revokeApiKey(id: string): Promise<void> {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
+}
+
+export async function fetchAiRecommendations(audit: AuditResponse): Promise<AiRecommendation[]> {
+  const response = await fetch(`${API_BASE}/api/v1/ai/recommendations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(audit),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch AI recommendations');
+  }
+  return response.json();
 }
 

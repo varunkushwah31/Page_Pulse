@@ -32,6 +32,7 @@ public class PageScraperEngine {
         private int statusCode;
         private long responseTimeMs;
         private String contentType;
+        private java.util.Map<String, String> responseHeaders;
         private Document document;
     }
 
@@ -76,6 +77,7 @@ public class PageScraperEngine {
                     .statusCode(response.statusCode())
                     .responseTimeMs(responseTimeMs)
                     .contentType(contentType)
+                    .responseHeaders(response.headers())
                     .document(document)
                     .build();
 

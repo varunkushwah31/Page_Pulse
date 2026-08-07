@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { AuditResponse } from '../types';
 import { runFullAudit, downloadPdfReport } from '../lib/api';
+import { exportToCsv, exportToJson } from '../lib/ExportUtils';
 
 export const CompetitorConsole: React.FC = () => {
   const [url1, setUrl1] = useState('');
@@ -108,7 +109,7 @@ export const CompetitorConsole: React.FC = () => {
         <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden">
           <div className="bg-[#191D24] p-4 border-b border-[#262B33] flex items-center justify-between">
             <span className="font-semibold text-[#565D68] uppercase tracking-wider">Side-by-Side Diagnostic Matrix</span>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => downloadPdfReport(audit1.id.toString())}
                 className="rounded border border-[#4FD8C4]/30 bg-[#4FD8C4]/10 px-2.5 py-1 text-[#4FD8C4] text-[11px] hover:bg-[#4FD8C4]/20 transition-all cursor-pointer"
@@ -120,6 +121,30 @@ export const CompetitorConsole: React.FC = () => {
                 className="rounded border border-[#7AA2F7]/30 bg-[#7AA2F7]/10 px-2.5 py-1 text-[#7AA2F7] text-[11px] hover:bg-[#7AA2F7]/20 transition-all cursor-pointer"
               >
                 PDF Site B
+              </button>
+              <button
+                onClick={() => {
+                  const headers = ['Metric', audit1.url, audit2.url];
+                  const rows = [
+                    ['Overall Score', audit1.scores?.overallScore || 0, audit2.scores?.overallScore || 0],
+                    ['SEO Score', audit1.scores?.seoScore || 0, audit2.scores?.seoScore || 0],
+                    ['Content Score', audit1.scores?.contentScore || 0, audit2.scores?.contentScore || 0],
+                    ['Accessibility Score', audit1.scores?.accessibilityScore || 0, audit2.scores?.accessibilityScore || 0],
+                    ['Performance Score', audit1.scores?.performanceScore || 0, audit2.scores?.performanceScore || 0],
+                    ['Response Latency (ms)', audit1.responseTimeMs, audit2.responseTimeMs],
+                    ['Word Count', audit1.contentMetrics?.wordCount || 0, audit2.contentMetrics?.wordCount || 0],
+                  ];
+                  exportToCsv(headers, rows, 'pagepulse-competitor-comparison.csv');
+                }}
+                className="rounded border border-[#FBBF24]/30 bg-[#FBBF24]/10 px-2.5 py-1 text-[#FBBF24] text-[11px] hover:bg-[#FBBF24]/20 transition-all cursor-pointer"
+              >
+                Export CSV
+              </button>
+              <button
+                onClick={() => exportToJson({ siteA: audit1, siteB: audit2 }, 'pagepulse-competitor-comparison.json')}
+                className="rounded border border-[#E7EAEE]/30 bg-[#E7EAEE]/10 px-2.5 py-1 text-[#E7EAEE] text-[11px] hover:bg-[#E7EAEE]/20 transition-all cursor-pointer"
+              >
+                Export JSON
               </button>
             </div>
           </div>

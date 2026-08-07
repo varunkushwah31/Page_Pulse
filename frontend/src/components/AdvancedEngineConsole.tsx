@@ -29,9 +29,18 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
       {vitals && (
         <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#262B33] pb-3">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Gauge className="size-4 text-[#4FD8C4]" />
-              <h3 className="font-bold text-[#E7EAEE] text-sm">Core Web Vitals (Field/Lab Lab Metrics)</h3>
+              <h3 className="font-bold text-[#E7EAEE] text-sm">Core Web Vitals</h3>
+              {vitals.cruxDataAvailable || vitals.dataSource === 'CRUX_FIELD' ? (
+                <span className="text-[10px] text-[#4ADE80] bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2 py-0.5 rounded font-bold">
+                  CrUX Real User Field Data (75th %)
+                </span>
+              ) : (
+                <span className="text-[10px] text-[#8B93A1] bg-[#191D24] border border-[#262B33] px-2 py-0.5 rounded">
+                  Lab Estimated Heuristic
+                </span>
+              )}
             </div>
             <span className={`inline-flex items-center rounded-full border px-3 py-0.5 text-[11px] font-bold ${vitals.overallGrade === 'GOOD' ? 'text-[#4ADE80] border-[#4ADE80]/30 bg-[#4ADE80]/10' : vitals.overallGrade === 'NEEDS_IMPROVEMENT' ? 'text-[#FBBF24] border-[#FBBF24]/30 bg-[#FBBF24]/10' : 'text-[#F87171] border-[#F87171]/30 bg-[#F87171]/10'}`}>
               GRADE: {vitals.overallGrade}

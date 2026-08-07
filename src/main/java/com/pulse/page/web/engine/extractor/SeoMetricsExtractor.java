@@ -1,5 +1,6 @@
 package com.pulse.page.web.engine.extractor;
 
+import com.pulse.page.web.model.DomIssueSnippet;
 import com.pulse.page.web.model.SeoMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Document;
@@ -7,7 +8,9 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -16,6 +19,7 @@ public class SeoMetricsExtractor {
 
     private static final String ATTR_PROPERTY = "property";
     private static final String ATTR_CONTENT = "content";
+    private static final int MAX_SNIPPET_LENGTH = 500;
 
     public SeoMetrics extract(Document doc) {
         String title = extractTitle(doc);
@@ -39,6 +43,9 @@ public class SeoMetricsExtractor {
             title, description, canonical, hasOgImage, hasFavicon, hasViewportMeta, hasStructuredData, isIndexable
         );
 
+        // Collect DOM issue snippets for Visual Inspector
+        List<DomIssueSnippet> domIssues = collectSeoIssueSnippets(doc, title, description, canonical);
+
         return SeoMetrics.builder()
             .pageTitle(title)
             .titleLength(title != null ? title.length() : 0)
@@ -58,6 +65,7 @@ public class SeoMetricsExtractor {
             .hasOgImage(hasOgImage)
             .hasStructuredData(hasStructuredData)
             .seoRecommendations(recommendations)
+            .domIssues(domIssues)
             .build();
     }
 
@@ -181,5 +189,47 @@ public class SeoMetricsExtractor {
             }
         }
         return map;
+    }
+
+    private List<DomIssueSnippet> collectSeoIssueSnippets(Document doc, String title, String description, String canonical) {
+        List<DomIssueSnippet> issues = new ArrayList<>();
+
+        if (title == null || title.isBlank()) {
+            Element head = doc.selectFirst("head");
+            issues.add(DomIssueSnippet.builder()
+                .elementType("META")
+                .issueType("MISSING_TITLE")
+                .outerHtml(head != null ? truncateHtml("<head>...</head> — no <title> tag found") : "<head> element missing")
+                .selector("head > title")
+                .lineHint(0)
+                .build());
+        }
+
+        if (description == null || description.isBlank()) {
+            issues.add(DomIssueSnippet.builder()
+                .elementType("META")
+                .issueType("MISSING_DESCRIPTION")
+                .outerHtml("<meta name=\"description\" content=\"...\"> — tag not found in <head>")
+                .selector("head > meta[name=description]")
+                .lineHint(0)
+                .build());
+        }
+
+        if (canonical == null) {
+            issues.add(DomIssueSnippet.builder()
+                .elementType("LINK")
+                .issueType("BROKEN_CANONICAL")
+                .outerHtml("<link rel=\"canonical\" href=\"...\"> — tag not found in <head>")
+                .selector("head > link[rel=canonical]")
+                .lineHint(0)
+                .build());
+        }
+
+        return issues;
+    }
+
+    private String truncateHtml(String html) {
+        if (html == null) return "";
+        return html.length() > MAX_SNIPPET_LENGTH ? html.substring(0, MAX_SNIPPET_LENGTH) + "..." : html;
     }
 }

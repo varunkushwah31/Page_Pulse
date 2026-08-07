@@ -28,6 +28,7 @@ public class AuditReportProcessorService {
 
     private final UrlValidationEngine urlValidationEngine;
     private final PageScraperEngine pageScraperEngine;
+    private final PlaywrightScraperEngine playwrightScraperEngine;
     private final SeoMetricsExtractor seoExtractor;
     private final ContentMetricsExtractor contentExtractor;
     private final AccessibilityMetricsExtractor accessibilityExtractor;
@@ -42,17 +43,27 @@ public class AuditReportProcessorService {
     @NonNull
     @Transactional
     public AuditResponse processAudit(@NonNull String rawUrl) throws IOException {
+        return processAudit(rawUrl, false);
+    }
+
+    @NonNull
+    @Transactional
+    public AuditResponse processAudit(@NonNull String rawUrl, boolean enableJsRendering) throws IOException {
         Objects.requireNonNull(rawUrl, "rawUrl parameter must not be null");
 
         String normalizedUrl = urlValidationEngine.validateAndNormalize(rawUrl);
         String domain = urlValidationEngine.extractDomain(normalizedUrl);
 
-        Optional<AuditResponse> cachedResponse = cacheService.getCachedAudit(normalizedUrl);
-        if (cachedResponse.isPresent()) {
-            return cachedResponse.get();
+        if (!enableJsRendering) {
+            Optional<AuditResponse> cachedResponse = cacheService.getCachedAudit(normalizedUrl);
+            if (cachedResponse.isPresent()) {
+                return cachedResponse.get();
+            }
         }
 
-        ScrapeResult scrapeResult = pageScraperEngine.fetchPage(normalizedUrl);
+        ScrapeResult scrapeResult = enableJsRendering
+                ? playwrightScraperEngine.fetchPageWithJs(normalizedUrl)
+                : pageScraperEngine.fetchPage(normalizedUrl);
 
         SeoMetrics seo = seoExtractor.extract(scrapeResult.getDocument());
         ContentMetrics content = contentExtractor.extract(scrapeResult.getDocument());

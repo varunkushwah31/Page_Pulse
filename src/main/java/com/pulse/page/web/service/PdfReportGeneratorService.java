@@ -40,7 +40,11 @@ public class PdfReportGeneratorService {
     private static final Font FONT_GRADE = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.WHITE);
 
     public byte[] generatePdfReport(String reportId) {
-        log.info("Generating OpenPDF State-of-the-Art Audit Report for ID: {}", reportId);
+        return generatePdfReport(reportId, null);
+    }
+
+    public byte[] generatePdfReport(String reportId, com.pulse.page.web.dto.PdfBrandingConfig branding) {
+        log.info("Generating OpenPDF State-of-the-Art Audit Report for ID: {} (Branded: {})", reportId, branding != null);
 
         AuditReportDocument doc = mongoRepository.findById(reportId)
             .orElseGet(() -> {
@@ -61,13 +65,18 @@ public class PdfReportGeneratorService {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         com.lowagie.text.Document pdfDoc = new com.lowagie.text.Document(PageSize.A4, 36, 36, 36, 45);
 
+        Color primaryColor = parsePrimaryColor(branding);
+
         try {
             PdfWriter writer = PdfWriter.getInstance(pdfDoc, out);
-            writer.setPageEvent(new HeaderFooterPageEvent());
+            String customFooter = (branding != null && branding.getFooterText() != null && !branding.getFooterText().isBlank())
+                ? branding.getFooterText()
+                : "PagePulse Web Auditing Engine";
+            writer.setPageEvent(new HeaderFooterPageEvent(customFooter));
             pdfDoc.open();
 
             // 1. Header Banner
-            buildHeaderBanner(pdfDoc, doc);
+            buildHeaderBanner(pdfDoc, doc, branding, primaryColor);
 
             pdfDoc.add(new Paragraph(" "));
 
@@ -93,16 +102,39 @@ public class PdfReportGeneratorService {
         return out.toByteArray();
     }
 
-    private void buildHeaderBanner(com.lowagie.text.Document pdfDoc, AuditReportDocument doc) throws DocumentException {
+    private Color parsePrimaryColor(com.pulse.page.web.dto.PdfBrandingConfig branding) {
+        if (branding != null && branding.getPrimaryColorHex() != null && !branding.getPrimaryColorHex().isBlank()) {
+            try {
+                String hex = branding.getPrimaryColorHex().trim();
+                if (!hex.startsWith("#")) hex = "#" + hex;
+                return Color.decode(hex);
+            } catch (Exception e) {
+                log.warn("Invalid primaryColorHex '{}', falling back to default primary color", branding.getPrimaryColorHex());
+            }
+        }
+        return COLOR_PRIMARY;
+    }
+
+    private void buildHeaderBanner(com.lowagie.text.Document pdfDoc, AuditReportDocument doc, com.pulse.page.web.dto.PdfBrandingConfig branding, Color primaryColor) throws DocumentException {
         PdfPTable headerTable = new PdfPTable(1);
         headerTable.setWidthPercentage(100);
 
         PdfPCell cell = new PdfPCell();
-        cell.setBackgroundColor(COLOR_PRIMARY);
+        cell.setBackgroundColor(primaryColor);
         cell.setPadding(16);
         cell.setBorder(Rectangle.NO_BORDER);
 
-        Paragraph title = new Paragraph("PAGEPULSE EXECUTIVE AUDIT REPORT", FONT_TITLE);
+        String titleText = "PAGEPULSE EXECUTIVE AUDIT REPORT";
+        if (branding != null) {
+            if (branding.getCompanyName() != null && !branding.getCompanyName().isBlank()) {
+                titleText = branding.getCompanyName().toUpperCase() + " AUDIT REPORT";
+            }
+            if (branding.getHeaderText() != null && !branding.getHeaderText().isBlank()) {
+                titleText = branding.getHeaderText().toUpperCase();
+            }
+        }
+
+        Paragraph title = new Paragraph(titleText, FONT_TITLE);
         title.setSpacingAfter(4);
         cell.addElement(title);
 
@@ -267,11 +299,20 @@ public class PdfReportGeneratorService {
 
     private static class HeaderFooterPageEvent extends PdfPageEventHelper {
         private static final Font FONT_FOOTER = FontFactory.getFont(FontFactory.HELVETICA, 8, new Color(148, 163, 184));
+        private final String footerPrefix;
+
+        public HeaderFooterPageEvent() {
+            this("PagePulse Web Auditing Engine");
+        }
+
+        public HeaderFooterPageEvent(String footerPrefix) {
+            this.footerPrefix = footerPrefix;
+        }
 
         @Override
         public void onEndPage(PdfWriter writer, com.lowagie.text.Document document) {
             PdfContentByte cb = writer.getDirectContent();
-            String footerText = "PagePulse Web Auditing Engine  |  Page " + writer.getPageNumber();
+            String footerText = footerPrefix + "  |  Page " + writer.getPageNumber();
             ColumnText.showTextAligned(cb, Element.ALIGN_CENTER, new Phrase(footerText, FONT_FOOTER),
                 (document.right() - document.left()) / 2 + document.leftMargin(), document.bottom() - 20, 0);
         }

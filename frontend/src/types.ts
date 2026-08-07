@@ -1,5 +1,13 @@
 export type HealthGrade = 'EXCELLENT' | 'GOOD' | 'NEEDS_IMPROVEMENT' | 'POOR';
 
+export interface DomIssueSnippet {
+  elementType: 'IMG' | 'INPUT' | 'LINK' | 'META';
+  issueType: 'MISSING_ALT' | 'MISSING_LABEL' | 'BROKEN_CANONICAL' | 'MISSING_DESCRIPTION' | 'MISSING_TITLE';
+  outerHtml: string;
+  selector: string;
+  lineHint: number;
+}
+
 export interface SeoMetrics {
   pageTitle: string | null;
   titleLength: number;
@@ -19,6 +27,7 @@ export interface SeoMetrics {
   hasOgImage?: boolean;
   hasStructuredData?: boolean;
   seoRecommendations?: string[];
+  domIssues?: DomIssueSnippet[];
 }
 
 export interface ContentMetrics {
@@ -36,6 +45,7 @@ export interface AccessibilityMetrics {
   hasHtmlLangAttribute: boolean;
   htmlLangValue: string | null;
   formInputsMissingLabelsCount: number;
+  domIssues?: DomIssueSnippet[];
 }
 
 export interface PerformanceMetrics {
@@ -55,6 +65,8 @@ export interface CoreWebVitals {
   fcpMs: number;
   ttfbMs: number;
   overallGrade: 'GOOD' | 'NEEDS_IMPROVEMENT' | 'POOR';
+  cruxDataAvailable?: boolean;
+  dataSource?: 'CRUX_FIELD' | 'LAB_ESTIMATED';
 }
 
 export interface BrokenLinkInfo {
@@ -224,3 +236,97 @@ export interface AiRecommendation {
   explanation: string;
   impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
 }
+
+export interface BatchAuditUrlResult {
+  url: string;
+  status: 'COMPLETED' | 'FAILED' | 'PENDING';
+  auditId?: number;
+  overallScore?: number;
+  error?: string;
+}
+
+export interface BatchAuditResponse {
+  jobId: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  totalUrls: number;
+  completedUrls: number;
+  failedUrls: number;
+  results: BatchAuditUrlResult[];
+  submittedAt: string;
+  completedAt?: string;
+  webhookUrl?: string;
+  correlationId?: string;
+}
+
+export interface CompetitorResult {
+  rank: number;
+  url: string;
+  status: string;
+  auditId?: number;
+  overallScore?: number;
+  seoScore?: number;
+  contentScore?: number;
+  accessibilityScore?: number;
+  performanceScore?: number;
+  healthGrade?: HealthGrade;
+  responseTimeMs?: number;
+  wordCount?: number;
+  h1Count?: number;
+  imagesMissingAlt?: number;
+  cached?: boolean;
+  error?: string;
+}
+
+export interface CompetitorSummary {
+  bestOverall?: string;
+  worstOverall?: string;
+  averageOverallScore?: number;
+  bestSeo?: string;
+  bestContent?: string;
+  bestAccessibility?: string;
+  bestPerformance?: string;
+}
+
+export interface CompetitorComparisonResponse {
+  totalCompetitors: number;
+  successfulAudits: number;
+  failedAudits: number;
+  results: CompetitorResult[];
+  summary: CompetitorSummary;
+  generatedAt: string;
+  correlationId?: string;
+}
+
+export interface ScoreRegressionItem {
+  url: string;
+  previousScore: number;
+  currentScore: number;
+  scoreDrop: number;
+}
+
+export interface ScoreImprovementItem {
+  url: string;
+  previousScore: number;
+  currentScore: number;
+  scoreGain: number;
+}
+
+export interface SitemapDeltaResponse {
+  sitemapUrl: string;
+  currentCrawlTimestamp: string;
+  previousCrawlTimestamp: string | null;
+  newPages: string[];
+  removedPages: string[];
+  scoreRegressions: ScoreRegressionItem[];
+  scoreImprovements: ScoreImprovementItem[];
+  unchangedCount: number;
+}
+
+export interface PdfBrandingConfig {
+  companyName?: string;
+  primaryColorHex?: string;
+  headerText?: string;
+  footerText?: string;
+  logoBase64?: string;
+}
+

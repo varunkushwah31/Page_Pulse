@@ -44,6 +44,17 @@ public class ReportController {
             .body(pdfBytes);
     }
 
+    @PostMapping("/{id}/pdf")
+    public ResponseEntity<byte[]> downloadCustomPdfReport(
+            @PathVariable String id,
+            @RequestBody(required = false) com.pulse.page.web.dto.PdfBrandingConfig branding) {
+        byte[] pdfBytes = pdfReportGeneratorService.generatePdfReport(id, branding);
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"audit-report-" + id + "-custom.pdf\"")
+            .contentType(MediaType.APPLICATION_PDF)
+            .body(pdfBytes);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSavedReport(@PathVariable String id) {
         reportSearchService.deleteSavedReport(id);

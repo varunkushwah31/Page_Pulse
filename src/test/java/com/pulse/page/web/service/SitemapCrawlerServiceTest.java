@@ -1,6 +1,7 @@
 package com.pulse.page.web.service;
 
 import com.pulse.page.web.engine.UrlValidationEngine;
+import com.pulse.page.web.repository.mongo.SitemapSnapshotRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,11 +21,14 @@ class SitemapCrawlerServiceTest {
     @Mock
     private AuditReportProcessorService processorService;
 
+    @Mock
+    private SitemapSnapshotRepository sitemapSnapshotRepository;
+
     private SitemapCrawlerService sitemapCrawlerService;
 
     @BeforeEach
     void setUp() {
-        sitemapCrawlerService = new SitemapCrawlerService(urlValidationEngine, processorService);
+        sitemapCrawlerService = new SitemapCrawlerService(urlValidationEngine, processorService, sitemapSnapshotRepository);
     }
 
     @Test

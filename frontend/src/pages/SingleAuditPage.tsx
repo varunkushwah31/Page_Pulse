@@ -16,14 +16,14 @@ export const SingleAuditPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const hasRunInitialAudit = useRef(false);
 
-  const handleAuditSubmit = async (url: string) => {
+  const handleAuditSubmit = async (url: string, enableJsRendering = false) => {
     setTargetUrl(url);
     setError(null);
     setLoading(true);
     setAuditResult(null);
 
     try {
-      const result = await runFullAudit(url);
+      const result = await runFullAudit(url, enableJsRendering);
       setAuditResult(result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'The site refused the connection or returned an error.';

@@ -18,4 +18,7 @@ public class AccessibilityMetrics {
     private boolean hasHtmlLangAttribute;
     private String htmlLangValue;
     private int formInputsMissingLabelsCount;
+
+    @Builder.Default
+    private List<DomIssueSnippet> domIssues = new java.util.ArrayList<>();
 }

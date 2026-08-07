@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { AuditResponse, HealthGrade, SeoMetrics, ContentMetrics, AccessibilityMetrics } from '../types';
 import { runFullAudit, downloadPdfReport, saveReportToMongo } from '../lib/api';
+import { exportToCsv, exportToJson } from '../lib/ExportUtils';
 import { ChevronDown, ChevronUp, Download, BookmarkPlus, Check, Loader2 } from 'lucide-react';
 
 export const BatchAuditorConsole: React.FC = () => {
@@ -195,10 +196,38 @@ export const BatchAuditorConsole: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex items-center gap-4 text-[#8B93A1]">
+            <div className="flex flex-wrap items-center gap-4 text-[#8B93A1]">
               <span>Audited: <strong className="text-[#E7EAEE]">{results.length} URLs</strong></span>
               <span>Avg Latency: <strong className="text-[#FBBF24]">{avgLatency} ms</strong></span>
               <span>Avg Score: <strong className="text-[#4ADE80]">{avgScore} / 100</strong></span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const headers = ['URL', 'HTTP Status', 'Latency (ms)', 'SEO Score', 'Content Score', 'Accessibility Score', 'Performance Score', 'Overall Score', 'Health Grade'];
+                    const rows = results.map((r) => [
+                      r.url,
+                      r.httpStatus,
+                      r.responseTimeMs,
+                      r.scores?.seoScore || 0,
+                      r.scores?.contentScore || 0,
+                      r.scores?.accessibilityScore || 0,
+                      r.scores?.performanceScore || 0,
+                      r.scores?.overallScore || 0,
+                      r.scores?.healthGrade || 'N/A',
+                    ]);
+                    exportToCsv(headers, rows, 'pagepulse-batch-audit-results.csv');
+                  }}
+                  className="rounded border border-[#4FD8C4]/30 bg-[#4FD8C4]/10 px-2 py-0.5 text-[11px] text-[#4FD8C4] hover:bg-[#4FD8C4]/20 transition-all cursor-pointer"
+                >
+                  Export CSV
+                </button>
+                <button
+                  onClick={() => exportToJson(results, 'pagepulse-batch-audit-results.json')}
+                  className="rounded border border-[#7AA2F7]/30 bg-[#7AA2F7]/10 px-2 py-0.5 text-[11px] text-[#7AA2F7] hover:bg-[#7AA2F7]/20 transition-all cursor-pointer"
+                >
+                  Export JSON
+                </button>
+              </div>
             </div>
           </div>
 

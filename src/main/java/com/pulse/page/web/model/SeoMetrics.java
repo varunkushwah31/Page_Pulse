@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -35,4 +36,7 @@ public class SeoMetrics {
     private boolean hasOgImage;
     private boolean hasStructuredData;
     private java.util.List<String> seoRecommendations;
+
+    @Builder.Default
+    private List<DomIssueSnippet> domIssues = new java.util.ArrayList<>();
 }

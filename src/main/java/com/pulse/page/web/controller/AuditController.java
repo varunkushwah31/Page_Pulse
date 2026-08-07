@@ -34,7 +34,7 @@ public class AuditController {
 
     @PostMapping("/run")
     public ResponseEntity<AuditResponse> runFullAudit(@Valid @RequestBody AuditRequest request) throws IOException {
-        AuditResponse response = processorService.processAudit(request.getUrl());
+        AuditResponse response = processorService.processAudit(request.getUrl(), request.isEnableJsRendering());
         return ResponseEntity.ok(response);
     }
 

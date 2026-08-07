@@ -72,14 +72,31 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
           </p>
         </div>
 
-        <button
-          onClick={loadRecommendations}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-3 py-1.5 text-xs text-[#E7EAEE] hover:bg-[#262B33] transition-all cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw className={`size-3.5 ${loading ? 'animate-spin text-[#4FD8C4]' : 'text-[#8B93A1]'}`} />
-          <span>Regenerate Fixes</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {filteredRecs.length > 0 && (
+            <button
+              onClick={() => {
+                const allCode = filteredRecs.map(r => `// ${r.title} (${r.category} - ${r.impactLevel} IMPACT)\n// Issue: ${r.issue}\n${r.codeSnippet}\n`).join('\n\n');
+                navigator.clipboard.writeText(allCode);
+                setCopiedIndex(-1);
+                setTimeout(() => setCopiedIndex(null), 2000);
+              }}
+              className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-3 py-1.5 text-xs text-[#4FD8C4] hover:bg-[#262B33] transition-all cursor-pointer"
+            >
+              {copiedIndex === -1 ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+              <span>{copiedIndex === -1 ? 'All Copied!' : 'Copy All Fixes'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={loadRecommendations}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-3 py-1.5 text-xs text-[#E7EAEE] hover:bg-[#262B33] transition-all cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`size-3.5 ${loading ? 'animate-spin text-[#4FD8C4]' : 'text-[#8B93A1]'}`} />
+            <span>Regenerate Fixes</span>
+          </button>
+        </div>
       </div>
 
       {/* Category Filters */}

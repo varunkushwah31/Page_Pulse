@@ -16,4 +16,10 @@ public class CoreWebVitals {
     private long fcpMs;      // First Contentful Paint (ms)
     private long ttfbMs;     // Time to First Byte (ms)
     private String overallGrade; // GOOD, NEEDS_IMPROVEMENT, POOR
+
+    @Builder.Default
+    private boolean cruxDataAvailable = false; // true if data came from CrUX API
+
+    @Builder.Default
+    private String dataSource = "LAB_ESTIMATED"; // "CRUX_FIELD" or "LAB_ESTIMATED"
 }

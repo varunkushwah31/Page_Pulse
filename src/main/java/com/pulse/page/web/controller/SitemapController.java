@@ -22,4 +22,10 @@ public class SitemapController {
         SitemapAuditResponse response = sitemapCrawlerService.auditSitemap(request.getSitemapUrl(), request.getMaxUrls());
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/delta")
+    public ResponseEntity<com.pulse.page.web.dto.SitemapDeltaResponse> getSitemapDelta(@RequestParam("sitemapUrl") String sitemapUrl) {
+        com.pulse.page.web.dto.SitemapDeltaResponse delta = sitemapCrawlerService.computeDelta(sitemapUrl);
+        return ResponseEntity.ok(delta);
+    }
 }

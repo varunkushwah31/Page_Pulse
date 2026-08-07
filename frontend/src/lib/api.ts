@@ -2,12 +2,16 @@ import type {
   AuditResponse,
   AuditReportDocument,
   SitemapAuditResponse,
+  SitemapDeltaResponse,
+  PdfBrandingConfig,
   PlatformStatsResponse,
   TrendResponse,
   ScheduledAuditConfig,
   ScheduledAuditRequest,
   ApiKeyResponse,
   AiRecommendation,
+  BatchAuditResponse,
+  CompetitorComparisonResponse,
 } from '../types';
 
 const API_BASE = '';
@@ -20,11 +24,11 @@ function getAuthHeaders(): HeadersInit {
   };
 }
 
-export async function runFullAudit(url: string): Promise<AuditResponse> {
+export async function runFullAudit(url: string, enableJsRendering = false): Promise<AuditResponse> {
   const response = await fetch(`${API_BASE}/api/audit/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, enableJsRendering }),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: 'Audit failed' }));
@@ -86,6 +90,15 @@ export async function auditSitemap(sitemapUrl: string, maxUrls = 15): Promise<Si
   return response.json();
 }
 
+export async function fetchSitemapDelta(sitemapUrl: string): Promise<SitemapDeltaResponse> {
+  const response = await fetch(`${API_BASE}/api/v1/sitemap/delta?sitemapUrl=${encodeURIComponent(sitemapUrl)}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Failed to fetch sitemap delta' }));
+    throw new Error(errorData.message || 'Failed to fetch sitemap delta');
+  }
+  return response.json();
+}
+
 export function getPdfDownloadUrl(reportId: string): string {
   return `${API_BASE}/api/v1/reports/${reportId}/pdf`;
 }
@@ -104,6 +117,28 @@ export async function downloadPdfReport(reportId: string, customFilename?: strin
   const a = document.createElement('a');
   a.href = blobUrl;
   a.download = customFilename || `audit-report-${reportId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}
+
+export async function downloadCustomPdfReport(reportId: string, branding: PdfBrandingConfig, customFilename?: string): Promise<void> {
+  const url = `${API_BASE}/api/v1/reports/${reportId}/pdf`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(branding),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Failed to download custom PDF report' }));
+    throw new Error(errorData.message || 'Failed to download custom PDF report');
+  }
+  const blob = await response.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = customFilename || `audit-report-${reportId}-custom.pdf`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -235,4 +270,39 @@ export async function fetchAiRecommendations(audit: AuditResponse): Promise<AiRe
   }
   return response.json();
 }
+
+export async function submitBatchAuditJob(urls: string[], webhookUrl?: string): Promise<BatchAuditResponse> {
+  const response = await fetch(`${API_BASE}/api/audit/batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ urls, webhookUrl }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Batch audit job submission failed' }));
+    throw new Error(errorData.message || 'Batch audit job submission failed');
+  }
+  return response.json();
+}
+
+export async function getBatchJobStatus(jobId: string): Promise<BatchAuditResponse> {
+  const response = await fetch(`${API_BASE}/api/audit/batch/${encodeURIComponent(jobId)}`);
+  if (!response.ok) {
+    throw new Error('Failed to retrieve batch audit job status');
+  }
+  return response.json();
+}
+
+export async function compareCompetitors(urls: string[]): Promise<CompetitorComparisonResponse> {
+  const response = await fetch(`${API_BASE}/api/v1/competitor-comparison`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ urls }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Competitor comparison analysis failed' }));
+    throw new Error(errorData.message || 'Competitor comparison analysis failed');
+  }
+  return response.json();
+}
+
 

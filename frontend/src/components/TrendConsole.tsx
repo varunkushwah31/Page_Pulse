@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { TrendResponse, TrendDataPoint } from '../types';
 import { fetchDomainTrends } from '../lib/api';
+import { exportToCsv, exportToJson } from '../lib/ExportUtils';
 import {
   TrendingUp,
   TrendingDown,
@@ -254,6 +255,32 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
       {/* Historical Trend Data & Anomaly Digest */}
       {trendResponse && !loading && (
         <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <span className="text-[#565D68] uppercase text-[11px] font-bold">Trend Analysis for {trendResponse.domain}</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const headers = ['Timestamp', 'Metric Value', 'Audit ID'];
+                  const rows = (trendResponse.data || []).map((dp) => [
+                    dp.timestamp,
+                    dp.value,
+                    dp.auditId || 'N/A',
+                  ]);
+                  exportToCsv(headers, rows, `pagepulse-trends-${trendResponse.domain}.csv`);
+                }}
+                className="rounded border border-[#4FD8C4]/30 bg-[#4FD8C4]/10 px-2.5 py-1 text-[#4FD8C4] text-[11px] font-bold hover:bg-[#4FD8C4]/20 transition-all cursor-pointer"
+              >
+                Export CSV
+              </button>
+              <button
+                onClick={() => exportToJson(trendResponse, `pagepulse-trends-${trendResponse.domain}.json`)}
+                className="rounded border border-[#7AA2F7]/30 bg-[#7AA2F7]/10 px-2.5 py-1 text-[#7AA2F7] text-[11px] font-bold hover:bg-[#7AA2F7]/20 transition-all cursor-pointer"
+              >
+                Export JSON
+              </button>
+            </div>
+          </div>
+
           {/* Executive Summary Cards */}
           {summary && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

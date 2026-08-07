@@ -1,6 +1,7 @@
 package com.pulse.page.web.engine.extractor;
 
 import com.pulse.page.web.model.AccessibilityMetrics;
+import com.pulse.page.web.model.DomIssueSnippet;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -14,6 +15,9 @@ import java.util.List;
 @Component
 public class AccessibilityMetricsExtractor {
 
+    private static final int MAX_SNIPPET_LENGTH = 500;
+    private static final int MAX_ISSUES = 50;
+
     public AccessibilityMetrics extract(Document doc) {
         if (doc == null) {
             return AccessibilityMetrics.builder()
@@ -23,12 +27,14 @@ public class AccessibilityMetricsExtractor {
                 .hasHtmlLangAttribute(false)
                 .htmlLangValue(null)
                 .formInputsMissingLabelsCount(0)
+                .domIssues(List.of())
                 .build();
         }
 
-        ImageAltResult imageResult = extractImageAltMetrics(doc);
+        List<DomIssueSnippet> domIssues = new ArrayList<>();
+        ImageAltResult imageResult = extractImageAltMetrics(doc, domIssues);
         LangResult langResult = extractLangMetrics(doc);
-        int unlabelledInputs = countUnlabelledInputs(doc);
+        int unlabelledInputs = countUnlabelledInputs(doc, domIssues);
 
         return AccessibilityMetrics.builder()
             .totalImageCount(imageResult.totalImages)
@@ -37,10 +43,11 @@ public class AccessibilityMetricsExtractor {
             .hasHtmlLangAttribute(langResult.hasLang)
             .htmlLangValue(langResult.langValue)
             .formInputsMissingLabelsCount(unlabelledInputs)
+            .domIssues(domIssues)
             .build();
     }
 
-    private ImageAltResult extractImageAltMetrics(Document doc) {
+    private ImageAltResult extractImageAltMetrics(Document doc, List<DomIssueSnippet> domIssues) {
         Elements images = doc.select("img");
         int totalImages = images.size();
         List<String> missingAltUrls = new ArrayList<>();
@@ -56,6 +63,17 @@ public class AccessibilityMetricsExtractor {
                 if (missingAltUrls.size() < 25 && !src.isBlank()) {
                     missingAltUrls.add(src);
                 }
+
+                // Collect DOM issue snippet for Visual Inspector
+                if (domIssues.size() < MAX_ISSUES) {
+                    domIssues.add(DomIssueSnippet.builder()
+                        .elementType("IMG")
+                        .issueType("MISSING_ALT")
+                        .outerHtml(truncateHtml(img.outerHtml()))
+                        .selector(buildCssSelector(img))
+                        .lineHint(estimateLineNumber(doc, img))
+                        .build());
+                }
             }
         }
         return new ImageAltResult(totalImages, missingAltCount, missingAltUrls);
@@ -69,12 +87,23 @@ public class AccessibilityMetricsExtractor {
         return new LangResult(true, htmlEl.attr("lang").trim());
     }
 
-    private int countUnlabelledInputs(Document doc) {
+    private int countUnlabelledInputs(Document doc, List<DomIssueSnippet> domIssues) {
         Elements inputs = doc.select("input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=image])");
         int unlabelledInputs = 0;
         for (Element input : inputs) {
             if (isInputMissingLabel(doc, input)) {
                 unlabelledInputs++;
+
+                // Collect DOM issue snippet for Visual Inspector
+                if (domIssues.size() < MAX_ISSUES) {
+                    domIssues.add(DomIssueSnippet.builder()
+                        .elementType("INPUT")
+                        .issueType("MISSING_LABEL")
+                        .outerHtml(truncateHtml(input.outerHtml()))
+                        .selector(buildCssSelector(input))
+                        .lineHint(estimateLineNumber(doc, input))
+                        .build());
+                }
             }
         }
         return unlabelledInputs;
@@ -87,6 +116,52 @@ public class AccessibilityMetricsExtractor {
         boolean isInsideLabel = parent != null && "label".equalsIgnoreCase(parent.tagName());
 
         return !hasAriaLabel && !hasIdLabel && !isInsideLabel;
+    }
+
+    /**
+     * Build a CSS selector path for the given element for identification in the Visual Inspector.
+     */
+    private String buildCssSelector(Element el) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(el.tagName());
+
+        if (el.hasAttr("id") && !el.attr("id").isBlank()) {
+            sb.append("#").append(el.attr("id"));
+        } else if (el.hasAttr("class") && !el.attr("class").isBlank()) {
+            String firstClass = el.attr("class").trim().split("\\s+")[0];
+            sb.append(".").append(firstClass);
+        }
+
+        if (el.hasAttr("src")) {
+            String src = el.attr("src");
+            if (src.length() > 60) src = src.substring(0, 60) + "...";
+            sb.append("[src=\"").append(src).append("\"]");
+        } else if (el.hasAttr("name")) {
+            sb.append("[name=\"").append(el.attr("name")).append("\"]");
+        }
+
+        return sb.toString();
+    }
+
+    /**
+     * Estimate the line number of an element in the original HTML document.
+     */
+    private int estimateLineNumber(Document doc, Element el) {
+        String fullHtml = doc.outerHtml();
+        String elHtml = el.outerHtml();
+        int index = fullHtml.indexOf(elHtml);
+        if (index < 0) return 0;
+
+        int line = 1;
+        for (int i = 0; i < Math.min(index, fullHtml.length()); i++) {
+            if (fullHtml.charAt(i) == '\n') line++;
+        }
+        return line;
+    }
+
+    private String truncateHtml(String html) {
+        if (html == null) return "";
+        return html.length() > MAX_SNIPPET_LENGTH ? html.substring(0, MAX_SNIPPET_LENGTH) + "..." : html;
     }
 
     private record ImageAltResult(int totalImages, int missingAltCount, List<String> missingAltUrls) {}

@@ -94,7 +94,7 @@ class AuditControllerTest {
             .cached(false)
             .build();
 
-        when(processorService.processAudit("https://example.com")).thenReturn(response);
+        when(processorService.processAudit(org.mockito.ArgumentMatchers.eq("https://example.com"), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(response);
 
         mockMvc.perform(post("/api/audit/run")
                 .contentType(MediaType.APPLICATION_JSON)

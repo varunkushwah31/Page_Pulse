@@ -121,6 +121,7 @@ export interface AuditResponse {
   coreWebVitals?: CoreWebVitals;
   linkMetrics?: LinkInspectionMetrics;
   securityMetrics?: SecurityMetrics;
+  assetBottleneckMetrics?: AssetBottleneckMetrics;
   scores: AuditScoreBreakdown;
   cached: boolean;
   timestamp: string;
@@ -322,6 +323,34 @@ export interface SitemapDeltaResponse {
   unchangedCount: number;
 }
 
+export interface AssetBottleneckMetrics {
+  renderBlockingFontsCount: number;
+  unSizedImagesCount: number;
+  estimatedUnminifiedCssBytes: number;
+  estimatedUnminifiedJsBytes: number;
+  totalBlockingTimeMs: number;
+  bottleneckIssues: string[];
+}
+
+export interface KeywordFrequency {
+  keyword: string;
+  countUrlA: number;
+  countUrlB: number;
+  densityUrlA: number;
+  densityUrlB: number;
+  gapType: 'SHARED' | 'UNIQUE_TARGET' | 'MISSING_OPPORTUNITY';
+}
+
+export interface KeywordGapResponse {
+  urlA: string;
+  urlB: string;
+  totalKeywordsUrlA: number;
+  totalKeywordsUrlB: number;
+  sharedKeywords: KeywordFrequency[];
+  uniqueTargetKeywords: KeywordFrequency[];
+  missingCompetitorOpportunities: KeywordFrequency[];
+}
+
 export interface PdfBrandingConfig {
   companyName?: string;
   primaryColorHex?: string;
@@ -329,4 +358,5 @@ export interface PdfBrandingConfig {
   footerText?: string;
   logoBase64?: string;
 }
+
 

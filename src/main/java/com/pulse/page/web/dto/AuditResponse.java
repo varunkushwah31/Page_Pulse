@@ -27,6 +27,7 @@ public class AuditResponse {
     private CoreWebVitals coreWebVitals;
     private LinkInspectionMetrics linkMetrics;
     private SecurityMetrics securityMetrics;
+    private AssetBottleneckMetrics assetBottleneckMetrics;
     private AuditScoreBreakdown scores;
 
     private boolean cached;

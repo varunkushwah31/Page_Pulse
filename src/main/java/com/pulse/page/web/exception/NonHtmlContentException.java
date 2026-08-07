@@ -1,7 +1,13 @@
 package com.pulse.page.web.exception;
 
-public class NonHtmlContentException extends AuditExecutionException {
+import org.springframework.http.HttpStatus;
+
+public class NonHtmlContentException extends PagePulseException {
     public NonHtmlContentException(String message) {
-        super(message);
+        super(message, HttpStatus.BAD_REQUEST, "NON_HTML_CONTENT");
+    }
+
+    public NonHtmlContentException(String message, Throwable cause) {
+        super(message, cause, HttpStatus.BAD_REQUEST, "NON_HTML_CONTENT");
     }
 }

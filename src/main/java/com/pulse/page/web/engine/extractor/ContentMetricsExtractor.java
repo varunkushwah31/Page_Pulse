@@ -40,7 +40,7 @@ public class ContentMetricsExtractor {
         int totalHtmlLength = Math.max(1, rawHtml.length());
 
         Element bodyEl = cleanDoc.body();
-        String visibleText = bodyEl.text();
+        String visibleText = bodyEl != null ? bodyEl.text() : cleanDoc.text();
         int textLength = visibleText.length();
 
         int wordCount = visibleText.isBlank() ? 0 : visibleText.trim().split("\\s+").length;

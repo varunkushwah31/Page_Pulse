@@ -39,8 +39,10 @@ public class AuditController {
     }
 
     @GetMapping("/stream")
-    public SseEmitter streamAuditProgress(@RequestParam("url") String url) {
-        return streamService.streamAuditProgress(url);
+    public SseEmitter streamAuditProgress(
+            @RequestParam("url") String url,
+            @RequestParam(value = "enableJsRendering", defaultValue = "false") boolean enableJsRendering) {
+        return streamService.streamAuditProgress(url, enableJsRendering);
     }
 
     @PostMapping("/save/{tempId}")

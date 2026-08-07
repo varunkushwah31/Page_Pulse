@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import type { AuditResponse } from '../types';
-import { runFullAudit, downloadPdfReport } from '../lib/api';
+import type { AuditResponse, KeywordGapResponse } from '../types';
+import { runFullAudit, downloadPdfReport, fetchKeywordGap } from '../lib/api';
 import { exportToCsv, exportToJson } from '../lib/ExportUtils';
+import { Sparkles, Target, Layers } from 'lucide-react';
 
 export const CompetitorConsole: React.FC = () => {
   const [url1, setUrl1] = useState('');
@@ -9,6 +10,7 @@ export const CompetitorConsole: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [audit1, setAudit1] = useState<AuditResponse | null>(null);
   const [audit2, setAudit2] = useState<AuditResponse | null>(null);
+  const [keywordGap, setKeywordGap] = useState<KeywordGapResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleCompare = async (e: React.FormEvent) => {
@@ -18,12 +20,14 @@ export const CompetitorConsole: React.FC = () => {
     setError(null);
     setLoading(true);
     try {
-      const [res1, res2] = await Promise.all([
+      const [res1, res2, gapRes] = await Promise.all([
         runFullAudit(url1.trim()),
         runFullAudit(url2.trim()),
+        fetchKeywordGap(url1.trim(), url2.trim()).catch(() => null),
       ]);
       setAudit1(res1);
       setAudit2(res2);
+      setKeywordGap(gapRes);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Competitor comparison scan failed.');
     } finally {
@@ -275,6 +279,77 @@ export const CompetitorConsole: React.FC = () => {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Keyword & Content Gap Matrix */}
+      {keywordGap && (
+        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-[#4FD8C4]" />
+              <h3 className="font-bold text-[#E7EAEE] text-sm">Competitor Keyword & Content Gap Matrix</h3>
+            </div>
+            <span className="text-[10px] text-[#8B93A1] bg-[#191D24] border border-[#262B33] px-2 py-0.5 rounded">
+              TF-IDF Keyword Intelligence
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Missing Competitor Opportunities */}
+            <div className="space-y-2 rounded-lg border border-[#FBBF24]/30 bg-[#FBBF24]/5 p-3.5">
+              <span className="text-[#FBBF24] font-bold text-[11px] flex items-center gap-1.5 uppercase">
+                <Target className="size-3.5" />
+                <span>Keyword Opportunities ({keywordGap.missingCompetitorOpportunities.length})</span>
+              </span>
+              <p className="text-[10px] text-[#8B93A1]">High-frequency keywords present on Competitor B but missing on Target A.</p>
+
+              <div className="flex flex-wrap gap-1.5 pt-2">
+                {keywordGap.missingCompetitorOpportunities.map((k, idx) => (
+                  <span key={idx} className="px-2 py-1 rounded border border-[#FBBF24]/40 bg-[#FBBF24]/10 text-[#FBBF24] text-[11px] font-semibold flex items-center gap-1">
+                    <span>{k.keyword}</span>
+                    <span className="opacity-60 text-[9px]">({k.countUrlB}x)</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Shared Keywords */}
+            <div className="space-y-2 rounded-lg border border-[#4FD8C4]/30 bg-[#4FD8C4]/5 p-3.5">
+              <span className="text-[#4FD8C4] font-bold text-[11px] flex items-center gap-1.5 uppercase">
+                <Layers className="size-3.5" />
+                <span>Shared Terms ({keywordGap.sharedKeywords.length})</span>
+              </span>
+              <p className="text-[10px] text-[#8B93A1]">Core target industry keywords present across both websites.</p>
+
+              <div className="flex flex-wrap gap-1.5 pt-2">
+                {keywordGap.sharedKeywords.map((k, idx) => (
+                  <span key={idx} className="px-2 py-1 rounded border border-[#4FD8C4]/40 bg-[#4FD8C4]/10 text-[#4FD8C4] text-[11px] font-semibold flex items-center gap-1">
+                    <span>{k.keyword}</span>
+                    <span className="opacity-60 text-[9px]">{k.countUrlA}x / {k.countUrlB}x</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Unique Target Keywords */}
+            <div className="space-y-2 rounded-lg border border-[#4ADE80]/30 bg-[#4ADE80]/5 p-3.5">
+              <span className="text-[#4ADE80] font-bold text-[11px] flex items-center gap-1.5 uppercase">
+                <Sparkles className="size-3.5" />
+                <span>Unique Target Strengths ({keywordGap.uniqueTargetKeywords.length})</span>
+              </span>
+              <p className="text-[10px] text-[#8B93A1]">Keywords exclusive to Target A giving rank advantages.</p>
+
+              <div className="flex flex-wrap gap-1.5 pt-2">
+                {keywordGap.uniqueTargetKeywords.map((k, idx) => (
+                  <span key={idx} className="px-2 py-1 rounded border border-[#4ADE80]/40 bg-[#4ADE80]/10 text-[#4ADE80] text-[11px] font-semibold flex items-center gap-1">
+                    <span>{k.keyword}</span>
+                    <span className="opacity-60 text-[9px]">({k.countUrlA}x)</span>
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

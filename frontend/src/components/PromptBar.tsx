@@ -4,9 +4,17 @@ interface PromptBarProps {
   onAuditSubmit: (url: string, enableJsRendering?: boolean) => void;
   isLoading: boolean;
   initialValue?: string;
+  progressPercent?: number;
+  progressStepMessage?: string;
 }
 
-export const PromptBar: React.FC<PromptBarProps> = ({ onAuditSubmit, isLoading, initialValue = '' }) => {
+export const PromptBar: React.FC<PromptBarProps> = ({ 
+  onAuditSubmit, 
+  isLoading, 
+  initialValue = '',
+  progressPercent = 0,
+  progressStepMessage = ''
+}) => {
   const [url, setUrl] = useState(initialValue);
   const [enableJsRendering, setEnableJsRendering] = useState(false);
 
@@ -65,6 +73,25 @@ export const PromptBar: React.FC<PromptBarProps> = ({ onAuditSubmit, isLoading, 
           </div>
         </div>
       </form>
+
+      {/* Live SSE Progress Bar */}
+      {isLoading && (
+        <div className="rounded-md border border-[#333A45] bg-[#12151A] p-2.5 space-y-1.5 shadow-lg">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-[#4FD8C4] font-semibold flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-[#4FD8C4] animate-pulse"></span>
+              {progressStepMessage || 'Audit Engine Executing...'}
+            </span>
+            <span className="text-[#E7EAEE] font-bold">{progressPercent}%</span>
+          </div>
+          <div className="w-full bg-[#191D24] h-1.5 rounded-full overflow-hidden border border-[#262B33]">
+            <div 
+              className="bg-gradient-to-r from-[#4FD8C4] to-[#60A5FA] h-full transition-all duration-300 ease-out"
+              style={{ width: `${Math.max(5, Math.min(100, progressPercent))}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Target URL Shortcuts */}
       <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#565D68] pl-1">

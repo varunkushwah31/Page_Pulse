@@ -1,7 +1,13 @@
 package com.pulse.page.web.exception;
 
-public class UserAlreadyExistsException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class UserAlreadyExistsException extends PagePulseException {
     public UserAlreadyExistsException(String message) {
-        super(message);
+        super(message, HttpStatus.CONFLICT, "USER_ALREADY_EXISTS");
+    }
+
+    public UserAlreadyExistsException(String message, Throwable cause) {
+        super(message, cause, HttpStatus.CONFLICT, "USER_ALREADY_EXISTS");
     }
 }

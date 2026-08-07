@@ -4,10 +4,12 @@
 
 export function exportToCsv(headers: string[], rows: (string | number | boolean)[][], filename: string): void {
   const sanitize = (val: string | number | boolean | null | undefined): string => {
-    if (val === null || val === undefined) return '""';
+    if (val === null || val === undefined) return '';
     const str = String(val);
-    const escaped = str.replace(/"/g, '""');
-    return `"${escaped}"`;
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replaceAll('"', '""')}"`;
+    }
+    return str;
   };
 
   const headerLine = headers.map(sanitize).join(',');

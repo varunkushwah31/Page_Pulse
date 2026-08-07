@@ -1,7 +1,13 @@
 package com.pulse.page.web.exception;
 
-public class AuthenticationException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class AuthenticationException extends PagePulseException {
     public AuthenticationException(String message) {
-        super(message);
+        super(message, HttpStatus.UNAUTHORIZED, "AUTHENTICATION_FAILED");
+    }
+
+    public AuthenticationException(String message, Throwable cause) {
+        super(message, cause, HttpStatus.UNAUTHORIZED, "AUTHENTICATION_FAILED");
     }
 }

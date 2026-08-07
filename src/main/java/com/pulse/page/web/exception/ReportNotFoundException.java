@@ -1,7 +1,13 @@
 package com.pulse.page.web.exception;
 
-public class ReportNotFoundException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class ReportNotFoundException extends PagePulseException {
     public ReportNotFoundException(String message) {
-        super(message);
+        super(message, HttpStatus.NOT_FOUND, "REPORT_NOT_FOUND");
+    }
+
+    public ReportNotFoundException(String message, Throwable cause) {
+        super(message, cause, HttpStatus.NOT_FOUND, "REPORT_NOT_FOUND");
     }
 }

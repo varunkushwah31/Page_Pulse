@@ -26,8 +26,9 @@ export const ScheduledAuditConsole: React.FC = () => {
     try {
       const data = await fetchScheduledAudits();
       setSchedules(data);
-    } catch (_) {
-      // Ignore initial load error if no schedules exist
+    } catch (err) {
+      // Quiet fallback when user has no monitors configured yet
+      setSchedules([]);
     } finally {
       setFetching(false);
     }
@@ -220,6 +221,7 @@ export const ScheduledAuditConsole: React.FC = () => {
         <div className="bg-[#191D24] p-4 border-b border-[#262B33] flex items-center justify-between">
           <span className="text-[#565D68] uppercase tracking-wider font-semibold">Active Background Monitors ({schedules.length})</span>
           <button
+            type="button"
             onClick={loadSchedules}
             disabled={fetching}
             className="text-[11px] text-[#4FD8C4] hover:underline cursor-pointer disabled:opacity-50"
@@ -254,12 +256,14 @@ export const ScheduledAuditConsole: React.FC = () => {
 
                 <div className="flex items-center gap-2 shrink-0">
                   <button
+                    type="button"
                     onClick={() => handleToggleActive(schedule.id)}
                     className="rounded border border-[#333A45] bg-[#191D24] px-3 py-1 text-xs text-[#E7EAEE] hover:bg-[#262B33] transition-all cursor-pointer"
                   >
                     {schedule.active ? 'Pause' : 'Resume'}
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDelete(schedule.id)}
                     className="rounded border border-[#F87171]/30 bg-[#F87171]/10 px-3 py-1 text-xs text-[#F87171] hover:bg-[#F87171]/20 transition-all cursor-pointer"
                   >

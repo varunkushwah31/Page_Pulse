@@ -37,6 +37,66 @@ export async function runFullAudit(url: string, enableJsRendering = false): Prom
   return response.json();
 }
 
+export function streamFullAuditProgress(
+  url: string,
+  enableJsRendering: boolean,
+  onProgress: (data: { progress: number; step: string; message: string }) => void,
+  onComplete: (data: AuditResponse) => void,
+  onError: (err: string) => void
+): () => void {
+  const eventSource = new EventSource(`${API_BASE}/api/audit/stream?url=${encodeURIComponent(url)}&enableJsRendering=${enableJsRendering}`);
+
+  eventSource.addEventListener('PROGRESS', (event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data);
+      onProgress(data);
+    } catch (e) {
+      console.error('Failed to parse SSE progress:', e);
+    }
+  });
+
+  eventSource.addEventListener('COMPLETE', (event: MessageEvent) => {
+    try {
+      const payload = JSON.parse(event.data);
+      onProgress({ progress: 100, step: 'COMPLETE', message: 'Audit completed.' });
+      onComplete(payload.data);
+      eventSource.close();
+    } catch (e) {
+      console.error('Failed to parse SSE complete:', e);
+      onError('Failed to parse audit response payload.');
+      eventSource.close();
+    }
+  });
+
+  eventSource.addEventListener('ERROR', (event: MessageEvent) => {
+    try {
+      const errorData = JSON.parse(event.data);
+      onError(errorData.message || 'Streaming audit failed.');
+    } catch (e) {
+      onError('Audit stream disconnected unexpectedly.');
+    }
+    eventSource.close();
+  });
+
+  eventSource.onerror = () => {
+    onError('Connection error during audit stream.');
+    eventSource.close();
+  };
+
+  return () => {
+    eventSource.close();
+  };
+}
+
+export async function fetchKeywordGap(urlA: string, urlB: string) {
+  const response = await fetch(`${API_BASE}/api/v1/competitor/keyword-gap?urlA=${encodeURIComponent(urlA)}&urlB=${encodeURIComponent(urlB)}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'Failed to analyze keyword gap' }));
+    throw new Error(err.message || 'Failed to analyze keyword gap');
+  }
+  return response.json();
+}
+
 export async function saveReportToMongo(tempId: number): Promise<AuditReportDocument> {
   const response = await fetch(`${API_BASE}/api/audit/save/${tempId}`, {
     method: 'POST',

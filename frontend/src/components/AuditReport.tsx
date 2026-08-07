@@ -77,9 +77,15 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
     }
   };
 
+  const getTimingColor = (ms: number): string => {
+    if (ms <= 800) return 'bg-[#4ADE80]';
+    if (ms <= 2000) return 'bg-[#FBBF24]';
+    return 'bg-[#F87171]';
+  };
+
   const responseTimeMs = audit.responseTimeMs || 0;
   const timingWidth = Math.min(100, Math.max(5, (responseTimeMs / 3000) * 100));
-  const timingColor = responseTimeMs <= 800 ? 'bg-[#4ADE80]' : responseTimeMs <= 2000 ? 'bg-[#FBBF24]' : 'bg-[#F87171]';
+  const timingColor = getTimingColor(responseTimeMs);
 
   const seoMetrics = audit.seoMetrics;
   const contentMetrics = audit.contentMetrics;
@@ -143,6 +149,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={handlePdfDownload}
               disabled={downloadingPdf}
               className="rounded border border-[#4FD8C4]/40 bg-[#4FD8C4]/10 px-3 py-1.5 font-semibold text-[#4FD8C4] hover:bg-[#4FD8C4]/20 transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
@@ -151,6 +158,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
               <span>{downloadingPdf ? 'Generating PDF...' : 'Export PDF'}</span>
             </button>
             <button
+              type="button"
               onClick={handleSaveToMongo}
               disabled={saving}
               className="rounded border border-[#333A45] bg-[#191D24] px-4 py-1.5 font-semibold text-[#E7EAEE] hover:border-[#4FD8C4] hover:text-[#4FD8C4] transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
@@ -386,12 +394,14 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             <div className="space-y-3">
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => setShowLoginPrompt(false)}
                   className="flex-1 rounded border border-[#333A45] bg-[#191D24] px-4 py-2 font-mono text-xs font-semibold text-[#8B93A1] hover:bg-[#262B33] transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleLoginPromptAction}
                   className="flex-1 rounded border border-[#4FD8C4] bg-[#4FD8C4] px-4 py-2 font-mono text-xs font-semibold text-[#0A0C0F] hover:bg-[#4FD8C4]/90 transition-all cursor-pointer inline-flex items-center justify-center gap-1"
                 >

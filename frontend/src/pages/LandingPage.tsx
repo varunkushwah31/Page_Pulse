@@ -5,13 +5,11 @@ import {
   Server,
   GitBranch,
   Users,
-  Shield,
   ArrowRight,
   Activity,
   BarChart3,
   FileText,
   Clock,
-  Terminal,
   CheckCircle2,
 } from 'lucide-react';
 
@@ -19,79 +17,73 @@ export const LandingPage: React.FC = () => {
   const [url, setUrl] = useState('');
   const navigate = useNavigate();
 
-  const handleAuditSubmit = (e: React.FormEvent) => {
+  const handleAuditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (url.trim()) {
       navigate(`/audit?url=${encodeURIComponent(url.trim())}`);
     }
   };
 
+  const handleKeyDownNavigate = (path: string, e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      navigate(path);
+    }
+  };
+
   return (
     <div className="space-y-8 font-mono text-xs text-[#E7EAEE]">
-      {/* Instrument Overview Header Strip */}
-      <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-xl">
+      {/* Hero Terminal Prompt Banner */}
+      <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-6 space-y-5 shadow-2xl relative overflow-hidden">
         <div className="flex items-center justify-between border-b border-[#262B33] pb-3 text-[#565D68]">
           <div className="flex items-center gap-2">
             <Activity className="size-4 text-[#4FD8C4]" />
-            <span className="text-[#E7EAEE] font-bold">Page Pulse Diagnostic Engine</span>
-            <span className="text-[10px] text-[#4FD8C4] bg-[#4FD8C4]/10 border border-[#4FD8C4]/30 px-1.5 py-0.5 rounded">
-              v2.0 ACTIVE
-            </span>
+            <span className="font-bold text-[#E7EAEE] tracking-wider uppercase">PAGE PULSE v1.0 AUDIT ENGINE</span>
           </div>
-          <span className="text-[11px] text-[#8B93A1]">Jsoup Scraper + Virtual Threads</span>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block size-2 rounded-full bg-[#4ADE80] animate-pulse" />
+            <span className="text-[10px] text-[#4ADE80] font-semibold">ENGINE ACTIVE</span>
+          </div>
         </div>
 
-        <p className="text-xs text-[#8B93A1] font-sans leading-relaxed">
-          Real-time technical DOM metric parser, sitemap XML virtual thread crawler, multi-URL batch auditor, and OpenPDF report generator.
-        </p>
+        <div className="space-y-2">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-[#EEEEEE] tracking-tight">
+            High-Performance Web Audit & Technical Inspection Engine
+          </h1>
+          <p className="text-xs text-[#8B93A1] font-sans max-w-2xl leading-relaxed">
+            Inspect live target web endpoints for SEO metadata, heading distribution, text-to-HTML ratios, accessibility alt-tag coverage, and SSL certificate security in milliseconds.
+          </p>
+        </div>
 
-        {/* Command Line Audit Entry Terminal (§8 DESIGN.md) */}
-        <form onSubmit={handleAuditSubmit} className="space-y-2">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-lg border border-[#333A45] bg-[#0A0C0F] p-1.5 focus-within:ring-2 focus-within:ring-[#4FD8C4]">
-            <div className="flex items-center gap-1.5 pl-2 text-[#565D68] select-none shrink-0 font-mono">
-              <span className="text-[#4FD8C4] font-bold">$</span>
-              <span className="text-[#8B93A1]">audit --url</span>
-            </div>
-
+        {/* Quick Launch Input Form */}
+        <form onSubmit={handleAuditSubmit} className="flex flex-col sm:flex-row gap-2 pt-2">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#565D68] font-bold text-xs">$</span>
             <input
-              type="url"
-              required
-              placeholder="https://example.com"
+              type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="flex-1 bg-transparent px-2.5 py-1.5 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none font-mono"
+              placeholder="https://example.com"
+              className="w-full rounded-lg border border-[#262B33] bg-[#0A0C0F] py-2.5 pl-7 pr-3 font-mono text-xs text-[#E7EAEE] placeholder-[#565D68] focus:border-[#4FD8C4] focus:outline-none transition-all"
             />
-
-            <button
-              type="submit"
-              className="rounded border border-[#333A45] bg-[#191D24] px-4 py-2 font-mono text-xs font-semibold text-[#4FD8C4] hover:bg-[#262B33] active:bg-[#333A45] transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
-            >
-              <span>Run Audit</span>
-              <ArrowRight className="size-3.5" />
-            </button>
           </div>
+          <button
+            type="submit"
+            className="rounded-lg border border-[#4FD8C4] bg-[#4FD8C4] px-5 py-2.5 font-mono text-xs font-bold text-[#0A0C0F] hover:bg-[#4FD8C4]/90 transition-all cursor-pointer inline-flex items-center justify-center gap-2 shrink-0"
+          >
+            <span>Run Full Audit</span>
+            <ArrowRight className="size-3.5" />
+          </button>
         </form>
-
-        <div className="flex flex-wrap items-center gap-4 text-[11px] text-[#565D68] pt-1">
-          <div className="flex items-center gap-1">
-            <CheckCircle2 className="size-3.5 text-[#4ADE80]" />
-            <span>Strict 5000ms HTTP Timeout</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <CheckCircle2 className="size-3.5 text-[#4ADE80]" />
-            <span>WAF Chrome 126 Headers</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <CheckCircle2 className="size-3.5 text-[#4ADE80]" />
-            <span>OpenPDF Executive Exports</span>
-          </div>
-        </div>
       </div>
 
       {/* Technical Instrument Capabilities Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => navigate('/audit')}
+          onKeyDown={(e) => handleKeyDownNavigate('/audit', e)}
           className="group rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-2 hover:border-[#4FD8C4]/50 transition-all cursor-pointer"
         >
           <div className="flex items-center justify-between text-[#4FD8C4]">
@@ -105,7 +97,10 @@ export const LandingPage: React.FC = () => {
         </div>
 
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => navigate('/sitemap')}
+          onKeyDown={(e) => handleKeyDownNavigate('/sitemap', e)}
           className="group rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-2 hover:border-[#4ADE80]/50 transition-all cursor-pointer"
         >
           <div className="flex items-center justify-between text-[#4ADE80]">
@@ -119,7 +114,10 @@ export const LandingPage: React.FC = () => {
         </div>
 
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => navigate('/batch')}
+          onKeyDown={(e) => handleKeyDownNavigate('/batch', e)}
           className="group rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-2 hover:border-[#7AA2F7]/50 transition-all cursor-pointer"
         >
           <div className="flex items-center justify-between text-[#7AA2F7]">
@@ -133,7 +131,10 @@ export const LandingPage: React.FC = () => {
         </div>
 
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => navigate('/compare')}
+          onKeyDown={(e) => handleKeyDownNavigate('/compare', e)}
           className="group rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-2 hover:border-[#FBBF24]/50 transition-all cursor-pointer"
         >
           <div className="flex items-center justify-between text-[#FBBF24]">
@@ -150,7 +151,10 @@ export const LandingPage: React.FC = () => {
       {/* Background Monitors & Analytics Status Bar */}
       <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-[11px]">
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => navigate('/scheduled')}
+          onKeyDown={(e) => handleKeyDownNavigate('/scheduled', e)}
           className="flex items-center gap-2.5 p-2 rounded hover:bg-[#191D24] transition-all cursor-pointer"
         >
           <Clock className="size-4 text-[#4FD8C4]" />
@@ -161,7 +165,10 @@ export const LandingPage: React.FC = () => {
         </div>
 
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => navigate('/trend')}
+          onKeyDown={(e) => handleKeyDownNavigate('/trend', e)}
           className="flex items-center gap-2.5 p-2 rounded hover:bg-[#191D24] transition-all cursor-pointer"
         >
           <BarChart3 className="size-4 text-[#7AA2F7]" />
@@ -172,13 +179,16 @@ export const LandingPage: React.FC = () => {
         </div>
 
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => navigate('/reports')}
+          onKeyDown={(e) => handleKeyDownNavigate('/reports', e)}
           className="flex items-center gap-2.5 p-2 rounded hover:bg-[#191D24] transition-all cursor-pointer"
         >
           <FileText className="size-4 text-[#4ADE80]" />
           <div>
             <div className="font-bold text-[#E7EAEE]">MongoDB Archive</div>
-            <div className="text-[#8B93A1] text-[10px]">Saved documents & PDF export</div>
+            <div className="text-[#8B93A1] text-[10px]">Cloud document persistence</div>
           </div>
         </div>
       </div>

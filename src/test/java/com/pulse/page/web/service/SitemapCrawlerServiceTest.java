@@ -2,9 +2,9 @@ package com.pulse.page.web.service;
 
 import com.pulse.page.web.engine.UrlValidationEngine;
 import com.pulse.page.web.repository.mongo.SitemapSnapshotRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -24,12 +24,8 @@ class SitemapCrawlerServiceTest {
     @Mock
     private SitemapSnapshotRepository sitemapSnapshotRepository;
 
+    @InjectMocks
     private SitemapCrawlerService sitemapCrawlerService;
-
-    @BeforeEach
-    void setUp() {
-        sitemapCrawlerService = new SitemapCrawlerService(urlValidationEngine, processorService, sitemapSnapshotRepository);
-    }
 
     @Test
     void auditSitemap_invalidUrl_throwsIllegalArgumentException() {

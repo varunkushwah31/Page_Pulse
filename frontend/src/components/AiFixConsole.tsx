@@ -75,6 +75,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
         <div className="flex items-center gap-2">
           {filteredRecs.length > 0 && (
             <button
+              type="button"
               onClick={() => {
                 const allCode = filteredRecs.map(r => `// ${r.title} (${r.category} - ${r.impactLevel} IMPACT)\n// Issue: ${r.issue}\n${r.codeSnippet}\n`).join('\n\n');
                 navigator.clipboard.writeText(allCode);
@@ -89,6 +90,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
           )}
 
           <button
+            type="button"
             onClick={loadRecommendations}
             disabled={loading}
             className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-3 py-1.5 text-xs text-[#E7EAEE] hover:bg-[#262B33] transition-all cursor-pointer disabled:opacity-50"
@@ -104,6 +106,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
         <span className="text-[#565D68] text-[11px] mr-1">Category:</span>
         {categories.map((cat) => (
           <button
+            type="button"
             key={cat}
             onClick={() => setSelectedCategory(cat)}
             className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
@@ -175,6 +178,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
                   <div className="flex justify-between items-center pb-2 mb-2 border-b border-[#191D24] text-[10px] text-[#565D68]">
                     <span>Suggested Code Snippet</span>
                     <button
+                      type="button"
                       onClick={() => handleCopy(rec.codeSnippet, idx)}
                       className="inline-flex items-center gap-1 rounded bg-[#191D24] border border-[#333A45] px-2.5 py-1 text-[11px] font-semibold text-[#4FD8C4] hover:bg-[#262B33] transition-all cursor-pointer"
                     >

@@ -118,13 +118,15 @@ public class PageSpeedMetricsEngine {
         return raw / 100.0;
     }
 
+    private static final String GRADE_NEEDS_IMPROVEMENT = "NEEDS_IMPROVEMENT";
+
     private String determineCruxGrade(JsonNode loadingExp) {
         String category = loadingExp.path("overall_category").asText("AVERAGE");
         return switch (category) {
             case "FAST" -> "GOOD";
-            case "AVERAGE" -> "NEEDS_IMPROVEMENT";
+            case "AVERAGE" -> GRADE_NEEDS_IMPROVEMENT;
             case "SLOW" -> "POOR";
-            default -> "NEEDS_IMPROVEMENT";
+            default -> GRADE_NEEDS_IMPROVEMENT;
         };
     }
 
@@ -134,14 +136,14 @@ public class PageSpeedMetricsEngine {
 
         long fcp = Math.max(ttfb + 150L, (long) (ttfb * 1.3));
         long lcp = Math.max(fcp + 350L, (long) (fcp * 1.4));
-        long inp = Math.max(45L, Math.min(250L, (long) (ttfb * 0.15)));
+        long inp = Math.clamp((long) (ttfb * 0.15), 45L, 250L);
         double cls = Math.round((Math.min(0.25, (ttfb / 5000.0) * 0.1)) * 100.0) / 100.0;
 
         String grade;
         if (lcp <= 2500 && cls <= 0.1 && ttfb <= 800) {
             grade = "GOOD";
         } else if (lcp <= 4000 && cls <= 0.25 && ttfb <= 1800) {
-            grade = "NEEDS_IMPROVEMENT";
+            grade = GRADE_NEEDS_IMPROVEMENT;
         } else {
             grade = "POOR";
         }

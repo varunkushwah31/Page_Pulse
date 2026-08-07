@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { DomIssueSnippet } from '../types';
-import { Code, AlertTriangle, ChevronRight, Copy, Check } from 'lucide-react';
+import { Code, Copy, Check, Info } from 'lucide-react';
 
 interface DomInspectorConsoleProps {
   issues: DomIssueSnippet[];
@@ -65,6 +65,7 @@ export const DomInspectorConsole: React.FC<DomInspectorConsoleProps> = ({ issues
               </div>
 
               <button
+                type="button"
                 onClick={() => handleCopy(issue.outerHtml, idx)}
                 className="inline-flex items-center gap-1 text-[10px] text-[#8B93A1] hover:text-[#4FD8C4] transition-all cursor-pointer"
               >

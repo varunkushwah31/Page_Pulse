@@ -11,11 +11,22 @@ import org.springframework.stereotype.Component;
 public class PerformanceMetricsExtractor {
 
     public PerformanceMetrics extract(ScrapeResult scrapeResult) {
-        Document doc = scrapeResult.getDocument();
+        if (scrapeResult == null) {
+            return PerformanceMetrics.builder()
+                .statusCode(500)
+                .responseTimeMs(0)
+                .contentType("text/html")
+                .isSecureSsl(false)
+                .scriptResourceCount(0)
+                .stylesheetResourceCount(0)
+                .imageResourceCount(0)
+                .build();
+        }
 
-        int scriptCount = doc.select("script[src]").size();
-        int stylesheetCount = doc.select("link[rel~=stylesheet i]").size();
-        int imageCount = doc.select("img[src]").size();
+        Document doc = scrapeResult.getDocument();
+        int scriptCount = doc != null ? doc.select("script[src]").size() : 0;
+        int stylesheetCount = doc != null ? doc.select("link[rel~=stylesheet i]").size() : 0;
+        int imageCount = doc != null ? doc.select("img[src]").size() : 0;
 
         boolean isSecure = scrapeResult.getTargetUrl() != null &&
             scrapeResult.getTargetUrl().toLowerCase().startsWith("https://");
@@ -23,7 +34,7 @@ public class PerformanceMetricsExtractor {
         return PerformanceMetrics.builder()
             .statusCode(scrapeResult.getStatusCode())
             .responseTimeMs(scrapeResult.getResponseTimeMs())
-            .contentType(scrapeResult.getContentType())
+            .contentType(scrapeResult.getContentType() != null ? scrapeResult.getContentType() : "text/html")
             .isSecureSsl(isSecure)
             .scriptResourceCount(scriptCount)
             .stylesheetResourceCount(stylesheetCount)

@@ -43,12 +43,7 @@ public class PlaywrightScraperEngine {
                     throw new TargetHostUnreachableException("Failed to navigate to target URL: " + targetUrl);
                 }
 
-                // Wait for network idle to ensure SPA scripts execute
-                try {
-                    page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(5000));
-                } catch (Exception e) {
-                    log.debug("Network idle timeout reached for {}, proceeding with rendered DOM", targetUrl);
-                }
+                waitForDomLoadState(page, targetUrl);
 
                 long responseTimeMs = System.currentTimeMillis() - startTime;
                 String htmlContent = page.content();
@@ -80,6 +75,14 @@ public class PlaywrightScraperEngine {
                 throw re;
             }
             throw new TargetHostUnreachableException("Playwright headless browser error for target URL: " + targetUrl, e);
+        }
+    }
+
+    private void waitForDomLoadState(Page page, String targetUrl) {
+        try {
+            page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(5000));
+        } catch (Exception e) {
+            log.debug("Network idle timeout reached for {}, proceeding with rendered DOM: {}", targetUrl, e.getMessage());
         }
     }
 }

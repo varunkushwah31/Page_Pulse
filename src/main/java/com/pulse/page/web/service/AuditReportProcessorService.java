@@ -37,6 +37,7 @@ public class AuditReportProcessorService {
     private final SslInspectionEngine sslInspectionEngine;
     private final LinkInspectionEngine linkInspectionEngine;
     private final PageSpeedMetricsEngine pageSpeedMetricsEngine;
+    private final AssetBottleneckInspectorEngine assetBottleneckInspectorEngine;
     private final AuditReportJpaRepository jpaRepository;
     private final CacheService cacheService;
 
@@ -73,6 +74,7 @@ public class AuditReportProcessorService {
         CoreWebVitals vitals = pageSpeedMetricsEngine.calculateWebVitals(scrapeResult);
         SecurityMetrics security = sslInspectionEngine.inspectSecurity(normalizedUrl, scrapeResult);
         LinkInspectionMetrics links = linkInspectionEngine.inspectLinks(normalizedUrl, scrapeResult.getDocument());
+        AssetBottleneckMetrics bottlenecks = assetBottleneckInspectorEngine.inspectAssets(scrapeResult.getDocument(), scrapeResult.getResponseTimeMs());
 
         AuditScoreBreakdown scores = scoringEngine.calculateScore(seo, content, a11y, perf);
 
@@ -111,6 +113,7 @@ public class AuditReportProcessorService {
             .coreWebVitals(vitals)
             .linkMetrics(links)
             .securityMetrics(security)
+            .assetBottleneckMetrics(bottlenecks)
             .scores(scores)
             .cached(false)
             .build();

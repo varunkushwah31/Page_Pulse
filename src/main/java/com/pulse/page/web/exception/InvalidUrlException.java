@@ -1,7 +1,13 @@
 package com.pulse.page.web.exception;
 
-public class InvalidUrlException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class InvalidUrlException extends PagePulseException {
     public InvalidUrlException(String message) {
-        super(message);
+        super(message, HttpStatus.BAD_REQUEST, "INVALID_URL");
+    }
+
+    public InvalidUrlException(String message, Throwable cause) {
+        super(message, cause, HttpStatus.BAD_REQUEST, "INVALID_URL");
     }
 }

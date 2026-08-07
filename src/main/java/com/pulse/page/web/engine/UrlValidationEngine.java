@@ -3,7 +3,9 @@ package com.pulse.page.web.engine;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 
 @Slf4j
@@ -19,7 +21,7 @@ public class UrlValidationEngine {
         if (trimmed.contains("://")) {
             int schemeEnd = trimmed.indexOf("://");
             String scheme = trimmed.substring(0, schemeEnd).toLowerCase();
-            if (!scheme.equals("http") && !scheme.equals("https")) {
+            if (!"http".equals(scheme) && !"https".equals(scheme)) {
                 throw new IllegalArgumentException("Invalid URL scheme '" + scheme + "'. Only HTTP and HTTPS are supported.");
             }
         } else {
@@ -39,19 +41,22 @@ public class UrlValidationEngine {
             return trimmed;
         } catch (IllegalArgumentException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (URISyntaxException | MalformedURLException e) {
             throw new IllegalArgumentException("Malformed URL structure: " + rawUrl, e);
         }
     }
 
     public String extractDomain(String url) {
+        if (url == null || url.isBlank()) {
+            return "";
+        }
         try {
             URI uri = URI.create(url);
             String host = uri.getHost();
             if (host != null) {
                 return host.startsWith("www.") ? host.substring(4) : host;
             }
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             log.trace("Domain extraction fallback to raw URL for input {}: {}", url, e.getMessage());
         }
         return url;

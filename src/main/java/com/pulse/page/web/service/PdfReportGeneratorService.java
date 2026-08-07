@@ -96,7 +96,7 @@ public class PdfReportGeneratorService {
             pdfDoc.close();
         } catch (DocumentException e) {
             log.error("Failed to generate PDF document for report ID {}: {}", reportId, e.getMessage(), e);
-            throw new RuntimeException("PDF document generation failed: " + e.getMessage(), e);
+            throw new IllegalStateException("PDF document generation failed: " + e.getMessage(), e);
         }
 
         return out.toByteArray();

@@ -8,9 +8,11 @@ import org.jsoup.nodes.Element;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
 
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -19,7 +21,17 @@ import java.util.concurrent.*;
 public class LinkInspectionEngine {
 
     private static final int MAX_LINKS_TO_CHECK = 15;
-    private static final int LINK_CHECK_TIMEOUT_MS = 2500;
+    private static final Duration LINK_CHECK_TIMEOUT = Duration.ofMillis(2500);
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PagePulseAuditor/1.0";
+
+    private final HttpClient httpClient;
+
+    public LinkInspectionEngine() {
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(LINK_CHECK_TIMEOUT)
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build();
+    }
 
     @NonNull
     public LinkInspectionMetrics inspectLinks(@NonNull String baseUrl, @NonNull Document document) {
@@ -67,7 +79,7 @@ public class LinkInspectionEngine {
 
             for (Future<LinkCheckResult> future : futures) {
                 try {
-                    LinkCheckResult res = future.get(LINK_CHECK_TIMEOUT_MS + 500, TimeUnit.MILLISECONDS);
+                    LinkCheckResult res = future.get(LINK_CHECK_TIMEOUT.toMillis() + 500, TimeUnit.MILLISECONDS);
                     if (res.statusCode >= 200 && res.statusCode < 300) {
                         workingCount++;
                     } else if (res.statusCode >= 300 && res.statusCode < 400) {
@@ -75,8 +87,11 @@ public class LinkInspectionEngine {
                     } else {
                         brokenLinks.add(res.toBrokenLinkInfo());
                     }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.debug("Link inspection thread interrupted: {}", e.getMessage());
                 } catch (Exception e) {
-                    log.debug("Link inspection future timed out or failed: {}", e.getMessage());
+                    log.debug("Link inspection future failed: {}", e.getMessage());
                 }
             }
         }
@@ -98,38 +113,44 @@ public class LinkInspectionEngine {
     private LinkCheckResult checkLink(String urlStr, String anchorText, String baseHost) {
         boolean external = !extractHost(urlStr).equalsIgnoreCase(baseHost);
         try {
-            URL url = URI.create(urlStr).toURL();
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(LINK_CHECK_TIMEOUT_MS);
-            conn.setReadTimeout(LINK_CHECK_TIMEOUT_MS);
-            conn.setRequestMethod("HEAD");
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PagePulseAuditor/1.0");
+            URI uri = URI.create(urlStr);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .timeout(LINK_CHECK_TIMEOUT)
+                    .header("User-Agent", USER_AGENT)
+                    .method("HEAD", HttpRequest.BodyPublishers.noBody())
+                    .build();
 
-            int code = conn.getResponseCode();
-            if (code == HttpURLConnection.HTTP_BAD_METHOD || code == HttpURLConnection.HTTP_FORBIDDEN) {
-                // Retry with GET if HEAD is refused
-                conn.disconnect();
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setConnectTimeout(LINK_CHECK_TIMEOUT_MS);
-                conn.setReadTimeout(LINK_CHECK_TIMEOUT_MS);
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PagePulseAuditor/1.0");
-                code = conn.getResponseCode();
+            HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
+            int code = response.statusCode();
+
+            if (code == 405 || code == 403) {
+                // Retry with GET method if HEAD is disallowed by target server
+                HttpRequest getRequest = HttpRequest.newBuilder()
+                        .uri(uri)
+                        .timeout(LINK_CHECK_TIMEOUT)
+                        .header("User-Agent", USER_AGENT)
+                        .GET()
+                        .build();
+                response = httpClient.send(getRequest, HttpResponse.BodyHandlers.discarding());
+                code = response.statusCode();
             }
 
-            String msg = conn.getResponseMessage();
-            conn.disconnect();
-
-            return new LinkCheckResult(urlStr, anchorText, code, msg != null ? msg : "HTTP " + code, external);
+            return new LinkCheckResult(urlStr, anchorText, code, "HTTP " + code, external);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new LinkCheckResult(urlStr, anchorText, 404, "Link check thread interrupted", external);
         } catch (Exception e) {
             return new LinkCheckResult(urlStr, anchorText, 404, "Connection refused or URL unreachable", external);
         }
     }
 
     private String extractHost(String urlStr) {
+        if (urlStr == null || urlStr.isBlank()) return "";
         try {
-            return URI.create(urlStr).getHost();
-        } catch (Exception e) {
+            String host = URI.create(urlStr).getHost();
+            return host != null ? host : "";
+        } catch (IllegalArgumentException e) {
             return "";
         }
     }

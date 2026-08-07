@@ -116,6 +116,7 @@ export const PageHeaderNav: React.FC = () => {
           {/* Auxiliary Tools Dropdown Menu */}
           <div className="relative" ref={dropdownRef}>
             <button
+              type="button"
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className={`flex items-center gap-1 rounded-md px-3 py-1 font-semibold transition-all cursor-pointer border ${
                 isAuxActive || dropdownOpen
@@ -159,6 +160,7 @@ export const PageHeaderNav: React.FC = () => {
         <div className="flex items-center gap-2">
           {isAuthenticated ? (
             <button
+              type="button"
               onClick={() => {
                 logout();
                 navigate('/');

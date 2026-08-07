@@ -64,9 +64,10 @@ public class SslInspectionEngine {
         String cipherSuite = "N/A";
 
         if (isHttps) {
+            HttpsURLConnection conn = null;
             try {
                 URL url = URI.create(targetUrl).toURL();
-                HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+                conn = (HttpsURLConnection) url.openConnection();
                 conn.setConnectTimeout(3000);
                 conn.setReadTimeout(3000);
                 conn.setRequestMethod("HEAD");
@@ -86,7 +87,6 @@ public class SslInspectionEngine {
                     }
                 }
                 tlsVersion = "TLS v1.3 / v1.2";
-                conn.disconnect();
             } catch (Exception e) {
                 log.debug("SSL inspection for {} encountered warning: {}", targetUrl, e.getMessage());
                 sslValid = false;
@@ -94,6 +94,13 @@ public class SslInspectionEngine {
                     daysUntilExpiry = 90; // Fallback estimate for active HTTPS sites
                     sslValid = true;
                     sslIssuer = "Let's Encrypt / Cloudflare SSL";
+                }
+            } finally {
+                if (conn != null) {
+                    try {
+                        conn.disconnect();
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         }

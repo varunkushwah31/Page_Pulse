@@ -23,6 +23,12 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
     return 'text-[#F87171] border-[#F87171]/30 bg-[#F87171]/10';
   };
 
+  const getGradeBadgeStyle = (grade: string): string => {
+    if (grade === 'GOOD') return 'text-[#4ADE80] border-[#4ADE80]/30 bg-[#4ADE80]/10';
+    if (grade === 'NEEDS_IMPROVEMENT') return 'text-[#FBBF24] border-[#FBBF24]/30 bg-[#FBBF24]/10';
+    return 'text-[#F87171] border-[#F87171]/30 bg-[#F87171]/10';
+  };
+
   return (
     <div className="space-y-6 font-mono text-xs">
       {/* 1. Core Web Vitals Section */}
@@ -42,7 +48,7 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
                 </span>
               )}
             </div>
-            <span className={`inline-flex items-center rounded-full border px-3 py-0.5 text-[11px] font-bold ${vitals.overallGrade === 'GOOD' ? 'text-[#4ADE80] border-[#4ADE80]/30 bg-[#4ADE80]/10' : vitals.overallGrade === 'NEEDS_IMPROVEMENT' ? 'text-[#FBBF24] border-[#FBBF24]/30 bg-[#FBBF24]/10' : 'text-[#F87171] border-[#F87171]/30 bg-[#F87171]/10'}`}>
+            <span className={`inline-flex items-center rounded-full border px-3 py-0.5 text-[11px] font-bold ${getGradeBadgeStyle(vitals.overallGrade)}`}>
               GRADE: {vitals.overallGrade}
             </span>
           </div>
@@ -204,6 +210,68 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. Asset Bottlenecks Section */}
+      {audit.assetBottleneckMetrics && (
+        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+            <div className="flex items-center gap-2">
+              <Activity className="size-4 text-[#FBBF24]" />
+              <h3 className="font-bold text-[#E7EAEE] text-sm">Web Font & Asset Bottlenecks</h3>
+            </div>
+            <span className="text-[10px] text-[#8B93A1] bg-[#191D24] border border-[#262B33] px-2 py-0.5 rounded">
+              CLS & Render-Blocking Inspector
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+              <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">Render-Blocking Fonts</span>
+              <div className={`text-xl font-extrabold ${audit.assetBottleneckMetrics.renderBlockingFontsCount > 0 ? 'text-[#F87171]' : 'text-[#4ADE80]'}`}>
+                {audit.assetBottleneckMetrics.renderBlockingFontsCount}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+              <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">Unsized Images (CLS)</span>
+              <div className={`text-xl font-extrabold ${audit.assetBottleneckMetrics.unSizedImagesCount > 0 ? 'text-[#FBBF24]' : 'text-[#4ADE80]'}`}>
+                {audit.assetBottleneckMetrics.unSizedImagesCount}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+              <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">Estimated TBT</span>
+              <div className="text-xl font-extrabold text-[#4FD8C4]">
+                {audit.assetBottleneckMetrics.totalBlockingTimeMs} ms
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+              <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">Est. Script / Style Size</span>
+              <div className="text-xl font-extrabold text-[#E7EAEE]">
+                {Math.round((audit.assetBottleneckMetrics.estimatedUnminifiedCssBytes + audit.assetBottleneckMetrics.estimatedUnminifiedJsBytes) / 1024)} KB
+              </div>
+            </div>
+          </div>
+
+          {audit.assetBottleneckMetrics.bottleneckIssues.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <span className="text-[#FBBF24] font-bold text-[11px] flex items-center gap-1.5">
+                <AlertTriangle className="size-3.5" />
+                <span>Detected Asset Bottleneck Warnings</span>
+              </span>
+              <ul className="space-y-1.5 text-[11px] text-[#8B93A1] bg-[#0A0C0F] p-3 rounded-lg border border-[#262B33]">
+                {audit.assetBottleneckMetrics.bottleneckIssues.map((issue, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-[#FBBF24]">•</span>
+                    <span>{issue}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

@@ -118,6 +118,8 @@ public class AccessibilityMetricsExtractor {
         return !hasAriaLabel && !hasIdLabel && !isInsideLabel;
     }
 
+    private static final String CLASS_ATTR = "class";
+
     /**
      * Build a CSS selector path for the given element for identification in the Visual Inspector.
      */
@@ -127,8 +129,8 @@ public class AccessibilityMetricsExtractor {
 
         if (el.hasAttr("id") && !el.attr("id").isBlank()) {
             sb.append("#").append(el.attr("id"));
-        } else if (el.hasAttr("class") && !el.attr("class").isBlank()) {
-            String firstClass = el.attr("class").trim().split("\\s+")[0];
+        } else if (el.hasAttr(CLASS_ATTR) && !el.attr(CLASS_ATTR).isBlank()) {
+            String firstClass = el.attr(CLASS_ATTR).trim().split("\\s+")[0];
             sb.append(".").append(firstClass);
         }
 

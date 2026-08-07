@@ -189,6 +189,7 @@ export const BatchAuditorConsole: React.FC = () => {
             <div className="flex items-center gap-3">
               <span className="text-[#565D68] uppercase tracking-wider font-semibold">Batch Audit Summary</span>
               <button
+                type="button"
                 onClick={toggleExpandAll}
                 className="rounded border border-[#333A45] bg-[#12151A] px-2.5 py-1 text-[11px] text-[#4FD8C4] hover:bg-[#262B33] transition-all cursor-pointer"
               >
@@ -202,6 +203,7 @@ export const BatchAuditorConsole: React.FC = () => {
               <span>Avg Score: <strong className="text-[#4ADE80]">{avgScore} / 100</strong></span>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => {
                     const headers = ['URL', 'HTTP Status', 'Latency (ms)', 'SEO Score', 'Content Score', 'Accessibility Score', 'Performance Score', 'Overall Score', 'Health Grade'];
                     const rows = results.map((r) => [
@@ -222,6 +224,7 @@ export const BatchAuditorConsole: React.FC = () => {
                   Export CSV
                 </button>
                 <button
+                  type="button"
                   onClick={() => exportToJson(results, 'pagepulse-batch-audit-results.json')}
                   className="rounded border border-[#7AA2F7]/30 bg-[#7AA2F7]/10 px-2 py-0.5 text-[11px] text-[#7AA2F7] hover:bg-[#7AA2F7]/20 transition-all cursor-pointer"
                 >
@@ -246,7 +249,15 @@ export const BatchAuditorConsole: React.FC = () => {
                 <div key={r.id ?? `${r.url}-${idx}`} className="transition-colors">
                   {/* Summary Bar Row */}
                   <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggleExpand(idx)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleExpand(idx);
+                      }
+                    }}
                     className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-[#191D24]/50 cursor-pointer select-none"
                   >
                     <div className="flex items-center gap-2 max-w-lg truncate">
@@ -370,6 +381,7 @@ export const BatchAuditorConsole: React.FC = () => {
 
                         <div className="flex items-center gap-2">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handlePdfDownload(r, idx);
@@ -389,6 +401,7 @@ export const BatchAuditorConsole: React.FC = () => {
                           </button>
 
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleSaveReport(r, idx);

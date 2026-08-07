@@ -5,6 +5,7 @@ import { saveReportToMongo, downloadPdfReport } from '../lib/api';
 import { Download, Database, Lock, AlertCircle, FileText, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import { AiFixConsole } from './AiFixConsole';
 import { AdvancedEngineConsole } from './AdvancedEngineConsole';
+import { DomInspectorConsole } from './DomInspectorConsole';
 
 interface AuditReportProps {
   audit: AuditResponse;
@@ -329,6 +330,19 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           </div>
         )}
       </div>
+
+      {/* Visual DOM Element Inspector */}
+      {((audit.accessibilityMetrics?.domIssues && audit.accessibilityMetrics.domIssues.length > 0) ||
+        (audit.seoMetrics?.domIssues && audit.seoMetrics.domIssues.length > 0)) && (
+        <div className="p-4 sm:p-5 border-t border-[#262B33] bg-[#0A0C0F]/40 space-y-4">
+          {audit.accessibilityMetrics?.domIssues && audit.accessibilityMetrics.domIssues.length > 0 && (
+            <DomInspectorConsole issues={audit.accessibilityMetrics.domIssues} title="Accessibility DOM Inspector (Missing Alt & Unlabelled Inputs)" />
+          )}
+          {audit.seoMetrics?.domIssues && audit.seoMetrics.domIssues.length > 0 && (
+            <DomInspectorConsole issues={audit.seoMetrics.domIssues} title="SEO DOM Inspector (Meta & Structure Issues)" />
+          )}
+        </div>
+      )}
 
       {/* Advanced Engine Metrics (Core Web Vitals, Security/SSL, Link Inspector) */}
       <div className="p-4 sm:p-5 border-t border-[#262B33] bg-[#0A0C0F]/40">

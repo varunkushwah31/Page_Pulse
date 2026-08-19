@@ -118,8 +118,8 @@ public class CompetitorComparisonService {
                     .build();
         }
 
-        var bestOverall = successful.get(0);
-        var worstOverall = successful.get(successful.size() - 1);
+        var bestOverall = successful.getFirst();
+        var worstOverall = successful.getLast();
 
         var bestSeo = successful.stream()
                 .max(Comparator.comparingInt(CompetitorComparisonResponse.CompetitorResult::getSeoScore))

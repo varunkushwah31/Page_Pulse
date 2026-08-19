@@ -8,6 +8,55 @@ export interface DomIssueSnippet {
   lineHint: number;
 }
 
+export interface StructuredDataInfo {
+  hasStructuredData: boolean;
+  totalSchemasFound: number;
+  validJsonLd: boolean;
+  detectedSchemaTypes: string[];
+  validationErrors: string[];
+  missingRecommendedProperties: string[];
+  rawJsonLdSnippets: string[];
+}
+
+export interface SerpPreview {
+  displayedTitle: string;
+  displayedUrl: string;
+  displayedDescription: string;
+  titlePixelWidth: number;
+  descriptionPixelWidth: number;
+  titleTruncated: boolean;
+  descriptionTruncated: boolean;
+  mobilePreviewTitle: string;
+  mobilePreviewDescription: string;
+}
+
+export interface ReadabilityMetrics {
+  fleschKincaidReadingEase: number;
+  fleschKincaidGradeLevel: number;
+  automatedReadabilityIndex: number;
+  readingEaseLevel: string;
+  sentenceCount: number;
+  averageWordsPerSentence: number;
+  averageSyllablesPerWord: number;
+  complexWordsPercentage: number;
+}
+
+export interface HeadingNode {
+  tag: string;
+  level: number;
+  text: string;
+  estimatedLine: number;
+  issues: string[];
+}
+
+export interface KeywordPhrase {
+  phrase: string;
+  count: number;
+  densityPercentage: number;
+  nGramSize: number;
+  isStuffingWarning: boolean;
+}
+
 export interface SeoMetrics {
   pageTitle: string | null;
   titleLength: number;
@@ -17,15 +66,28 @@ export interface SeoMetrics {
   hasMetaDescription: boolean;
   metaKeywords: string | null;
   canonicalUrl: string | null;
+  canonicalStatus?: string;
   openGraphTags: Record<string, string>;
   twitterCardTags: Record<string, string>;
+  openGraphComplete?: boolean;
+  twitterCardComplete?: boolean;
   robotsDirective: string | null;
+  xRobotsTagHeader?: string | null;
   isFollowable: boolean;
   isIndexable: boolean;
   hasFavicon?: boolean;
   hasViewportMeta?: boolean;
   hasOgImage?: boolean;
   hasStructuredData?: boolean;
+  hreflangTags?: Record<string, string>;
+  hasXDefaultHreflang?: boolean;
+  invalidHreflangCodes?: string[];
+  structuredDataInfo?: StructuredDataInfo;
+  serpPreview?: SerpPreview;
+  charset?: string;
+  hasAuthor?: boolean;
+  author?: string;
+  socialCardPreviewImage?: string;
   seoRecommendations?: string[];
   domIssues?: DomIssueSnippet[];
 }
@@ -33,9 +95,20 @@ export interface SeoMetrics {
 export interface ContentMetrics {
   headingCounts: Record<string, number>;
   wordCount: number;
+  characterCount?: number;
   estimatedReadingTimeMinutes: number;
   paragraphCount: number;
   textToHtmlRatioPercentage: number;
+  readabilityMetrics?: ReadabilityMetrics;
+  headingHierarchy?: HeadingNode[];
+  headingIssues?: string[];
+  hasValidHeadingHierarchy?: boolean;
+  duplicateHeadingTexts?: string[];
+  topKeywords?: KeywordPhrase[];
+  hasKeywordStuffing?: boolean;
+  isThinContent?: boolean;
+  contentLinkDensityPercentage?: number;
+  genericAnchorWarnings?: string[];
 }
 
 export interface AccessibilityMetrics {
@@ -44,7 +117,19 @@ export interface AccessibilityMetrics {
   imagesMissingAltUrls: string[];
   hasHtmlLangAttribute: boolean;
   htmlLangValue: string | null;
+  validLangCode?: boolean;
   formInputsMissingLabelsCount: number;
+  buttonsMissingAccessibleNameCount?: number;
+  linksMissingAccessibleTextCount?: number;
+  hasMainLandmark?: boolean;
+  hasHeaderLandmark?: boolean;
+  hasNavLandmark?: boolean;
+  hasFooterLandmark?: boolean;
+  positiveTabindexCount?: number;
+  mediaMissingCaptionsCount?: number;
+  hasTextDirection?: boolean;
+  textDirectionValue?: string | null;
+  wcagViolationsSummary?: string[];
   domIssues?: DomIssueSnippet[];
 }
 
@@ -55,6 +140,19 @@ export interface PerformanceMetrics {
   scriptResourceCount: number;
   stylesheetResourceCount: number;
   imageResourceCount: number;
+  fontResourceCount?: number;
+  renderBlockingHeadScriptsCount?: number;
+  asyncOrDeferScriptsCount?: number;
+  modernImageFormatsCount?: number;
+  legacyImageFormatsCount?: number;
+  modernImageRatioPercentage?: number;
+  resourceHintsCount?: number;
+  totalDomNodesCount?: number;
+  maxDomDepth?: number;
+  contentEncoding?: string;
+  cacheControlHeader?: string | null;
+  hasCompression?: boolean;
+  hasBrowserCaching?: boolean;
   secureSsl: boolean;
 }
 
@@ -82,6 +180,16 @@ export interface LinkInspectionMetrics {
   workingLinksCount: number;
   brokenLinksCount: number;
   redirectLinksCount: number;
+  internalLinksCount?: number;
+  externalLinksCount?: number;
+  inPageAnchorLinksCount?: number;
+  protocolLinksCount?: number;
+  targetBlankWithoutNoopenerCount?: number;
+  insecureHttpLinksCount?: number;
+  nofollowLinksCount?: number;
+  genericAnchorLinksCount?: number;
+  emptyAnchorLinksCount?: number;
+  securityWarnings?: string[];
   brokenLinks: BrokenLinkInfo[];
 }
 
@@ -230,12 +338,15 @@ export interface ApiKeyResponse {
 }
 
 export interface AiRecommendation {
-  category: 'SEO' | 'ACCESSIBILITY' | 'CONTENT' | 'PERFORMANCE';
+  category: 'SEO' | 'ACCESSIBILITY' | 'CONTENT' | 'PERFORMANCE' | 'SECURITY';
+  priority?: 'P0_CRITICAL' | 'P1_MAJOR' | 'P2_MODERATE' | 'P3_LOW';
   issue: string;
   title: string;
   codeSnippet: string;
   explanation: string;
   impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  estimatedScoreImprovement?: string;
+  guidelineReference?: string;
 }
 
 export interface BatchAuditUrlResult {
@@ -358,5 +469,3 @@ export interface PdfBrandingConfig {
   footerText?: string;
   logoBase64?: string;
 }
-
-

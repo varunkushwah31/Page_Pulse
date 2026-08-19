@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { AuditResponse } from '../types';
 import { saveReportToMongo, downloadPdfReport } from '../lib/api';
-import { Download, Database, Lock, AlertCircle, FileText, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import {
+  Download, Database, Lock, AlertCircle, FileText, CheckCircle2,
+  AlertTriangle, XCircle, Globe, Search, BookOpen, Layers,
+  Compass, Code, Cpu
+} from 'lucide-react';
 import { AiFixConsole } from './AiFixConsole';
 import { AdvancedEngineConsole } from './AdvancedEngineConsole';
 import { DomInspectorConsole } from './DomInspectorConsole';
@@ -24,6 +28,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CONTENT' | 'SCHEMA' | 'ENGINE' | 'AI_FIXES'>('OVERVIEW');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -90,6 +95,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const seoMetrics = audit.seoMetrics;
   const contentMetrics = audit.contentMetrics;
   const accessibilityMetrics = audit.accessibilityMetrics;
+  const perfMetrics = audit.performanceMetrics;
   const scores = audit.scores;
 
   const pageTitle = seoMetrics?.pageTitle ?? null;
@@ -119,9 +125,16 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
       {/* Report Header Strip */}
       <div className="bg-[#191D24] px-5 py-4 border-b border-[#262B33] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="space-y-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#565D68]">
-            Audit Target URL
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#565D68]">
+              Target Host & Domain
+            </span>
+            {seoMetrics?.charset && (
+              <span className="text-[10px] bg-[#262B33] text-[#8B93A1] px-1.5 py-0.2 rounded font-mono">
+                {seoMetrics.charset}
+              </span>
+            )}
+          </div>
           <div className="font-mono text-sm text-[#E7EAEE] font-medium break-all">{audit.url}</div>
         </div>
 
@@ -129,6 +142,11 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${getStatusColor(audit.httpStatus)}`}>
             HTTP {audit.httpStatus}
           </span>
+          {audit.cached && (
+            <span className="rounded bg-[#7AA2F7]/10 border border-[#7AA2F7]/30 px-2 py-0.5 text-[10px] text-[#7AA2F7] font-bold">
+              CACHED
+            </span>
+          )}
         </div>
       </div>
 
@@ -137,13 +155,23 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-[#565D68]">
-              Overall Health Grade
+              Overall Health Grade & Indexability
             </span>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${getGradeColor(healthGrade)}`}>
                 {healthGrade.replace('_', ' ')}
               </span>
               <span className="text-3xl font-extrabold text-[#E7EAEE]">{overallScore} / 100</span>
+
+              {seoMetrics?.isIndexable ? (
+                <span className="rounded bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2.5 py-1 text-[11px] text-[#4ADE80] font-bold inline-flex items-center gap-1">
+                  <CheckCircle2 className="size-3" /> Indexable
+                </span>
+              ) : (
+                <span className="rounded bg-[#F87171]/10 border border-[#F87171]/30 px-2.5 py-1 text-[11px] text-[#F87171] font-bold inline-flex items-center gap-1">
+                  <XCircle className="size-3" /> NoIndex Detected
+                </span>
+              )}
             </div>
           </div>
 
@@ -173,7 +201,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
           <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
             <div className="flex justify-between items-center text-[11px]">
-              <span className="text-[#8B93A1]">SEO Score</span>
+              <span className="text-[#8B93A1]">Technical SEO</span>
               <span className="font-bold text-[#4FD8C4]">{seoScore}%</span>
             </div>
             <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
@@ -183,7 +211,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
           <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
             <div className="flex justify-between items-center text-[11px]">
-              <span className="text-[#8B93A1]">Content Score</span>
+              <span className="text-[#8B93A1]">Content & Readability</span>
               <span className="font-bold text-[#7AA2F7]">{contentScore}%</span>
             </div>
             <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
@@ -193,7 +221,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
           <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
             <div className="flex justify-between items-center text-[11px]">
-              <span className="text-[#8B93A1]">Accessibility</span>
+              <span className="text-[#8B93A1]">WCAG Accessibility</span>
               <span className="font-bold text-[#4ADE80]">{accessibilityScore}%</span>
             </div>
             <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
@@ -203,7 +231,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
           <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
             <div className="flex justify-between items-center text-[11px]">
-              <span className="text-[#8B93A1]">Performance</span>
+              <span className="text-[#8B93A1]">Performance & Core Vitals</span>
               <span className="font-bold text-[#FBBF24]">{performanceScore}%</span>
             </div>
             <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
@@ -213,154 +241,435 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
         </div>
       </div>
 
-      {/* Latency & Content-Type Telemetry Bar */}
-      <div className="p-5 border-b border-[#262B33] grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <div className="flex justify-between items-baseline text-xs mb-1">
-            <span className="text-[#8B93A1]">Response Latency</span>
-            <span className="text-[#E7EAEE] font-semibold">{responseTimeMs} ms</span>
-          </div>
-          <div className="w-full h-1.5 bg-[#0A0C0F] rounded-full overflow-hidden">
-            <div className={`h-full ${timingColor} transition-all duration-300`} style={{ width: `${timingWidth}%` }}></div>
-          </div>
-        </div>
+      {/* Navigation View Switcher Tabs */}
+      <div className="flex flex-wrap items-center gap-1 px-5 py-2.5 bg-[#161A20] border-b border-[#262B33]">
+        <button
+          type="button"
+          onClick={() => setActiveTab('OVERVIEW')}
+          className={`px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === 'OVERVIEW' ? 'bg-[#191D24] text-[#4FD8C4] border border-[#4FD8C4]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
+          }`}
+        >
+          <Search className="size-3.5" />
+          <span>SEO & SERP Preview</span>
+        </button>
 
-        <div className="flex flex-col justify-center text-xs">
-          <span className="text-[#8B93A1]">Content Type Header</span>
-          <span className="text-[#E7EAEE] font-semibold mt-1 truncate">{audit.contentType || 'text/html'}</span>
-        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab('CONTENT')}
+          className={`px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === 'CONTENT' ? 'bg-[#191D24] text-[#7AA2F7] border border-[#7AA2F7]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
+          }`}
+        >
+          <BookOpen className="size-3.5" />
+          <span>Editorial & Hierarchy</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('SCHEMA')}
+          className={`px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === 'SCHEMA' ? 'bg-[#191D24] text-[#4ADE80] border border-[#4ADE80]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
+          }`}
+        >
+          <Code className="size-3.5" />
+          <span>Schema & Social Meta</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('ENGINE')}
+          className={`px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === 'ENGINE' ? 'bg-[#191D24] text-[#FBBF24] border border-[#FBBF24]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
+          }`}
+        >
+          <Cpu className="size-3.5" />
+          <span>Advanced Diagnostics</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('AI_FIXES')}
+          className={`px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === 'AI_FIXES' ? 'bg-[#191D24] text-[#4FD8C4] border border-[#4FD8C4]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
+          }`}
+        >
+          <Compass className="size-3.5" />
+          <span>AI Recommendations</span>
+        </button>
       </div>
 
-      {/* Detailed Technical Metric Rows */}
-      <div className="divide-y divide-[#262B33]">
-        {/* Page Title */}
-        <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
-            Page Title
-          </div>
-          <div className="flex-1 font-sans text-sm text-[#E7EAEE]">
-            {pageTitle ? (
-              <span>{pageTitle}</span>
-            ) : (
-              <span className="font-mono text-xs italic text-[#8B93A1]">No {'<title>'} found</span>
-            )}
-          </div>
-        </div>
-
-        {/* Meta Description */}
-        <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
-            Meta Description
-          </div>
-          <div className="flex-1 font-sans text-sm text-[#E7EAEE] leading-relaxed">
-            {metaDescription ? (
-              <span>{metaDescription}</span>
-            ) : (
-              <span className="font-mono text-xs italic text-[#8B93A1]">No meta description tag found</span>
-            )}
-          </div>
-        </div>
-
-        {/* H1 Count */}
-        <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
-            H1 Heading Count
-          </div>
-          <div className="flex-1">
-            <span className={`inline-flex items-center rounded px-2.5 py-0.5 text-xs font-bold ${h1Count === 1 ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30'}`}>
-              {h1Count} {h1Count === 1 ? 'H1 tag' : 'H1 tags'}
-            </span>
-          </div>
-        </div>
-
-        {/* Missing Alt Images */}
-        <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
-            Missing Alt Images
-          </div>
-          <div className="flex-1">
-            <span className={`inline-flex items-center rounded px-2.5 py-0.5 text-xs font-bold ${imagesMissingAlt === 0 ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
-              {imagesMissingAlt} missing alt {imagesMissingAlt === 1 ? 'tag' : 'tags'}
-            </span>
-          </div>
-        </div>
-
-        {/* Word Count */}
-        <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
-            Approx. Word Count
-          </div>
-          <div className="flex-1 text-sm font-semibold text-[#E7EAEE]">
-            {wordCount} words
-          </div>
-        </div>
-
-        {/* SEO Metadata Compliance Tags */}
-        <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-          <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
-            SEO Tags Compliance
-          </div>
-          <div className="flex-1 flex flex-wrap gap-2">
-            <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasViewportMeta ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
-              {seoMetrics?.hasViewportMeta ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
-              <span>Mobile Viewport Meta</span>
-            </span>
-            <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasFavicon ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30'}`}>
-              {seoMetrics?.hasFavicon ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
-              <span>Favicon Icon</span>
-            </span>
-            <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasOgImage ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30'}`}>
-              {seoMetrics?.hasOgImage ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
-              <span>OpenGraph Image</span>
-            </span>
-            <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasStructuredData ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#191D24] text-[#8B93A1] border border-[#262B33]'}`}>
-              {seoMetrics?.hasStructuredData ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
-              <span>JSON-LD Schema</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Actionable Recommendations Plan */}
-        {seoMetrics?.seoRecommendations && seoMetrics.seoRecommendations.length > 0 && (
-          <div className="p-4 sm:p-5 bg-[#0A0C0F]/60 space-y-3">
-            <div className="text-xs text-[#4FD8C4] uppercase tracking-wider font-bold flex items-center gap-1.5">
-              <FileText className="size-4 text-[#4FD8C4]" />
-              <span>SEO Optimization Recommendations ({seoMetrics.seoRecommendations.length})</span>
+      {/* TAB 1: OVERVIEW & TECHNICAL SEO */}
+      {activeTab === 'OVERVIEW' && (
+        <div className="divide-y divide-[#262B33]">
+          {/* SERP Simulator Card */}
+          {seoMetrics?.serpPreview && (
+            <div className="p-5 bg-[#0A0C0F]/60 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-wider font-bold text-[#4FD8C4] flex items-center gap-1.5">
+                  <Search className="size-3.5" /> Google Search SERP Simulator
+                </span>
+                <span className="text-[10px] text-[#8B93A1]">
+                  Title width: {seoMetrics.serpPreview.titlePixelWidth}px / 600px max
+                </span>
+              </div>
+              <div className="bg-[#12151A] p-4 rounded-xl border border-[#262B33] font-sans space-y-1 max-w-2xl">
+                <div className="flex items-center gap-2 text-xs text-[#8B93A1]">
+                  <Globe className="size-3 text-[#4ADE80]" />
+                  <span className="text-[#8B93A1] font-mono text-[11px] truncate">{seoMetrics.serpPreview.displayedUrl}</span>
+                </div>
+                <h4 className="text-[#7AA2F7] text-base font-medium hover:underline cursor-pointer">
+                  {seoMetrics.serpPreview.displayedTitle}
+                </h4>
+                <p className="text-xs text-[#A9B1D6] leading-relaxed">
+                  {seoMetrics.serpPreview.displayedDescription}
+                </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              {seoMetrics.seoRecommendations.map((rec, idx) => (
-                <div key={`${rec}-${idx}`} className="flex items-start gap-2.5 text-xs font-sans text-[#E7EAEE] bg-[#12151A] p-2.5 rounded border border-[#262B33]">
-                  <span className="text-[#FBBF24] shrink-0 font-mono font-bold">→</span>
-                  <span>{rec}</span>
+          )}
+
+          {/* Page Title Row */}
+          <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
+            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
+              Title Tag ({seoMetrics?.titleLength ?? 0} chars)
+            </div>
+            <div className="flex-1 font-sans text-sm text-[#E7EAEE]">
+              {pageTitle ? (
+                <div className="space-y-1">
+                  <span>{pageTitle}</span>
+                  <div className="flex items-center gap-2 pt-1 font-mono text-[10px]">
+                    {seoMetrics && seoMetrics.titleLength >= 30 && seoMetrics.titleLength <= 60 ? (
+                      <span className="text-[#4ADE80] bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2 py-0.5 rounded">
+                        Optimal Length (30–60 chars)
+                      </span>
+                    ) : (
+                      <span className="text-[#FBBF24] bg-[#FBBF24]/10 border border-[#FBBF24]/30 px-2 py-0.5 rounded">
+                        {seoMetrics && seoMetrics.titleLength > 60 ? 'Too Long (Will Truncate)' : 'Too Short'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <span className="font-mono text-xs italic text-[#F87171]">No {'<title>'} found</span>
+              )}
+            </div>
+          </div>
+
+          {/* Meta Description Row */}
+          <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
+            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
+              Description ({seoMetrics?.descriptionLength ?? 0} chars)
+            </div>
+            <div className="flex-1 font-sans text-sm text-[#E7EAEE] leading-relaxed">
+              {metaDescription ? (
+                <div className="space-y-1">
+                  <span>{metaDescription}</span>
+                  <div className="flex items-center gap-2 pt-1 font-mono text-[10px]">
+                    {seoMetrics && seoMetrics.descriptionLength >= 120 && seoMetrics.descriptionLength <= 160 ? (
+                      <span className="text-[#4ADE80] bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2 py-0.5 rounded">
+                        Optimal SERP Snippet Length (120–160 chars)
+                      </span>
+                    ) : (
+                      <span className="text-[#FBBF24] bg-[#FBBF24]/10 border border-[#FBBF24]/30 px-2 py-0.5 rounded">
+                        {seoMetrics && seoMetrics.descriptionLength > 160 ? 'Truncated on SERP (>160 chars)' : 'Brief Description (<120 chars)'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <span className="font-mono text-xs italic text-[#F87171]">No meta description tag found</span>
+              )}
+            </div>
+          </div>
+
+          {/* Canonical & Hreflang Row */}
+          <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
+            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
+              Canonical & Indexing
+            </div>
+            <div className="flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[#8B93A1]">Canonical Status:</span>
+                <span className="rounded bg-[#191D24] border border-[#262B33] px-2 py-0.5 text-xs text-[#4FD8C4] font-bold">
+                  {seoMetrics?.canonicalStatus || 'MISSING'}
+                </span>
+                {seoMetrics?.canonicalUrl && (
+                  <span className="text-xs text-[#8B93A1] font-mono break-all">{seoMetrics.canonicalUrl}</span>
+                )}
+              </div>
+
+              {seoMetrics?.hreflangTags && Object.keys(seoMetrics.hreflangTags).length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[#8B93A1] text-[11px]">Hreflang Directives ({Object.keys(seoMetrics.hreflangTags).length}):</span>
+                  {Object.entries(seoMetrics.hreflangTags).map(([lang, url]) => (
+                    <span key={lang} className="rounded bg-[#0A0C0F] border border-[#262B33] px-2 py-0.5 text-[10px] text-[#E7EAEE]" title={url}>
+                      {lang}
+                    </span>
+                  ))}
+                  {seoMetrics.hasXDefaultHreflang && (
+                    <span className="rounded bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2 py-0.5 text-[10px] text-[#4ADE80] font-bold">
+                      x-default present
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Core Technical Flags Row */}
+          <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
+            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
+              Compliance Signals
+            </div>
+            <div className="flex-1 flex flex-wrap gap-2">
+              <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasViewportMeta ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
+                {seoMetrics?.hasViewportMeta ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
+                <span>Mobile Viewport Meta</span>
+              </span>
+
+              <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasFavicon ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30'}`}>
+                {seoMetrics?.hasFavicon ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+                <span>Favicon Icon</span>
+              </span>
+
+              <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${accessibilityMetrics?.hasHtmlLangAttribute ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
+                {accessibilityMetrics?.hasHtmlLangAttribute ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
+                <span>HTML Lang: {accessibilityMetrics?.htmlLangValue || 'missing'}</span>
+              </span>
+
+              <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${perfMetrics?.hasCompression ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#191D24] text-[#8B93A1] border border-[#262B33]'}`}>
+                {perfMetrics?.hasCompression ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+                <span>Compression ({perfMetrics?.contentEncoding || 'none'})</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: CONTENT & EDITORIAL READABILITY */}
+      {activeTab === 'CONTENT' && (
+        <div className="p-5 space-y-6">
+          {/* Readability Score Dashboard */}
+          {contentMetrics?.readabilityMetrics && (
+            <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-4">
+              <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="size-4 text-[#7AA2F7]" />
+                  <h3 className="font-bold text-[#E7EAEE] text-sm">Linguistic Readability & Content Health</h3>
+                </div>
+                <span className="rounded bg-[#7AA2F7]/10 border border-[#7AA2F7]/30 px-2.5 py-0.5 text-xs text-[#7AA2F7] font-bold">
+                  {contentMetrics.readabilityMetrics.readingEaseLevel}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-3 space-y-1">
+                  <span className="text-[10px] text-[#8B93A1] uppercase font-semibold">Flesch Reading Ease</span>
+                  <div className="text-xl font-extrabold text-[#4ADE80]">
+                    {contentMetrics.readabilityMetrics.fleschKincaidReadingEase} / 100
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-3 space-y-1">
+                  <span className="text-[10px] text-[#8B93A1] uppercase font-semibold">FK Grade Level</span>
+                  <div className="text-xl font-extrabold text-[#7AA2F7]">
+                    Grade {contentMetrics.readabilityMetrics.fleschKincaidGradeLevel}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-3 space-y-1">
+                  <span className="text-[10px] text-[#8B93A1] uppercase font-semibold">Avg Words / Sentence</span>
+                  <div className="text-xl font-extrabold text-[#E7EAEE]">
+                    {contentMetrics.readabilityMetrics.averageWordsPerSentence}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-3 space-y-1">
+                  <span className="text-[10px] text-[#8B93A1] uppercase font-semibold">Complex Words Ratio</span>
+                  <div className="text-xl font-extrabold text-[#FBBF24]">
+                    {contentMetrics.readabilityMetrics.complexWordsPercentage}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Heading Structure & Tree */}
+          <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-[#262B33] pb-2">
+              <div className="flex items-center gap-2">
+                <Layers className="size-4 text-[#4FD8C4]" />
+                <h3 className="font-bold text-[#E7EAEE] text-sm">Heading Hierarchy (H1-H6)</h3>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${contentMetrics?.hasValidHeadingHierarchy ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30'}`}>
+                {contentMetrics?.hasValidHeadingHierarchy ? 'Valid Hierarchy' : 'Hierarchy Warnings'}
+              </span>
+            </div>
+
+            {contentMetrics?.headingIssues && contentMetrics.headingIssues.length > 0 && (
+              <div className="p-3 bg-[#FBBF24]/5 border border-[#FBBF24]/20 rounded-lg space-y-1 text-xs text-[#FBBF24]">
+                {contentMetrics.headingIssues.map((issue, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span>⚠</span> <span>{issue}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-1.5 max-h-60 overflow-y-auto pt-1">
+              {contentMetrics?.headingHierarchy && contentMetrics.headingHierarchy.map((node, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between p-2 rounded bg-[#12151A] border border-[#262B33] text-xs"
+                  style={{ marginLeft: `${(node.level - 1) * 16}px` }}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="px-1.5 py-0.5 rounded bg-[#191D24] text-[#4FD8C4] font-bold text-[10px] uppercase">
+                      {node.tag}
+                    </span>
+                    <span className="text-[#E7EAEE] font-sans truncate">{node.text || '(empty heading)'}</span>
+                  </div>
+                  {node.issues.length > 0 && (
+                    <span className="text-[10px] text-[#F87171] border border-[#F87171]/30 bg-[#F87171]/10 px-1.5 rounded">
+                      {node.issues.join(', ')}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Visual DOM Element Inspector */}
-      {((audit.accessibilityMetrics?.domIssues && audit.accessibilityMetrics.domIssues.length > 0) ||
-        (audit.seoMetrics?.domIssues && audit.seoMetrics.domIssues.length > 0)) && (
-        <div className="p-4 sm:p-5 border-t border-[#262B33] bg-[#0A0C0F]/40 space-y-4">
-          {audit.accessibilityMetrics?.domIssues && audit.accessibilityMetrics.domIssues.length > 0 && (
-            <DomInspectorConsole issues={audit.accessibilityMetrics.domIssues} title="Accessibility DOM Inspector (Missing Alt & Unlabelled Inputs)" />
-          )}
-          {audit.seoMetrics?.domIssues && audit.seoMetrics.domIssues.length > 0 && (
-            <DomInspectorConsole issues={audit.seoMetrics.domIssues} title="SEO DOM Inspector (Meta & Structure Issues)" />
+          {/* Top Keywords / N-Grams */}
+          {contentMetrics?.topKeywords && contentMetrics.topKeywords.length > 0 && (
+            <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-3">
+              <span className="text-[11px] font-bold uppercase text-[#8B93A1] block">
+                Top N-Gram Key Phrases & Density
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {contentMetrics.topKeywords.map((kw, idx) => (
+                  <span
+                    key={idx}
+                    className={`rounded border px-2.5 py-1 text-xs inline-flex items-center gap-1.5 ${
+                      kw.isStuffingWarning
+                        ? 'bg-[#F87171]/10 border-[#F87171]/30 text-[#F87171]'
+                        : 'bg-[#12151A] border-[#262B33] text-[#E7EAEE]'
+                    }`}
+                  >
+                    <span className="font-semibold">{kw.phrase}</span>
+                    <span className="text-[10px] text-[#8B93A1]">({kw.count}x / {kw.densityPercentage}%)</span>
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}
 
-      {/* Advanced Engine Metrics (Core Web Vitals, Security/SSL, Link Inspector) */}
-      <div className="p-4 sm:p-5 border-t border-[#262B33] bg-[#0A0C0F]/40">
-        <AdvancedEngineConsole audit={audit} />
-      </div>
+      {/* TAB 3: SCHEMA & SOCIAL METADATA */}
+      {activeTab === 'SCHEMA' && (
+        <div className="p-5 space-y-6">
+          {/* Schema.org Deep Inspection */}
+          <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+              <div className="flex items-center gap-2">
+                <Code className="size-4 text-[#4ADE80]" />
+                <h3 className="font-bold text-[#E7EAEE] text-sm">Schema.org JSON-LD Structured Data</h3>
+              </div>
+              <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${seoMetrics?.structuredDataInfo?.validJsonLd ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
+                {seoMetrics?.structuredDataInfo?.hasStructuredData ? (seoMetrics.structuredDataInfo.validJsonLd ? 'Valid JSON-LD' : 'Syntax Error') : 'No Schema Found'}
+              </span>
+            </div>
 
-      {/* AI Actionable Fix Suggestions */}
-      <div className="p-4 sm:p-5 border-t border-[#262B33] bg-[#0A0C0F]/40">
-        <AiFixConsole audit={audit} />
-      </div>
+            {seoMetrics?.structuredDataInfo?.detectedSchemaTypes && seoMetrics.structuredDataInfo.detectedSchemaTypes.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-[#8B93A1]">Detected Schema Types:</span>
+                  {seoMetrics.structuredDataInfo.detectedSchemaTypes.map((type, idx) => (
+                    <span key={idx} className="rounded bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2 py-0.5 text-xs text-[#4ADE80] font-bold">
+                      @{type}
+                    </span>
+                  ))}
+                </div>
+
+                {seoMetrics.structuredDataInfo.rawJsonLdSnippets.map((snippet, idx) => (
+                  <pre key={idx} className="p-3 bg-[#12151A] rounded border border-[#262B33] text-[11px] text-[#A9B1D6] font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+                    {snippet}
+                  </pre>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded bg-[#12151A] text-xs text-[#8B93A1]">
+                No structured schema markup detected. Adding JSON-LD schemas unlocks rich snippets in Google search results.
+              </div>
+            )}
+          </div>
+
+          {/* OpenGraph & Twitter Cards Checklist */}
+          <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-4">
+            <h3 className="font-bold text-[#E7EAEE] text-sm border-b border-[#262B33] pb-2">
+              Social Media OpenGraph & Twitter Card Tags
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 bg-[#12151A] rounded border border-[#262B33] space-y-2">
+                <span className="text-xs font-bold text-[#7AA2F7] block">OpenGraph Protocol (og:*)</span>
+                <div className="space-y-1 text-xs">
+                  {seoMetrics?.openGraphTags && Object.keys(seoMetrics.openGraphTags).length > 0 ? (
+                    Object.entries(seoMetrics.openGraphTags).map(([k, v]) => (
+                      <div key={k} className="flex justify-between items-center text-[11px] border-b border-[#191D24] py-1">
+                        <span className="text-[#8B93A1]">{k}</span>
+                        <span className="text-[#E7EAEE] font-sans truncate max-w-[200px]" title={v}>{v}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-xs text-[#F87171]">Missing OpenGraph tags</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#12151A] rounded border border-[#262B33] space-y-2">
+                <span className="text-xs font-bold text-[#4FD8C4] block">Twitter / X Cards (twitter:*)</span>
+                <div className="space-y-1 text-xs">
+                  {seoMetrics?.twitterCardTags && Object.keys(seoMetrics.twitterCardTags).length > 0 ? (
+                    Object.entries(seoMetrics.twitterCardTags).map(([k, v]) => (
+                      <div key={k} className="flex justify-between items-center text-[11px] border-b border-[#191D24] py-1">
+                        <span className="text-[#8B93A1]">{k}</span>
+                        <span className="text-[#E7EAEE] font-sans truncate max-w-[200px]" title={v}>{v}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-xs text-[#F87171]">Missing Twitter card tags</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: ADVANCED DIAGNOSTICS & ENGINES */}
+      {activeTab === 'ENGINE' && (
+        <div className="p-5 space-y-6">
+          <AdvancedEngineConsole audit={audit} />
+          {((audit.accessibilityMetrics?.domIssues && audit.accessibilityMetrics.domIssues.length > 0) ||
+            (audit.seoMetrics?.domIssues && audit.seoMetrics.domIssues.length > 0)) && (
+            <div className="space-y-4 pt-4 border-t border-[#262B33]">
+              {audit.accessibilityMetrics?.domIssues && audit.accessibilityMetrics.domIssues.length > 0 && (
+                <DomInspectorConsole issues={audit.accessibilityMetrics.domIssues} title="Accessibility DOM Visual Inspector" />
+              )}
+              {audit.seoMetrics?.domIssues && audit.seoMetrics.domIssues.length > 0 && (
+                <DomInspectorConsole issues={audit.seoMetrics.domIssues} title="SEO DOM Visual Inspector" />
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 5: AI RECOMMENDATIONS */}
+      {activeTab === 'AI_FIXES' && (
+        <div className="p-5">
+          <AiFixConsole audit={audit} />
+        </div>
+      )}
 
       {/* Permanent Save Confirmation Footer */}
       {savedMessage && (

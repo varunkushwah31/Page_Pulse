@@ -36,3 +36,8 @@ AGENTS.md
 skills-lock.json
 CLAUDE.md
 DESIGN.md
+
+### Frontend Assets ###
+src/main/resources/static/
+frontend/dist/
+frontend/node_modules/

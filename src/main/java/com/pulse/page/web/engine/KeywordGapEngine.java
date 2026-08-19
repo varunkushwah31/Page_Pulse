@@ -8,7 +8,6 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -69,9 +68,9 @@ public class KeywordGapEngine {
             .urlB(urlB)
             .totalKeywordsUrlA(freqA.size())
             .totalKeywordsUrlB(freqB.size())
-            .sharedKeywords(shared.stream().limit(15).collect(Collectors.toList()))
-            .uniqueTargetKeywords(uniqueA.stream().limit(15).collect(Collectors.toList()))
-            .missingCompetitorOpportunities(missingB.stream().limit(15).collect(Collectors.toList()))
+            .sharedKeywords(shared.stream().limit(15).toList())
+            .uniqueTargetKeywords(uniqueA.stream().limit(15).toList())
+            .missingCompetitorOpportunities(missingB.stream().limit(15).toList())
             .build();
     }
 

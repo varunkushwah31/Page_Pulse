@@ -66,7 +66,7 @@ public class AuditReportProcessorService {
                 ? playwrightScraperEngine.fetchPageWithJs(normalizedUrl)
                 : pageScraperEngine.fetchPage(normalizedUrl);
 
-        SeoMetrics seo = seoExtractor.extract(scrapeResult.getDocument());
+        SeoMetrics seo = seoExtractor.extract(scrapeResult.getDocument(), normalizedUrl, scrapeResult.getResponseHeaders());
         ContentMetrics content = contentExtractor.extract(scrapeResult.getDocument());
         AccessibilityMetrics a11y = accessibilityExtractor.extract(scrapeResult.getDocument());
         PerformanceMetrics perf = performanceExtractor.extract(scrapeResult);

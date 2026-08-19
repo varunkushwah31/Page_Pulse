@@ -15,6 +15,10 @@ import java.util.List;
 @Component
 public class AssetBottleneckInspectorEngine {
 
+    private static final String ATTR_WIDTH = "width";
+    private static final String ATTR_HEIGHT = "height";
+    private static final String ATTR_STYLE = "style";
+
     @NonNull
     public AssetBottleneckMetrics inspectAssets(Document doc, long responseTimeMs) {
         if (doc == null) {
@@ -29,42 +33,17 @@ public class AssetBottleneckInspectorEngine {
         }
 
         List<String> issues = new ArrayList<>();
-
-        // 1. Inspect Web Fonts for missing font-display: swap
-        Elements fontLinks = doc.select("link[href*=fonts.googleapis.com], link[href*=use.typekit.net], link[rel=stylesheet][href*=font]");
-        int renderBlockingFonts = 0;
-        for (Element fontLink : fontLinks) {
-            String href = fontLink.attr("href").toLowerCase();
-            if (!href.contains("display=swap") && !href.contains("display=optional")) {
-                renderBlockingFonts++;
-                issues.add("External font CSS '" + truncate(fontLink.attr("href"), 60) + "' lacks 'display=swap' parameter, causing render-blocking FOUT/FOIT.");
-            }
-        }
-
-        // 2. Inspect Images missing explicit width and height attributes (CLS causes)
-        Elements images = doc.select("img[src]");
-        int unsizedImages = 0;
-        for (Element img : images) {
-            boolean hasWidth = img.hasAttr("width") && !img.attr("width").isBlank();
-            boolean hasHeight = img.hasAttr("height") && !img.attr("height").isBlank();
-            boolean hasInlineStyleDim = img.hasAttr("style") && (img.attr("style").contains("width") || img.attr("style").contains("height"));
-
-            if (!hasWidth && !hasHeight && !hasInlineStyleDim) {
-                unsizedImages++;
-                if (unsizedImages <= 5) {
-                    issues.add("Image '" + truncate(img.attr("src"), 50) + "' missing explicit width/height attributes (Causes CLS layout shifts).");
-                }
-            }
-        }
+        int renderBlockingFonts = inspectFonts(doc, issues);
+        int unsizedImages = inspectUnsizedImages(doc, issues);
 
         // 3. Compute estimated CSS/JS byte wastage and Total Blocking Time (TBT)
         int scriptCount = doc.select("script[src]").size();
         int inlineScriptCount = doc.select("script:not([src])").size();
         int stylesheetCount = doc.select("link[rel~=stylesheet i]").size();
 
-        long estimatedCssBytes = (long) stylesheetCount * 45000L;
-        long estimatedJsBytes = (long) (scriptCount * 75000L + inlineScriptCount * 12000L);
-        long tbtMs = Math.clamp((long) (responseTimeMs * 0.25 + scriptCount * 35L), 20L, 850L);
+        long estimatedCssBytes = stylesheetCount * 45000L;
+        long estimatedJsBytes = scriptCount * 75000L + inlineScriptCount * 12000L;
+        long tbtMs = Math.clamp((long) (responseTimeMs * 0.25 + scriptCount * 35.0), 20L, 850L);
 
         if (renderBlockingFonts > 0) {
             log.info("Detected {} render-blocking font declarations missing display=swap", renderBlockingFonts);
@@ -81,6 +60,37 @@ public class AssetBottleneckInspectorEngine {
             .totalBlockingTimeMs(tbtMs)
             .bottleneckIssues(issues)
             .build();
+    }
+
+    private int inspectFonts(Document doc, List<String> issues) {
+        Elements fontLinks = doc.select("link[href*=fonts.googleapis.com], link[href*=use.typekit.net], link[rel=stylesheet][href*=font]");
+        int renderBlockingFonts = 0;
+        for (Element fontLink : fontLinks) {
+            String href = fontLink.attr("href").toLowerCase();
+            if (!href.contains("display=swap") && !href.contains("display=optional")) {
+                renderBlockingFonts++;
+                issues.add("External font CSS '" + truncate(fontLink.attr("href"), 60) + "' lacks 'display=swap' parameter, causing render-blocking FOUT/FOIT.");
+            }
+        }
+        return renderBlockingFonts;
+    }
+
+    private int inspectUnsizedImages(Document doc, List<String> issues) {
+        Elements images = doc.select("img[src]");
+        int unsizedImages = 0;
+        for (Element img : images) {
+            boolean hasWidth = img.hasAttr(ATTR_WIDTH) && !img.attr(ATTR_WIDTH).isBlank();
+            boolean hasHeight = img.hasAttr(ATTR_HEIGHT) && !img.attr(ATTR_HEIGHT).isBlank();
+            boolean hasInlineStyleDim = img.hasAttr(ATTR_STYLE) && (img.attr(ATTR_STYLE).contains(ATTR_WIDTH) || img.attr(ATTR_STYLE).contains(ATTR_HEIGHT));
+
+            if (!hasWidth && !hasHeight && !hasInlineStyleDim) {
+                unsizedImages++;
+                if (unsizedImages <= 5) {
+                    issues.add("Image '" + truncate(img.attr("src"), 50) + "' missing explicit width/height attributes (Causes CLS layout shifts).");
+                }
+            }
+        }
+        return unsizedImages;
     }
 
     private String truncate(String text, int max) {

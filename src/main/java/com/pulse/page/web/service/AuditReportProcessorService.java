@@ -12,7 +12,6 @@ import com.pulse.page.web.model.*;
 import com.pulse.page.web.repository.jpa.AuditReportJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,14 +41,18 @@ public class AuditReportProcessorService {
     private final CacheService cacheService;
 
     @NonNull
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public AuditResponse processAudit(@NonNull String rawUrl) throws IOException {
-        return processAudit(rawUrl, false);
+        return executeAudit(rawUrl, false);
     }
 
     @NonNull
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public AuditResponse processAudit(@NonNull String rawUrl, boolean enableJsRendering) throws IOException {
+        return executeAudit(rawUrl, enableJsRendering);
+    }
+
+    private AuditResponse executeAudit(String rawUrl, boolean enableJsRendering) throws IOException {
         Objects.requireNonNull(rawUrl, "rawUrl parameter must not be null");
 
         String normalizedUrl = urlValidationEngine.validateAndNormalize(rawUrl);

@@ -75,7 +75,7 @@ public class KeywordGapEngine {
     }
 
     private Map<String, Integer> extractKeywordFrequencies(Document doc) {
-        if (doc == null || doc.body() == null) return Collections.emptyMap();
+        if (doc == null) return Collections.emptyMap();
         
         Document cleanDoc = doc.clone();
         cleanDoc.select("script, style, noscript, svg").remove();

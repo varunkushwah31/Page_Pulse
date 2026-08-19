@@ -22,9 +22,13 @@ public class SeoMetricsExtractor {
 
     private static final String ATTR_PROPERTY = "property";
     private static final String ATTR_CONTENT = "content";
+    private static final String ATTR_OG_IMAGE = "og:image";
+    private static final String ATTR_TWITTER_IMAGE = "twitter:image";
+    private static final String ATTR_ABS_HREF = "abs:href";
+    private static final String ATTR_CHARSET = "charset";
     private static final int MAX_SNIPPET_LENGTH = 500;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final Pattern ISO_LANG_PATTERN = Pattern.compile("^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ISO_LANG_PATTERN = Pattern.compile("^[a-z]{2,3}(?:-[a-z0-9]{2,8}){0,4}$", Pattern.CASE_INSENSITIVE);
 
     public SeoMetrics extract(Document doc) {
         return extract(doc, null, null);
@@ -32,15 +36,7 @@ public class SeoMetricsExtractor {
 
     public SeoMetrics extract(Document doc, String targetUrl, Map<String, String> responseHeaders) {
         if (doc == null) {
-            return SeoMetrics.builder()
-                    .openGraphTags(Collections.emptyMap())
-                    .twitterCardTags(Collections.emptyMap())
-                    .hreflangTags(Collections.emptyMap())
-                    .invalidHreflangCodes(Collections.emptyList())
-                    .seoRecommendations(Collections.emptyList())
-                    .domIssues(Collections.emptyList())
-                    .structuredDataInfo(StructuredDataInfo.builder().build())
-                    .build();
+            return buildDefaultMetrics();
         }
 
         String title = extractTitle(doc);
@@ -68,28 +64,11 @@ public class SeoMetricsExtractor {
 
         boolean hasFavicon = doc.selectFirst("link[rel*=icon]") != null;
         boolean hasViewportMeta = doc.selectFirst("meta[name=viewport]") != null;
-        boolean hasOgImage = ogTags.containsKey("og:image") || twitterTags.containsKey("twitter:image");
-
-        String socialPreviewImg = ogTags.getOrDefault("og:image", twitterTags.get("twitter:image"));
+        boolean hasOgImage = ogTags.containsKey(ATTR_OG_IMAGE) || twitterTags.containsKey(ATTR_TWITTER_IMAGE);
+        String socialPreviewImg = ogTags.getOrDefault(ATTR_OG_IMAGE, twitterTags.get(ATTR_TWITTER_IMAGE));
 
         // Hreflang extraction & validation
-        Map<String, String> hreflangMap = new HashMap<>();
-        List<String> invalidHreflang = new ArrayList<>();
-        boolean hasXDefault = false;
-
-        Elements hreflangElements = doc.select("link[rel=alternate][hreflang]");
-        for (Element el : hreflangElements) {
-            String langCode = el.attr("hreflang").trim();
-            String href = el.attr("abs:href").isBlank() ? el.attr("href").trim() : el.attr("abs:href").trim();
-            if (!langCode.isBlank() && !href.isBlank()) {
-                hreflangMap.put(langCode, href);
-                if ("x-default".equalsIgnoreCase(langCode)) {
-                    hasXDefault = true;
-                } else if (!ISO_LANG_PATTERN.matcher(langCode).matches()) {
-                    invalidHreflang.add(langCode);
-                }
-            }
-        }
+        HreflangResult hreflangResult = extractHreflang(doc);
 
         // Structured Data & Schema.org Deep Inspection
         StructuredDataInfo structuredDataInfo = inspectStructuredData(doc);
@@ -102,11 +81,12 @@ public class SeoMetricsExtractor {
         List<DomIssueSnippet> domIssues = collectSeoIssueSnippets(doc, title, description, canonical, canonicalElements);
 
         // Comprehensive Recommendations
-        List<String> recommendations = buildComprehensiveRecommendations(
-                title, description, canonical, canonicalStatus, hasOgImage, openGraphComplete,
-                twitterCardComplete, hasFavicon, hasViewportMeta, structuredDataInfo, isIndexable,
-                hreflangElements.size(), invalidHreflang
+        RecommendationConfig recConfig = new RecommendationConfig(
+                title, description, canonicalStatus, openGraphComplete,
+                twitterCardComplete, hasFavicon, hasViewportMeta, structuredDataInfo,
+                isIndexable, hreflangResult.invalidHreflang
         );
+        List<String> recommendations = buildComprehensiveRecommendations(recConfig);
 
         return SeoMetrics.builder()
                 .pageTitle(title)
@@ -130,9 +110,9 @@ public class SeoMetricsExtractor {
                 .hasViewportMeta(hasViewportMeta)
                 .hasOgImage(hasOgImage)
                 .hasStructuredData(hasStructuredData)
-                .hreflangTags(hreflangMap)
-                .hasXDefaultHreflang(hasXDefault)
-                .invalidHreflangCodes(invalidHreflang)
+                .hreflangTags(hreflangResult.hreflangMap)
+                .hasXDefaultHreflang(hreflangResult.hasXDefault)
+                .invalidHreflangCodes(hreflangResult.invalidHreflang)
                 .structuredDataInfo(structuredDataInfo)
                 .serpPreview(serpPreview)
                 .charset(charset)
@@ -142,6 +122,27 @@ public class SeoMetricsExtractor {
                 .seoRecommendations(recommendations)
                 .domIssues(domIssues)
                 .build();
+    }
+
+    private HreflangResult extractHreflang(Document doc) {
+        Map<String, String> hreflangMap = new HashMap<>();
+        List<String> invalidHreflang = new ArrayList<>();
+        boolean hasXDefault = false;
+
+        Elements hreflangElements = doc.select("link[rel=alternate][hreflang]");
+        for (Element el : hreflangElements) {
+            String langCode = el.attr("hreflang").trim();
+            String href = el.attr(ATTR_ABS_HREF).isBlank() ? el.attr("href").trim() : el.attr(ATTR_ABS_HREF).trim();
+            if (!langCode.isBlank() && !href.isBlank()) {
+                hreflangMap.put(langCode, href);
+                if ("x-default".equalsIgnoreCase(langCode)) {
+                    hasXDefault = true;
+                } else if (!ISO_LANG_PATTERN.matcher(langCode).matches()) {
+                    invalidHreflang.add(langCode);
+                }
+            }
+        }
+        return new HreflangResult(hreflangMap, invalidHreflang, hasXDefault);
     }
 
     private String determineCanonicalStatus(Elements canonicalElements, String canonical, String targetUrl) {
@@ -162,7 +163,8 @@ public class SeoMetricsExtractor {
                     return "CROSS_DOMAIN";
                 }
                 return "SELF_REFERENCING";
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                log.debug("Failed to parse URI comparison: {}", e.getMessage());
             }
         }
         return "DECLARED";
@@ -170,12 +172,12 @@ public class SeoMetricsExtractor {
 
     private boolean checkOpenGraphCompleteness(Map<String, String> og) {
         return og.containsKey("og:title") && og.containsKey("og:description") &&
-                og.containsKey("og:image") && og.containsKey("og:url");
+                og.containsKey(ATTR_OG_IMAGE) && og.containsKey("og:url");
     }
 
     private boolean checkTwitterCardCompleteness(Map<String, String> twitter) {
-        return (twitter.containsKey("twitter:card") || twitter.containsKey("twitter:card")) &&
-                (twitter.containsKey("twitter:title") || twitter.containsKey("twitter:image"));
+        return (twitter.containsKey("twitter:card") || twitter.containsKey("twitter:site")) &&
+                (twitter.containsKey("twitter:title") || twitter.containsKey(ATTR_TWITTER_IMAGE));
     }
 
     private String extractXRobotsHeader(Map<String, String> headers) {
@@ -268,19 +270,47 @@ public class SeoMetricsExtractor {
             if (!schemaTypes.contains(type)) {
                 schemaTypes.add(type);
             }
+            validateSchemaProperties(node, type, missingProps);
+        }
+    }
 
-            // Check essential properties based on type
-            if ("Article".equalsIgnoreCase(type) || "BlogPosting".equalsIgnoreCase(type) || "NewsArticle".equalsIgnoreCase(type)) {
-                if (!node.has("headline") && !node.has("name")) missingProps.add(type + " missing 'headline'");
-                if (!node.has("author")) missingProps.add(type + " missing 'author'");
-                if (!node.has("datePublished")) missingProps.add(type + " missing 'datePublished'");
-            } else if ("Product".equalsIgnoreCase(type)) {
-                if (!node.has("name")) missingProps.add("Product missing 'name'");
-                if (!node.has("offers")) missingProps.add("Product missing 'offers'");
-            } else if ("Organization".equalsIgnoreCase(type) || "LocalBusiness".equalsIgnoreCase(type)) {
-                if (!node.has("name")) missingProps.add(type + " missing 'name'");
-                if (!node.has("url")) missingProps.add(type + " missing 'url'");
-            }
+    private void validateSchemaProperties(JsonNode node, String type, List<String> missingProps) {
+        if ("Article".equalsIgnoreCase(type) || "BlogPosting".equalsIgnoreCase(type) || "NewsArticle".equalsIgnoreCase(type)) {
+            validateArticleSchema(node, type, missingProps);
+        } else if ("Product".equalsIgnoreCase(type)) {
+            validateProductSchema(node, missingProps);
+        } else if ("Organization".equalsIgnoreCase(type) || "LocalBusiness".equalsIgnoreCase(type)) {
+            validateOrganizationSchema(node, type, missingProps);
+        }
+    }
+
+    private void validateArticleSchema(JsonNode node, String type, List<String> missingProps) {
+        if (!node.has("headline") && !node.has("name")) {
+            missingProps.add(type + " missing 'headline'");
+        }
+        if (!node.has("author")) {
+            missingProps.add(type + " missing 'author'");
+        }
+        if (!node.has("datePublished")) {
+            missingProps.add(type + " missing 'datePublished'");
+        }
+    }
+
+    private void validateProductSchema(JsonNode node, List<String> missingProps) {
+        if (!node.has("name")) {
+            missingProps.add("Product missing 'name'");
+        }
+        if (!node.has("offers")) {
+            missingProps.add("Product missing 'offers'");
+        }
+    }
+
+    private void validateOrganizationSchema(JsonNode node, String type, List<String> missingProps) {
+        if (!node.has("name")) {
+            missingProps.add(type + " missing 'name'");
+        }
+        if (!node.has("url")) {
+            missingProps.add(type + " missing 'url'");
         }
     }
 
@@ -311,74 +341,81 @@ public class SeoMetricsExtractor {
                 .build();
     }
 
-    private List<String> buildComprehensiveRecommendations(
-            String title, String description, String canonical, String canonicalStatus,
-            boolean hasOgImage, boolean openGraphComplete, boolean twitterCardComplete,
-            boolean hasFavicon, boolean hasViewportMeta, StructuredDataInfo structuredData,
-            boolean isIndexable, int hreflangCount, List<String> invalidHreflang) {
-
+    private List<String> buildComprehensiveRecommendations(RecommendationConfig config) {
         List<String> recs = new ArrayList<>();
+        addTitleRecommendations(config, recs);
+        addDescriptionRecommendations(config, recs);
+        addCanonicalRecommendations(config, recs);
+        addSocialAndMetaRecommendations(config, recs);
+        addStructuredDataRecommendations(config, recs);
 
-        if (title == null || title.isBlank()) {
-            recs.add("Add a descriptive <title> tag between 30 and 60 characters for SERP visibility.");
-        } else if (title.length() < 30) {
-            recs.add("Page title is short (" + title.length() + " chars). Expand with relevant keywords (optimal: 30–60 chars).");
-        } else if (title.length() > 60) {
-            recs.add("Page title is long (" + title.length() + " chars). Search engines will truncate it in desktop SERP listings.");
-        }
-
-        if (description == null || description.isBlank()) {
-            recs.add("Add a <meta name=\"description\"> tag (120–160 chars) summarizing page value to improve organic CTR.");
-        } else if (description.length() < 120) {
-            recs.add("Meta description is brief (" + description.length() + " chars). Expand to 120–160 chars for rich SERP snippets.");
-        } else if (description.length() > 160) {
-            recs.add("Meta description exceeds 160 chars (" + description.length() + " chars) and may be truncated on mobile/desktop.");
-        }
-
-        if ("MISSING".equals(canonicalStatus)) {
-            recs.add("Add a self-referencing <link rel=\"canonical\"> tag to eliminate duplicate content ambiguity.");
-        } else if ("MULTIPLE_CONFLICTING".equals(canonicalStatus)) {
-            recs.add("CRITICAL: Multiple conflicting <link rel=\"canonical\"> tags detected. Retain only one canonical URL.");
-        } else if ("RELATIVE_URL".equals(canonicalStatus)) {
-            recs.add("Canonical tag contains a relative URL. Always use absolute HTTPS URLs in canonical links.");
-        }
-
-        if (!openGraphComplete) {
-            recs.add("Complete OpenGraph suite: declare og:title, og:description, og:image, and og:url for rich social sharing.");
-        }
-        if (!twitterCardComplete) {
-            recs.add("Declare Twitter card tags (twitter:card, twitter:title, twitter:image) for optimized Twitter/X cards.");
-        }
-
-        if (!hasViewportMeta) {
-            recs.add("Add <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> for mobile-first indexing.");
-        }
-        if (!hasFavicon) {
-            recs.add("Add high-resolution favicon links (<link rel=\"icon\"> and apple-touch-icon) for brand recognition.");
-        }
-
-        if (!structuredData.isHasStructuredData()) {
-            recs.add("Implement Schema.org JSON-LD structured data (<script type=\"application/ld+json\">) for rich search snippets.");
-        } else if (!structuredData.isValidJsonLd()) {
-            recs.add("CRITICAL: JSON-LD structured data contains syntax parsing errors preventing rich search result eligibility.");
-        } else if (!structuredData.getMissingRecommendedProperties().isEmpty()) {
-            recs.add("Schema.org markup is missing recommended properties: " + String.join(", ", structuredData.getMissingRecommendedProperties()));
-        }
-
-        if (!isIndexable) {
+        if (!config.isIndexable()) {
             recs.add("WARNING: Page contains a noindex directive in meta tags or HTTP headers, blocking search engine indexing.");
         }
-
-        if (!invalidHreflang.isEmpty()) {
-            recs.add("Fix invalid hreflang language/region codes: " + String.join(", ", invalidHreflang));
+        if (!config.invalidHreflang().isEmpty()) {
+            recs.add("Fix invalid hreflang language/region codes: " + String.join(", ", config.invalidHreflang()));
         }
-
         return recs;
+    }
+
+    private void addTitleRecommendations(RecommendationConfig config, List<String> recs) {
+        if (config.title() == null || config.title().isBlank()) {
+            recs.add("Add a descriptive <title> tag between 30 and 60 characters for SERP visibility.");
+        } else if (config.title().length() < 30) {
+            recs.add("Page title is short (" + config.title().length() + " chars). Expand with relevant keywords (optimal: 30–60 chars).");
+        } else if (config.title().length() > 60) {
+            recs.add("Page title is long (" + config.title().length() + " chars). Search engines will truncate it in desktop SERP listings.");
+        }
+    }
+
+    private void addDescriptionRecommendations(RecommendationConfig config, List<String> recs) {
+        if (config.description() == null || config.description().isBlank()) {
+            recs.add("Add a <meta name=\"description\"> tag (120–160 chars) summarizing page value to improve organic CTR.");
+        } else if (config.description().length() < 120) {
+            recs.add("Meta description is brief (" + config.description().length() + " chars). Expand to 120–160 chars for rich SERP snippets.");
+        } else if (config.description().length() > 160) {
+            recs.add("Meta description exceeds 160 chars (" + config.description().length() + " chars) and may be truncated on mobile/desktop.");
+        }
+    }
+
+    private void addCanonicalRecommendations(RecommendationConfig config, List<String> recs) {
+        if ("MISSING".equals(config.canonicalStatus())) {
+            recs.add("Add a self-referencing <link rel=\"canonical\"> tag to eliminate duplicate content ambiguity.");
+        } else if ("MULTIPLE_CONFLICTING".equals(config.canonicalStatus())) {
+            recs.add("CRITICAL: Multiple conflicting <link rel=\"canonical\"> tags detected. Retain only one canonical URL.");
+        } else if ("RELATIVE_URL".equals(config.canonicalStatus())) {
+            recs.add("Canonical tag contains a relative URL. Always use absolute HTTPS URLs in canonical links.");
+        }
+    }
+
+    private void addSocialAndMetaRecommendations(RecommendationConfig config, List<String> recs) {
+        if (!config.openGraphComplete()) {
+            recs.add("Complete OpenGraph suite: declare og:title, og:description, og:image, and og:url for rich social sharing.");
+        }
+        if (!config.twitterCardComplete()) {
+            recs.add("Declare Twitter card tags (twitter:card, twitter:title, twitter:image) for optimized Twitter/X cards.");
+        }
+        if (!config.hasViewportMeta()) {
+            recs.add("Add <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> for mobile-first indexing.");
+        }
+        if (!config.hasFavicon()) {
+            recs.add("Add high-resolution favicon links (<link rel=\"icon\"> and apple-touch-icon) for brand recognition.");
+        }
+    }
+
+    private void addStructuredDataRecommendations(RecommendationConfig config, List<String> recs) {
+        if (!config.structuredData().isHasStructuredData()) {
+            recs.add("Implement Schema.org JSON-LD structured data (<script type=\"application/ld+json\">) for rich search snippets.");
+        } else if (!config.structuredData().isValidJsonLd()) {
+            recs.add("CRITICAL: JSON-LD structured data contains syntax parsing errors preventing rich search result eligibility.");
+        } else if (!config.structuredData().getMissingRecommendedProperties().isEmpty()) {
+            recs.add("Schema.org markup is missing recommended properties: " + String.join(", ", config.structuredData().getMissingRecommendedProperties()));
+        }
     }
 
     private String extractTitle(Document doc) {
         String title = doc.title();
-        if (title != null && !title.isBlank()) {
+        if (!title.isBlank()) {
             return title.trim();
         }
         Element titleEl = doc.selectFirst("title");
@@ -428,7 +465,7 @@ public class SeoMetricsExtractor {
             }
         }
         if (canonical != null && canonical.hasAttr("href") && !canonical.attr("href").isBlank()) {
-            String absHref = canonical.attr("abs:href");
+            String absHref = canonical.attr(ATTR_ABS_HREF);
             return !absHref.isBlank() ? absHref.trim() : canonical.attr("href").trim();
         }
         return null;
@@ -451,9 +488,9 @@ public class SeoMetricsExtractor {
     }
 
     private String extractCharset(Document doc) {
-        Element meta = doc.selectFirst("meta[charset]");
-        if (meta != null && meta.hasAttr("charset") && !meta.attr("charset").isBlank()) {
-            return meta.attr("charset").trim();
+        Element meta = doc.selectFirst("meta[" + ATTR_CHARSET + "]");
+        if (meta != null && meta.hasAttr(ATTR_CHARSET) && !meta.attr(ATTR_CHARSET).isBlank()) {
+            return meta.attr(ATTR_CHARSET).trim();
         }
         for (Element el : doc.select("meta")) {
             if ("content-type".equalsIgnoreCase(el.attr("http-equiv")) && el.hasAttr(ATTR_CONTENT)) {
@@ -545,4 +582,23 @@ public class SeoMetricsExtractor {
         if (html == null) return "";
         return html.length() > MAX_SNIPPET_LENGTH ? html.substring(0, MAX_SNIPPET_LENGTH) + "..." : html;
     }
+
+    private SeoMetrics buildDefaultMetrics() {
+        return SeoMetrics.builder()
+                .openGraphTags(Collections.emptyMap())
+                .twitterCardTags(Collections.emptyMap())
+                .hreflangTags(Collections.emptyMap())
+                .invalidHreflangCodes(Collections.emptyList())
+                .seoRecommendations(Collections.emptyList())
+                .domIssues(Collections.emptyList())
+                .structuredDataInfo(StructuredDataInfo.builder().build())
+                .build();
+    }
+
+    private record HreflangResult(Map<String, String> hreflangMap, List<String> invalidHreflang, boolean hasXDefault) {}
+    private record RecommendationConfig(
+            String title, String description, String canonicalStatus,
+            boolean openGraphComplete, boolean twitterCardComplete,
+            boolean hasFavicon, boolean hasViewportMeta, StructuredDataInfo structuredData,
+            boolean isIndexable, List<String> invalidHreflang) {}
 }

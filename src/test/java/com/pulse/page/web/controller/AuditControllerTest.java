@@ -53,7 +53,7 @@ class AuditControllerTest {
     }
 
     @Test
-    void auditUrl_getEndpoint_returnsTransientEntity() throws Exception {
+    void auditUrlGetEndpointReturnsTransientEntity() throws Exception {
         AuditReportEntity mockEntity = AuditReportEntity.builder()
             .id(1L)
             .url("https://example.com")
@@ -75,7 +75,7 @@ class AuditControllerTest {
     }
 
     @Test
-    void runFullAudit_postEndpoint_returnsAuditResponseWithScores() throws Exception {
+    void runFullAuditPostEndpointReturnsAuditResponseWithScores() throws Exception {
         AuditScoreBreakdown score = AuditScoreBreakdown.builder()
             .seoScore(90)
             .contentScore(85)
@@ -105,7 +105,7 @@ class AuditControllerTest {
     }
 
     @Test
-    void auditUrl_invalidUrlException_returns400BadRequest() throws Exception {
+    void auditUrlInvalidUrlExceptionReturns400BadRequest() throws Exception {
         when(urlAuditService.auditAndSaveTransient(anyString()))
             .thenThrow(new InvalidUrlException("Invalid URL format"));
 
@@ -116,7 +116,7 @@ class AuditControllerTest {
     }
 
     @Test
-    void auditUrl_auditTimeoutException_returns504GatewayTimeout() throws Exception {
+    void auditUrlAuditTimeoutExceptionReturns504GatewayTimeout() throws Exception {
         when(urlAuditService.auditAndSaveTransient(anyString()))
             .thenThrow(new AuditTimeoutException("Fetch timed out"));
 
@@ -126,7 +126,7 @@ class AuditControllerTest {
     }
 
     @Test
-    void auditUrl_targetHostUnreachableException_returns502BadGateway() throws Exception {
+    void auditUrlTargetHostUnreachableExceptionReturns502BadGateway() throws Exception {
         when(urlAuditService.auditAndSaveTransient(anyString()))
             .thenThrow(new TargetHostUnreachableException("Host unreachable"));
 
@@ -136,7 +136,7 @@ class AuditControllerTest {
     }
 
     @Test
-    void saveAuditToMongo_postEndpoint_returnsSavedDocument() throws Exception {
+    void saveAuditToMongoPostEndpointReturnsSavedDocument() throws Exception {
         com.pulse.page.web.document.AuditReportDocument doc = com.pulse.page.web.document.AuditReportDocument.builder()
             .id("doc-123")
             .originalTempId(1L)

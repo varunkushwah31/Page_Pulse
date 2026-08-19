@@ -19,7 +19,11 @@ public class AccessibilityMetricsExtractor {
 
     private static final int MAX_SNIPPET_LENGTH = 500;
     private static final int MAX_ISSUES = 50;
-    private static final Pattern ISO_LANG_PATTERN = Pattern.compile("^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$", Pattern.CASE_INSENSITIVE);
+    private static final String ATTR_ARIA_LABEL = "aria-label";
+    private static final String ATTR_ARIA_LABELLEDBY = "aria-labelledby";
+    private static final String ATTR_TITLE = "title";
+    private static final String ATTR_CLASS = "class";
+    private static final Pattern ISO_LANG_PATTERN = Pattern.compile("^[a-z]{2,3}(?:-[a-z0-9]{2,8}){0,4}$", Pattern.CASE_INSENSITIVE);
 
     public AccessibilityMetrics extract(Document doc) {
         if (doc == null) {
@@ -76,7 +80,7 @@ public class AccessibilityMetricsExtractor {
         }
 
         // 5. Links Missing Accessible Names
-        int namelessLinks = countLinksMissingAccessibleText(doc, domIssues);
+        int namelessLinks = countLinksMissingAccessibleText(doc);
         if (namelessLinks > 0) {
             wcagViolations.add("WCAG 2.1 SC 2.4.4 (Link Purpose): " + namelessLinks + " link(s) lack discernible text for screen reader users.");
         }
@@ -92,7 +96,7 @@ public class AccessibilityMetricsExtractor {
         }
 
         // 7. Positive Tabindex Check (Focus Order Disruptor)
-        int positiveTabindex = countPositiveTabindex(doc, domIssues);
+        int positiveTabindex = countPositiveTabindex(doc);
         if (positiveTabindex > 0) {
             wcagViolations.add("WCAG 2.1 SC 2.4.3 (Focus Order): " + positiveTabindex + " element(s) have positive tabindex (>0), which disrupts natural keyboard navigation order.");
         }
@@ -138,11 +142,6 @@ public class AccessibilityMetricsExtractor {
         int missingAltCount = 0;
 
         for (Element img : images) {
-            // If image is explicitly marked as decorative, it has alt="" or role="presentation"/"none"
-            boolean isDecorative = (img.hasAttr("alt") && img.attr("alt").trim().isEmpty())
-                    || "presentation".equalsIgnoreCase(img.attr("role"))
-                    || "none".equalsIgnoreCase(img.attr("role"));
-
             if (!img.hasAttr("alt")) {
                 missingAltCount++;
                 String src = img.absUrl("src");
@@ -198,9 +197,9 @@ public class AccessibilityMetricsExtractor {
     }
 
     private boolean isFormElementMissingLabel(Document doc, Element input) {
-        boolean hasAriaLabel = (input.hasAttr("aria-label") && !input.attr("aria-label").isBlank())
-                || (input.hasAttr("aria-labelledby") && !input.attr("aria-labelledby").isBlank())
-                || (input.hasAttr("title") && !input.attr("title").isBlank())
+        boolean hasAriaLabel = (input.hasAttr(ATTR_ARIA_LABEL) && !input.attr(ATTR_ARIA_LABEL).isBlank())
+                || (input.hasAttr(ATTR_ARIA_LABELLEDBY) && !input.attr(ATTR_ARIA_LABELLEDBY).isBlank())
+                || (input.hasAttr(ATTR_TITLE) && !input.attr(ATTR_TITLE).isBlank())
                 || (input.hasAttr("placeholder") && !input.attr("placeholder").isBlank());
 
         boolean hasIdLabel = input.hasAttr("id") && !doc.select("label[for=\"" + input.attr("id") + "\"]").isEmpty();
@@ -215,9 +214,9 @@ public class AccessibilityMetricsExtractor {
         int count = 0;
         for (Element btn : buttons) {
             String text = btn.text().trim();
-            boolean hasAria = (btn.hasAttr("aria-label") && !btn.attr("aria-label").isBlank())
-                    || (btn.hasAttr("aria-labelledby") && !btn.attr("aria-labelledby").isBlank())
-                    || (btn.hasAttr("title") && !btn.attr("title").isBlank());
+            boolean hasAria = (btn.hasAttr(ATTR_ARIA_LABEL) && !btn.attr(ATTR_ARIA_LABEL).isBlank())
+                    || (btn.hasAttr(ATTR_ARIA_LABELLEDBY) && !btn.attr(ATTR_ARIA_LABELLEDBY).isBlank())
+                    || (btn.hasAttr(ATTR_TITLE) && !btn.attr(ATTR_TITLE).isBlank());
             boolean hasImgAlt = !btn.select("img[alt]:not([alt=\"\"])").isEmpty() || !btn.select("svg[aria-label]").isEmpty();
 
             if (text.isBlank() && !hasAria && !hasImgAlt) {
@@ -236,14 +235,14 @@ public class AccessibilityMetricsExtractor {
         return count;
     }
 
-    private int countLinksMissingAccessibleText(Document doc, List<DomIssueSnippet> domIssues) {
+    private int countLinksMissingAccessibleText(Document doc) {
         Elements links = doc.select("a[href]");
         int count = 0;
         for (Element a : links) {
             String text = a.text().trim();
-            boolean hasAria = (a.hasAttr("aria-label") && !a.attr("aria-label").isBlank())
-                    || (a.hasAttr("aria-labelledby") && !a.attr("aria-labelledby").isBlank())
-                    || (a.hasAttr("title") && !a.attr("title").isBlank());
+            boolean hasAria = (a.hasAttr(ATTR_ARIA_LABEL) && !a.attr(ATTR_ARIA_LABEL).isBlank())
+                    || (a.hasAttr(ATTR_ARIA_LABELLEDBY) && !a.attr(ATTR_ARIA_LABELLEDBY).isBlank())
+                    || (a.hasAttr(ATTR_TITLE) && !a.attr(ATTR_TITLE).isBlank());
             boolean hasImgAlt = !a.select("img[alt]:not([alt=\"\"])").isEmpty() || !a.select("svg[aria-label]").isEmpty();
 
             if (text.isBlank() && !hasAria && !hasImgAlt) {
@@ -253,7 +252,7 @@ public class AccessibilityMetricsExtractor {
         return count;
     }
 
-    private int countPositiveTabindex(Document doc, List<DomIssueSnippet> domIssues) {
+    private int countPositiveTabindex(Document doc) {
         Elements elementsWithTabindex = doc.select("[tabindex]");
         int count = 0;
         for (Element el : elementsWithTabindex) {
@@ -262,7 +261,9 @@ public class AccessibilityMetricsExtractor {
                 if (val > 0) {
                     count++;
                 }
-            } catch (NumberFormatException ignored) {
+            } catch (NumberFormatException e) {
+                // Ignore non-numeric tabindex values
+                log.debug("Invalid tabindex value: {}", el.attr("tabindex"), e);
             }
         }
         return count;
@@ -285,8 +286,8 @@ public class AccessibilityMetricsExtractor {
 
         if (el.hasAttr("id") && !el.attr("id").isBlank()) {
             sb.append("#").append(el.attr("id"));
-        } else if (el.hasAttr("class") && !el.attr("class").isBlank()) {
-            String firstClass = el.attr("class").trim().split("\\s+")[0];
+        } else if (el.hasAttr(ATTR_CLASS) && !el.attr(ATTR_CLASS).isBlank()) {
+            String firstClass = el.attr(ATTR_CLASS).trim().split("\\s+")[0];
             sb.append(".").append(firstClass);
         }
 

@@ -3,6 +3,8 @@ package com.pulse.page.web.service;
 import com.pulse.page.web.config.MetricsConfig;
 import com.pulse.page.web.document.AuditReportDocument;
 import com.pulse.page.web.entity.AuditReportEntity;
+import com.pulse.page.web.exception.InvalidUrlException;
+import com.pulse.page.web.exception.ReportNotFoundException;
 import com.pulse.page.web.repository.jpa.AuditReportJpaRepository;
 import com.pulse.page.web.repository.mongo.AuditReportMongoRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,7 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,23 +39,23 @@ class UrlAuditServiceTest {
     }
 
     @Test
-    void validateUrl_validUrl_returnsNormalizedUrl() {
+    void validateUrlValidUrlReturnsNormalizedUrl() {
         String result = service.validateUrl("example.com");
         assertEquals("https://example.com", result);
     }
 
     @Test
-    void validateUrl_blankString_throwsIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () -> service.validateUrl("   "));
+    void validateUrlBlankStringThrowsInvalidUrlException() {
+        assertThrows(InvalidUrlException.class, () -> service.validateUrl("   "));
     }
 
     @Test
-    void validateUrl_invalidScheme_throwsIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () -> service.validateUrl("ftp://files.example.com"));
+    void validateUrlInvalidSchemeThrowsInvalidUrlException() {
+        assertThrows(InvalidUrlException.class, () -> service.validateUrl("ftp://files.example.com"));
     }
 
     @Test
-    void saveAuditReportToMongo_existingTempId_movesEntityToDocumentAndDeletesFromH2() {
+    void saveAuditReportToMongoExistingTempIdMovesEntityToDocumentAndDeletesFromH2() {
         AuditReportEntity transientEntity = AuditReportEntity.builder()
             .id(10L)
             .url("https://example.com")
@@ -82,9 +83,9 @@ class UrlAuditServiceTest {
     }
 
     @Test
-    void saveAuditReportToMongo_nonExistingTempId_throwsNoSuchElementException() {
+    void saveAuditReportToMongoNonExistingTempIdThrowsReportNotFoundException() {
         when(jpaRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThrows(NoSuchElementException.class, () -> service.saveAuditReportToMongo(999L));
+        assertThrows(ReportNotFoundException.class, () -> service.saveAuditReportToMongo(999L));
     }
 }

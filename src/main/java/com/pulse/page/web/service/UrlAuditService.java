@@ -36,7 +36,7 @@ public class UrlAuditService {
     private final AuditReportMongoRepository mongoRepository;
     private final MetricsConfig metricsConfig;
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CircuitBreaker(name = "scraperEngine", fallbackMethod = "auditFallback")
     @Retry(name = "scraperEngine")
     public AuditReportEntity auditAndSaveTransient(String rawUrl) throws IOException {
@@ -91,10 +91,10 @@ public class UrlAuditService {
         return jpaRepository.save(entity);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public AuditReportDocument saveAuditReportToMongo(Long tempId) {
         AuditReportEntity transientEntity = jpaRepository.findById(tempId)
-                .orElseThrow(() -> new NoSuchElementException(
+                .orElseThrow(() -> new com.pulse.page.web.exception.ReportNotFoundException(
                         "Temporary H2 audit report record with ID " + tempId + " not found."));
 
         AuditReportDocument document = AuditReportDocument.builder()
@@ -125,14 +125,14 @@ public class UrlAuditService {
 
     public String validateUrl(String rawUrl) {
         if (rawUrl == null || rawUrl.isBlank()) {
-            throw new IllegalArgumentException("Target URL must not be blank.");
+            throw new com.pulse.page.web.exception.InvalidUrlException("Target URL must not be blank.");
         }
         String trimmed = rawUrl.trim();
         if (trimmed.contains("://")) {
             int schemeEnd = trimmed.indexOf("://");
             String scheme = trimmed.substring(0, schemeEnd).toLowerCase();
             if (!scheme.equals("http") && !scheme.equals("https")) {
-                throw new IllegalArgumentException(
+                throw new com.pulse.page.web.exception.InvalidUrlException(
                         "Invalid URL scheme '" + scheme + "'. Only HTTP and HTTPS are supported.");
             }
         } else {
@@ -142,13 +142,13 @@ public class UrlAuditService {
             URL urlObj = URI.create(trimmed).toURL();
             URI uriObj = urlObj.toURI();
             if (uriObj.getHost() == null || uriObj.getHost().isBlank()) {
-                throw new IllegalArgumentException("URL host is invalid for: " + rawUrl);
+                throw new com.pulse.page.web.exception.InvalidUrlException("URL host is invalid for: " + rawUrl);
             }
             return trimmed;
-        } catch (IllegalArgumentException e) {
+        } catch (com.pulse.page.web.exception.InvalidUrlException e) {
             throw e;
         } catch (Exception e) {
-            throw new IllegalArgumentException("Malformed URL structure: " + rawUrl, e);
+            throw new com.pulse.page.web.exception.InvalidUrlException("Malformed URL structure: " + rawUrl, e);
         }
     }
 
@@ -204,6 +204,6 @@ public class UrlAuditService {
 
     public AuditReportEntity auditFallback(String rawUrl, Exception ex) {
         log.error("Circuit breaker triggered for URL: {} - {}", rawUrl, ex.getMessage());
-        throw new RuntimeException("Scraper circuit breaker open - service unavailable for: " + rawUrl, ex);
+        throw new com.pulse.page.web.exception.CircuitBreakerOpenException("Scraper circuit breaker open - service unavailable for: " + rawUrl, ex);
     }
 }

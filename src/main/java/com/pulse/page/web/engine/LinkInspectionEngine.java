@@ -43,120 +43,141 @@ public class LinkInspectionEngine {
 
     @NonNull
     public LinkInspectionMetrics inspectLinks(@NonNull String baseUrl, @NonNull Document document) {
-        if (document == null || baseUrl == null) {
-            return LinkInspectionMetrics.builder()
-                    .totalLinksFound(0)
-                    .workingLinksCount(0)
-                    .brokenLinksCount(0)
-                    .redirectLinksCount(0)
-                    .internalLinksCount(0)
-                    .externalLinksCount(0)
-                    .inPageAnchorLinksCount(0)
-                    .protocolLinksCount(0)
-                    .targetBlankWithoutNoopenerCount(0)
-                    .insecureHttpLinksCount(0)
-                    .nofollowLinksCount(0)
-                    .genericAnchorLinksCount(0)
-                    .emptyAnchorLinksCount(0)
-                    .securityWarnings(Collections.emptyList())
-                    .brokenLinks(Collections.emptyList())
-                    .build();
-        }
-
         List<Element> anchorElements = document.select("a[href]");
         int totalLinksFound = anchorElements.size();
-
         String baseHost = extractHost(baseUrl);
         boolean isBaseHttps = baseUrl.toLowerCase().startsWith("https://");
 
-        int internalLinks = 0;
-        int externalLinks = 0;
-        int inPageAnchors = 0;
-        int protocolLinks = 0;
-        int targetBlankWithoutNoopener = 0;
-        int insecureHttpLinks = 0;
-        int nofollowLinks = 0;
-        int genericAnchorCount = 0;
-        int emptyAnchorCount = 0;
-
-        List<String> securityWarnings = new ArrayList<>();
+        LinkAccumulator acc = new LinkAccumulator();
         Set<String> uniqueUrlsToCheck = new LinkedHashSet<>();
         Map<String, String> anchorTextMap = new HashMap<>();
 
         for (Element a : anchorElements) {
-            String href = a.attr("href").trim();
-            String absHref = a.attr("abs:href").trim();
-            String rel = a.attr("rel").toLowerCase();
-            String target = a.attr("target").toLowerCase();
-            String anchorText = a.text().trim();
-
-            if (anchorText.isBlank()) {
-                if (a.select("img, svg").isEmpty()) {
-                    emptyAnchorCount++;
-                }
-            } else if (GENERIC_ANCHOR_TEXTS.contains(anchorText.toLowerCase())) {
-                genericAnchorCount++;
-            }
-
-            if (rel.contains("nofollow") || rel.contains("sponsored") || rel.contains("ugc")) {
-                nofollowLinks++;
-            }
-
-            if (href.startsWith("#")) {
-                inPageAnchors++;
-                continue;
-            }
-
-            if (href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) {
-                protocolLinks++;
-                continue;
-            }
-
-            String urlToEvaluate = !absHref.isBlank() ? absHref : href;
-            String linkHost = extractHost(urlToEvaluate);
-
-            boolean isExternal = !linkHost.isBlank() && !linkHost.equalsIgnoreCase(baseHost);
-
-            if (isExternal) {
-                externalLinks++;
-                if ("_blank".equals(target) && !rel.contains("noopener") && !rel.contains("noreferrer")) {
-                    targetBlankWithoutNoopener++;
-                }
-            } else {
-                internalLinks++;
-            }
-
-            if (isBaseHttps && urlToEvaluate.toLowerCase().startsWith("http://")) {
-                insecureHttpLinks++;
-            }
-
-            if (urlToEvaluate.startsWith("http://") || urlToEvaluate.startsWith("https://")) {
-                if (uniqueUrlsToCheck.size() < MAX_LINKS_TO_CHECK) {
-                    if (uniqueUrlsToCheck.add(urlToEvaluate)) {
-                        anchorTextMap.put(urlToEvaluate, anchorText.isBlank() ? a.attr("title") : anchorText);
-                    }
-                }
-            }
+            processAnchorElement(a, baseHost, isBaseHttps, acc, uniqueUrlsToCheck, anchorTextMap);
         }
 
-        if (targetBlankWithoutNoopener > 0) {
-            securityWarnings.add("SECURITY WARNING: " + targetBlankWithoutNoopener + " external link(s) use target=\"_blank\" without rel=\"noopener\" (vulnerable to Reverse Tabnabbing attacks).");
-        }
-        if (insecureHttpLinks > 0) {
-            securityWarnings.add("MIXED CONTENT: " + insecureHttpLinks + " insecure http:// link(s) found on this HTTPS page.");
-        }
-        if (genericAnchorCount > 0) {
-            securityWarnings.add("SEO WARNING: " + genericAnchorCount + " link(s) use generic non-descriptive anchor text (e.g., 'click here', 'read more').");
+        List<String> securityWarnings = buildSecurityWarnings(acc);
+        ParallelCheckResult checkResult = executeParallelLinkChecks(uniqueUrlsToCheck, anchorTextMap, baseHost);
+
+        return LinkInspectionMetrics.builder()
+                .totalLinksFound(totalLinksFound)
+                .workingLinksCount(checkResult.workingCount)
+                .brokenLinksCount(checkResult.brokenLinks.size())
+                .redirectLinksCount(checkResult.redirectCount)
+                .internalLinksCount(acc.internalLinks)
+                .externalLinksCount(acc.externalLinks)
+                .inPageAnchorLinksCount(acc.inPageAnchors)
+                .protocolLinksCount(acc.protocolLinks)
+                .targetBlankWithoutNoopenerCount(acc.targetBlankWithoutNoopener)
+                .insecureHttpLinksCount(acc.insecureHttpLinks)
+                .nofollowLinksCount(acc.nofollowLinks)
+                .genericAnchorLinksCount(acc.genericAnchorCount)
+                .emptyAnchorLinksCount(acc.emptyAnchorCount)
+                .securityWarnings(securityWarnings)
+                .brokenLinks(checkResult.brokenLinks)
+                .build();
+    }
+
+    private void processAnchorElement(
+            Element a, String baseHost, boolean isBaseHttps,
+            LinkAccumulator acc, Set<String> uniqueUrlsToCheck, Map<String, String> anchorTextMap) {
+
+        String href = a.attr("href").trim();
+        String absHref = a.attr("abs:href").trim();
+        String rel = a.attr("rel").toLowerCase();
+        String target = a.attr("target").toLowerCase();
+        String anchorText = a.text().trim();
+
+        classifyAnchorText(a, anchorText, acc);
+
+        if (rel.contains("nofollow") || rel.contains("sponsored") || rel.contains("ugc")) {
+            acc.nofollowLinks++;
         }
 
-        // Parallel HTTP status checks
+        if (handleSpecialLink(href, acc)) {
+            return;
+        }
+
+        String urlToEvaluate = !absHref.isBlank() ? absHref : href;
+        trackLinkType(urlToEvaluate, baseHost, target, rel, acc);
+        trackInsecureHttp(urlToEvaluate, isBaseHttps, acc);
+        queueForValidation(urlToEvaluate, anchorText, a.attr("title"), uniqueUrlsToCheck, anchorTextMap);
+    }
+
+    private boolean handleSpecialLink(String href, LinkAccumulator acc) {
+        if (href.startsWith("#")) {
+            acc.inPageAnchors++;
+            return true;
+        }
+        if (href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) {
+            acc.protocolLinks++;
+            return true;
+        }
+        return false;
+    }
+
+    private void trackLinkType(String urlToEvaluate, String baseHost, String target, String rel, LinkAccumulator acc) {
+        String linkHost = extractHost(urlToEvaluate);
+        boolean isExternal = !linkHost.isBlank() && !linkHost.equalsIgnoreCase(baseHost);
+        if (isExternal) {
+            acc.externalLinks++;
+            if ("_blank".equals(target) && !rel.contains("noopener") && !rel.contains("noreferrer")) {
+                acc.targetBlankWithoutNoopener++;
+            }
+        } else {
+            acc.internalLinks++;
+        }
+    }
+
+    private void trackInsecureHttp(String urlToEvaluate, boolean isBaseHttps, LinkAccumulator acc) {
+        if (isBaseHttps && urlToEvaluate.toLowerCase().startsWith("http://")) {
+            acc.insecureHttpLinks++;
+        }
+    }
+
+    private void queueForValidation(
+            String urlToEvaluate, String anchorText, String titleAttr,
+            Set<String> uniqueUrlsToCheck, Map<String, String> anchorTextMap) {
+        if ((urlToEvaluate.startsWith("http://") || urlToEvaluate.startsWith("https://"))
+                && uniqueUrlsToCheck.size() < MAX_LINKS_TO_CHECK
+                && uniqueUrlsToCheck.add(urlToEvaluate)) {
+            anchorTextMap.put(urlToEvaluate, anchorText.isBlank() ? titleAttr : anchorText);
+        }
+    }
+
+    private void classifyAnchorText(Element a, String anchorText, LinkAccumulator acc) {
+        if (anchorText.isBlank()) {
+            if (a.select("img, svg").isEmpty()) {
+                acc.emptyAnchorCount++;
+            }
+        } else if (GENERIC_ANCHOR_TEXTS.contains(anchorText.toLowerCase())) {
+            acc.genericAnchorCount++;
+        }
+    }
+
+    private List<String> buildSecurityWarnings(LinkAccumulator acc) {
+        List<String> warnings = new ArrayList<>();
+        if (acc.targetBlankWithoutNoopener > 0) {
+            warnings.add("SECURITY WARNING: " + acc.targetBlankWithoutNoopener + " external link(s) use target=\"_blank\" without rel=\"noopener\" (vulnerable to Reverse Tabnabbing attacks).");
+        }
+        if (acc.insecureHttpLinks > 0) {
+            warnings.add("MIXED CONTENT: " + acc.insecureHttpLinks + " insecure http:// link(s) found on this HTTPS page.");
+        }
+        if (acc.genericAnchorCount > 0) {
+            warnings.add("SEO WARNING: " + acc.genericAnchorCount + " link(s) use generic non-descriptive anchor text (e.g., 'click here', 'read more').");
+        }
+        return warnings;
+    }
+
+    private ParallelCheckResult executeParallelLinkChecks(
+            Set<String> uniqueUrlsToCheck, Map<String, String> anchorTextMap, String baseHost) {
+
         List<BrokenLinkInfo> brokenLinks = new CopyOnWriteArrayList<>();
         int workingCount = 0;
         int redirectCount = 0;
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<LinkCheckResult>> futures = new ArrayList<>();
-
             for (String linkUrl : uniqueUrlsToCheck) {
                 futures.add(executor.submit(() -> checkLink(linkUrl, anchorTextMap.get(linkUrl), baseHost)));
             }
@@ -179,26 +200,7 @@ public class LinkInspectionEngine {
                 }
             }
         }
-
-        int brokenCount = brokenLinks.size();
-
-        return LinkInspectionMetrics.builder()
-                .totalLinksFound(totalLinksFound)
-                .workingLinksCount(workingCount)
-                .brokenLinksCount(brokenCount)
-                .redirectLinksCount(redirectCount)
-                .internalLinksCount(internalLinks)
-                .externalLinksCount(externalLinks)
-                .inPageAnchorLinksCount(inPageAnchors)
-                .protocolLinksCount(protocolLinks)
-                .targetBlankWithoutNoopenerCount(targetBlankWithoutNoopener)
-                .insecureHttpLinksCount(insecureHttpLinks)
-                .nofollowLinksCount(nofollowLinks)
-                .genericAnchorLinksCount(genericAnchorCount)
-                .emptyAnchorLinksCount(emptyAnchorCount)
-                .securityWarnings(securityWarnings)
-                .brokenLinks(brokenLinks)
-                .build();
+        return new ParallelCheckResult(workingCount, redirectCount, brokenLinks);
     }
 
     private LinkCheckResult checkLink(String urlStr, String anchorText, String baseHost) {
@@ -227,10 +229,11 @@ public class LinkInspectionEngine {
             }
 
             return new LinkCheckResult(urlStr, anchorText, code, "HTTP " + code, external);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             return new LinkCheckResult(urlStr, anchorText, 404, "Link check thread interrupted", external);
         } catch (Exception e) {
+            log.debug("Link inspection failed for URL: {}", urlStr, e);
             return new LinkCheckResult(urlStr, anchorText, 404, "Connection refused or unreachable", external);
         }
     }
@@ -241,9 +244,44 @@ public class LinkInspectionEngine {
             String host = URI.create(urlStr).getHost();
             return host != null ? host : "";
         } catch (IllegalArgumentException e) {
+            log.debug("Invalid URL string during host extraction: {}", urlStr, e);
             return "";
         }
     }
+
+    private LinkInspectionMetrics buildDefaultMetrics() {
+        return LinkInspectionMetrics.builder()
+                .totalLinksFound(0)
+                .workingLinksCount(0)
+                .brokenLinksCount(0)
+                .redirectLinksCount(0)
+                .internalLinksCount(0)
+                .externalLinksCount(0)
+                .inPageAnchorLinksCount(0)
+                .protocolLinksCount(0)
+                .targetBlankWithoutNoopenerCount(0)
+                .insecureHttpLinksCount(0)
+                .nofollowLinksCount(0)
+                .genericAnchorLinksCount(0)
+                .emptyAnchorLinksCount(0)
+                .securityWarnings(Collections.emptyList())
+                .brokenLinks(Collections.emptyList())
+                .build();
+    }
+
+    private static class LinkAccumulator {
+        int internalLinks = 0;
+        int externalLinks = 0;
+        int inPageAnchors = 0;
+        int protocolLinks = 0;
+        int targetBlankWithoutNoopener = 0;
+        int insecureHttpLinks = 0;
+        int nofollowLinks = 0;
+        int genericAnchorCount = 0;
+        int emptyAnchorCount = 0;
+    }
+
+    private record ParallelCheckResult(int workingCount, int redirectCount, List<BrokenLinkInfo> brokenLinks) {}
 
     private record LinkCheckResult(String url, String anchorText, int statusCode, String statusMessage, boolean external) {
         BrokenLinkInfo toBrokenLinkInfo() {

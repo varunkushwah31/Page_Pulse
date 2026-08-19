@@ -23,7 +23,7 @@ public class AuditPersistenceService {
     private final AuditReportMongoRepository mongoRepository;
     private final UserRepository userRepository;
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public AuditReportDocument saveAuditReportToMongo(Long tempId) {
         log.info("Migrating transient H2 audit report with ID {} to MongoDB Atlas", tempId);
 

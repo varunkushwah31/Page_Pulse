@@ -23,7 +23,7 @@ class AiRecommendationServiceTest {
     }
 
     @Test
-    void generateRecommendations_missingTitleAndAltImages_returnsTailoredFixes() {
+    void generateRecommendationsMissingTitleAndAltImagesReturnsTailoredFixes() {
         SeoMetrics seo = SeoMetrics.builder()
             .hasTitle(false)
             .pageTitle(null)

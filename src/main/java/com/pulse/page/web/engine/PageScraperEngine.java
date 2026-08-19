@@ -1,6 +1,7 @@
 package com.pulse.page.web.engine;
 
 import com.pulse.page.web.exception.AuditTimeoutException;
+import com.pulse.page.web.exception.CircuitBreakerOpenException;
 import com.pulse.page.web.exception.NonHtmlContentException;
 import com.pulse.page.web.exception.TargetHostUnreachableException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -95,6 +96,6 @@ public class PageScraperEngine {
 
     public ScrapeResult fetchPageFallback(String targetUrl, Exception ex) {
         log.error("Circuit breaker triggered for URL: {} - {}", targetUrl, ex.getMessage());
-        throw new RuntimeException("Scraper circuit breaker open - service unavailable: " + targetUrl, ex);
+        throw new CircuitBreakerOpenException("Scraper circuit breaker open - target host unreachable or service unavailable: " + targetUrl, ex);
     }
 }

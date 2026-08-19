@@ -54,6 +54,7 @@ public class PdfReportGeneratorService {
                         .map(this::mapEntityToDocument)
                         .orElse(null);
                 } catch (NumberFormatException e) {
+                    log.debug("Non-numeric report ID cannot be retrieved from JPA: {}", reportId, e);
                     return null;
                 }
             });
@@ -109,7 +110,7 @@ public class PdfReportGeneratorService {
                 if (!hex.startsWith("#")) hex = "#" + hex;
                 return Color.decode(hex);
             } catch (Exception e) {
-                log.warn("Invalid primaryColorHex '{}', falling back to default primary color", branding.getPrimaryColorHex());
+                log.warn("Invalid primaryColorHex '{}', falling back to default primary color: {}", branding.getPrimaryColorHex(), e.getMessage());
             }
         }
         return COLOR_PRIMARY;
@@ -300,10 +301,6 @@ public class PdfReportGeneratorService {
     private static class HeaderFooterPageEvent extends PdfPageEventHelper {
         private static final Font FONT_FOOTER = FontFactory.getFont(FontFactory.HELVETICA, 8, new Color(148, 163, 184));
         private final String footerPrefix;
-
-        public HeaderFooterPageEvent() {
-            this("PagePulse Web Auditing Engine");
-        }
 
         public HeaderFooterPageEvent(String footerPrefix) {
             this.footerPrefix = footerPrefix;

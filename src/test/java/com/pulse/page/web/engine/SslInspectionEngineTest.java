@@ -21,7 +21,7 @@ class SslInspectionEngineTest {
     }
 
     @Test
-    void inspectSecurity_httpsUrl_returnsSecurityMetrics() {
+    void inspectSecurityHttpsUrlReturnsSecurityMetrics() {
         Document doc = Jsoup.parse("<html><head></head><body><img src=\"http://insecure.com/hero.png\"></body></html>");
         ScrapeResult scrapeResult = ScrapeResult.builder()
             .targetUrl("https://example.com")

@@ -23,11 +23,15 @@ public class AiRecommendationService {
     private static final String PRIORITY_P0 = "P0_CRITICAL";
     private static final String PRIORITY_P1 = "P1_MAJOR";
     private static final String PRIORITY_P2 = "P2_MODERATE";
-    private static final String PRIORITY_P3 = "P3_LOW";
 
     private static final String IMPACT_HIGH = "HIGH";
     private static final String IMPACT_MEDIUM = "MEDIUM";
     private static final String IMPACT_LOW = "LOW";
+
+    private static final String SCORE_IMPROVE_HIGH = "+10 to +15 pts";
+    private static final String SCORE_IMPROVE_MED_HIGH = "+5 to +10 pts";
+    private static final String SCORE_IMPROVE_MEDIUM = "+5 to +8 pts";
+    private static final String SCORE_IMPROVE_LOW = "+3 to +5 pts";
 
     public List<AiRecommendationDto> generateRecommendations(AuditResponse report) {
         if (report == null) {
@@ -65,7 +69,7 @@ public class AiRecommendationService {
                     .codeSnippet("<title>" + capitalizeDomain(domain) + " | Official Website</title>")
                     .explanation("Title tags define the document title displayed on Search Engine Results Pages (SERPs) and browser tabs.")
                     .impactLevel(IMPACT_HIGH)
-                    .estimatedScoreImprovement("+10 to +15 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_HIGH)
                     .guidelineReference("Google Search Central: Title Tags")
                     .build());
         } else if (seo.getTitleLength() > 60) {
@@ -77,7 +81,7 @@ public class AiRecommendationService {
                     .codeSnippet("<title>" + truncate(seo.getPageTitle(), 55) + "...</title>")
                     .explanation("Search engines truncate titles longer than 60 characters (~600px). Truncate long titles to prevent clipping.")
                     .impactLevel(IMPACT_MEDIUM)
-                    .estimatedScoreImprovement("+3 to +5 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_LOW)
                     .guidelineReference("Google Search Central: Snippets")
                     .build());
         }
@@ -105,7 +109,7 @@ public class AiRecommendationService {
                     .codeSnippet("<link rel=\"canonical\" href=\"https://" + domain + "/\">")
                     .explanation("Multiple canonical tags confuse search engine crawlers and can invalidate canonicalization.")
                     .impactLevel(IMPACT_HIGH)
-                    .estimatedScoreImprovement("+10 to +15 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_HIGH)
                     .guidelineReference("Google Search Central: Canonicalization")
                     .build());
         } else if (seo.getCanonicalUrl() == null || seo.getCanonicalUrl().isBlank()) {
@@ -117,7 +121,7 @@ public class AiRecommendationService {
                     .codeSnippet("<link rel=\"canonical\" href=\"https://" + domain + "/\">")
                     .explanation("Canonical tags prevent duplicate content issues by indicating the master URL to search indexing engines.")
                     .impactLevel(IMPACT_MEDIUM)
-                    .estimatedScoreImprovement("+5 to +8 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_MEDIUM)
                     .guidelineReference("Google Search Central: Canonical URLs")
                     .build());
         }
@@ -154,7 +158,7 @@ public class AiRecommendationService {
                     .codeSnippet("<img src=\"hero-banner.jpg\" alt=\"" + capitalizeDomain(domain) + " platform graphic\" width=\"800\" height=\"400\">")
                     .explanation("Screen readers and search crawlers rely on alt text to understand image context for visually impaired users.")
                     .impactLevel(IMPACT_HIGH)
-                    .estimatedScoreImprovement("+10 to +15 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_HIGH)
                     .guidelineReference("WCAG 2.1 SC 1.1.1 (Non-text Content)")
                     .build());
         }
@@ -168,7 +172,7 @@ public class AiRecommendationService {
                     .codeSnippet("<html lang=\"en\">")
                     .explanation("Specifying a valid BCP 47 language code enables screen readers to apply proper pronunciation rules.")
                     .impactLevel(IMPACT_HIGH)
-                    .estimatedScoreImprovement("+5 to +8 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_MEDIUM)
                     .guidelineReference("WCAG 2.1 SC 3.1.1 (Language of Page)")
                     .build());
         }
@@ -182,7 +186,7 @@ public class AiRecommendationService {
                     .codeSnippet("<button type=\"button\" aria-label=\"Close modal menu\"><svg ... /></button>")
                     .explanation("Assistive technologies require discernible text or aria-label to announce button actions to users.")
                     .impactLevel(IMPACT_HIGH)
-                    .estimatedScoreImprovement("+5 to +10 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_MED_HIGH)
                     .guidelineReference("WCAG 2.1 SC 4.1.2 (Name, Role, Value)")
                     .build());
         }
@@ -196,7 +200,7 @@ public class AiRecommendationService {
                     .codeSnippet("<main id=\"main-content\" role=\"main\">\n  <!-- Primary page content -->\n</main>")
                     .explanation("Landmark regions enable keyboard and screen reader users to quickly bypass navigation bars.")
                     .impactLevel(IMPACT_MEDIUM)
-                    .estimatedScoreImprovement("+3 to +5 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_LOW)
                     .guidelineReference("WCAG 2.1 SC 1.3.1 (Info and Relationships)")
                     .build());
         }
@@ -215,7 +219,7 @@ public class AiRecommendationService {
                     .codeSnippet("<h1>Primary Topic or Brand Headline</h1>")
                     .explanation("An <h1> heading specifies the main topic of the page for users and search engine indexers.")
                     .impactLevel(IMPACT_HIGH)
-                    .estimatedScoreImprovement("+10 to +15 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_HIGH)
                     .guidelineReference("W3C & Google On-Page SEO Best Practices")
                     .build());
         } else if (h1Count > 1) {
@@ -230,7 +234,7 @@ public class AiRecommendationService {
                             <h2>Secondary Section Header</h2>""")
                     .explanation("Multiple <h1> headings dilute page topic clarity. Use <h2>-<h6> for subordinate section headings.")
                     .impactLevel(IMPACT_LOW)
-                    .estimatedScoreImprovement("+3 to +5 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_LOW)
                     .guidelineReference("WCAG 2.1 SC 1.3.1")
                     .build());
         }
@@ -258,7 +262,7 @@ public class AiRecommendationService {
                     .codeSnippet("<!-- Replace repetitive target keywords with semantic LSI synonyms -->")
                     .explanation("Keyword stuffing harms user readability and search engine rankings. Keep keyword density below 2.5%.")
                     .impactLevel(IMPACT_HIGH)
-                    .estimatedScoreImprovement("+5 to +8 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_MEDIUM)
                     .guidelineReference("Google Search Spam Policies: Keyword Stuffing")
                     .build());
         }
@@ -276,7 +280,7 @@ public class AiRecommendationService {
                     .codeSnippet("<script src=\"bundle.js\" defer></script>")
                     .explanation("Deferring scripts prevents HTML parser blocking, significantly lowering First Contentful Paint (FCP).")
                     .impactLevel(IMPACT_HIGH)
-                    .estimatedScoreImprovement("+5 to +10 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_MED_HIGH)
                     .guidelineReference("Google Lighthouse Performance Audit")
                     .build());
         }
@@ -290,7 +294,7 @@ public class AiRecommendationService {
                     .codeSnippet("<picture>\n  <source srcset=\"image.avif\" type=\"image/avif\">\n  <source srcset=\"image.webp\" type=\"image/webp\">\n  <img src=\"image.jpg\" alt=\"Description\" loading=\"lazy\">\n</picture>")
                     .explanation("WebP and AVIF formats reduce file size by 30-70% compared to JPEG/PNG without quality loss.")
                     .impactLevel(IMPACT_MEDIUM)
-                    .estimatedScoreImprovement("+5 to +8 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_MEDIUM)
                     .guidelineReference("Google Core Web Vitals Optimization")
                     .build());
         }
@@ -308,7 +312,7 @@ public class AiRecommendationService {
                     .codeSnippet("<a href=\"https://external.com\" target=\"_blank\" rel=\"noopener noreferrer\">External Link</a>")
                     .explanation("Without rel=\"noopener\", the target page can manipulate window.opener to redirect the parent tab to a phishing page.")
                     .impactLevel(IMPACT_HIGH)
-                    .estimatedScoreImprovement("+5 to +10 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_MED_HIGH)
                     .guidelineReference("OWASP Web Security: Reverse Tabnabbing")
                     .build());
         }
@@ -355,7 +359,7 @@ public class AiRecommendationService {
                             </script>""".formatted(capitalizeDomain(domain), domain))
                     .explanation("Structured data schema helps search engine crawlers generate rich snippets in search results.")
                     .impactLevel(IMPACT_MEDIUM)
-                    .estimatedScoreImprovement("+5 to +8 pts")
+                    .estimatedScoreImprovement(SCORE_IMPROVE_MEDIUM)
                     .guidelineReference("Schema.org WebSite Specification")
                     .build());
         }

@@ -34,222 +34,212 @@ public class AuditScoringEngine {
 
     private int computeSeoScore(SeoMetrics seo) {
         if (seo == null) return 0;
-        int score = 0;
-
-        // Title Tag (20 pts)
-        if (seo.isHasTitle()) {
-            score += 10;
-            if (seo.getTitleLength() >= 30 && seo.getTitleLength() <= 60) {
-                score += 10;
-            } else if (seo.getTitleLength() > 0) {
-                score += 5;
-            }
-        }
-
-        // Meta Description (20 pts)
-        if (seo.isHasMetaDescription()) {
-            score += 10;
-            if (seo.getDescriptionLength() >= 120 && seo.getDescriptionLength() <= 160) {
-                score += 10;
-            } else if (seo.getDescriptionLength() > 0) {
-                score += 5;
-            }
-        }
-
-        // Canonical URL (15 pts)
-        if ("SELF_REFERENCING".equals(seo.getCanonicalStatus()) || "DECLARED".equals(seo.getCanonicalStatus())) {
-            score += 15;
-        } else if ("CROSS_DOMAIN".equals(seo.getCanonicalStatus())) {
-            score += 10;
-        } else if ("MULTIPLE_CONFLICTING".equals(seo.getCanonicalStatus())) {
-            score = Math.max(0, score - 10);
-        }
-
-        // Structured Data / Schema.org (15 pts)
-        if (seo.getStructuredDataInfo() != null && seo.getStructuredDataInfo().isHasStructuredData()) {
-            if (seo.getStructuredDataInfo().isValidJsonLd()) {
-                score += 15;
-            } else {
-                score += 5; // Has schema but malformed
-            }
-        } else if (seo.isHasStructuredData()) {
-            score += 10;
-        }
-
-        // Social Metadata / OpenGraph & Twitter (15 pts)
-        if (seo.isOpenGraphComplete() && seo.isTwitterCardComplete()) {
-            score += 15;
-        } else if (seo.getOpenGraphTags() != null && !seo.getOpenGraphTags().isEmpty()) {
-            score += 10;
-        }
-
-        // Mobile & Crawlability (15 pts)
-        if (seo.isIndexable()) {
-            score += 5;
-        }
-        if (seo.isHasViewportMeta()) {
-            score += 5;
-        }
-        if (seo.isHasFavicon()) {
-            score += 5;
-        }
-
+        int score = scoreTitle(seo)
+                + scoreMetaDescription(seo)
+                + scoreCanonical(seo)
+                + scoreStructuredData(seo)
+                + scoreSocialAndCrawlability(seo);
         return Math.clamp(score, 0, 100);
+    }
+
+    private int scoreTitle(SeoMetrics seo) {
+        if (!seo.isHasTitle()) return 0;
+        int pts = 10;
+        if (seo.getTitleLength() >= 30 && seo.getTitleLength() <= 60) {
+            pts += 10;
+        } else if (seo.getTitleLength() > 0) {
+            pts += 5;
+        }
+        return pts;
+    }
+
+    private int scoreMetaDescription(SeoMetrics seo) {
+        if (!seo.isHasMetaDescription()) return 0;
+        int pts = 10;
+        if (seo.getDescriptionLength() >= 120 && seo.getDescriptionLength() <= 160) {
+            pts += 10;
+        } else if (seo.getDescriptionLength() > 0) {
+            pts += 5;
+        }
+        return pts;
+    }
+
+    private int scoreCanonical(SeoMetrics seo) {
+        String status = seo.getCanonicalStatus();
+        if ("SELF_REFERENCING".equals(status) || "DECLARED".equals(status)) {
+            return 15;
+        } else if ("CROSS_DOMAIN".equals(status)) {
+            return 10;
+        } else if ("MULTIPLE_CONFLICTING".equals(status)) {
+            return -10;
+        }
+        return 0;
+    }
+
+    private int scoreStructuredData(SeoMetrics seo) {
+        if (seo.getStructuredDataInfo() != null && seo.getStructuredDataInfo().isHasStructuredData()) {
+            return seo.getStructuredDataInfo().isValidJsonLd() ? 15 : 5;
+        } else if (seo.isHasStructuredData()) {
+            return 10;
+        }
+        return 0;
+    }
+
+    private int scoreSocialAndCrawlability(SeoMetrics seo) {
+        int pts = 0;
+        if (seo.isOpenGraphComplete() && seo.isTwitterCardComplete()) {
+            pts += 15;
+        } else if (seo.getOpenGraphTags() != null && !seo.getOpenGraphTags().isEmpty()) {
+            pts += 10;
+        }
+
+        if (seo.isIndexable()) pts += 5;
+        if (seo.isHasViewportMeta()) pts += 5;
+        if (seo.isHasFavicon()) pts += 5;
+        return pts;
     }
 
     private int computeContentScore(ContentMetrics content) {
         if (content == null) return 0;
-        int score = 0;
+        int score = scoreHeadings(content)
+                + scoreWordCount(content)
+                + scoreReadability(content)
+                + scoreKeywordsAndStructure(content);
+        return Math.clamp(score, 0, 100);
+    }
 
-        // Heading Structure & Hierarchy (25 pts)
+    private int scoreHeadings(ContentMetrics content) {
+        int pts = 0;
         int h1Count = content.getHeadingCounts() != null ? content.getHeadingCounts().getOrDefault("h1", 0) : 0;
         if (h1Count == 1) {
-            score += 15;
+            pts += 15;
         } else if (h1Count > 1) {
-            score += 8;
+            pts += 8;
         }
 
         if (content.isHasValidHeadingHierarchy()) {
-            score += 10;
+            pts += 10;
         } else if (content.getHeadingIssues() != null && content.getHeadingIssues().size() <= 2) {
-            score += 5;
+            pts += 5;
         }
+        return pts;
+    }
 
-        // Word Count & Content Depth (30 pts)
-        if (content.getWordCount() >= 600) {
-            score += 30;
-        } else if (content.getWordCount() >= 300) {
-            score += 20;
-        } else if (content.getWordCount() >= 100) {
-            score += 10;
-        } else if (content.getWordCount() > 0) {
-            score += 5;
-        }
+    private int scoreWordCount(ContentMetrics content) {
+        int words = content.getWordCount();
+        if (words >= 600) return 30;
+        if (words >= 300) return 20;
+        if (words >= 100) return 10;
+        if (words > 0) return 5;
+        return 0;
+    }
 
-        // Readability (25 pts)
+    private int scoreReadability(ContentMetrics content) {
         if (content.getReadabilityMetrics() != null) {
             double readingEase = content.getReadabilityMetrics().getFleschKincaidReadingEase();
             if (readingEase >= 50 && readingEase <= 90) {
-                score += 25; // Optimal readability for web users
+                return 25;
             } else if (readingEase > 0) {
-                score += 15;
+                return 15;
             }
-        } else {
-            score += 15;
         }
+        return 15;
+    }
 
-        // Keyword Density & Quality (10 pts)
+    private int scoreKeywordsAndStructure(ContentMetrics content) {
+        int pts = 0;
         if (!content.isHasKeywordStuffing() && content.getTopKeywords() != null && !content.getTopKeywords().isEmpty()) {
-            score += 10;
+            pts += 10;
         } else if (!content.isHasKeywordStuffing()) {
-            score += 5;
+            pts += 5;
         }
 
-        // Paragraphs & Structure (10 pts)
-        if (content.getParagraphCount() >= 3) {
-            score += 5;
-        }
-        if (content.getTextToHtmlRatioPercentage() >= 10.0) {
-            score += 5;
-        }
-
-        return Math.clamp(score, 0, 100);
+        if (content.getParagraphCount() >= 3) pts += 5;
+        if (content.getTextToHtmlRatioPercentage() >= 10.0) pts += 5;
+        return pts;
     }
 
     private int computeAccessibilityScore(AccessibilityMetrics a11y) {
         if (a11y == null) return 0;
-        int score = 0;
-
-        // Image Alternative Text (35 pts)
-        if (a11y.getTotalImageCount() == 0) {
-            score += 35;
-        } else {
-            double altRatio = (double) (a11y.getTotalImageCount() - a11y.getImagesMissingAltCount()) / a11y.getTotalImageCount();
-            score += (int) (altRatio * 35);
-        }
-
-        // Language Attribute (20 pts)
-        if (a11y.isHasHtmlLangAttribute() && a11y.isValidLangCode()) {
-            score += 20;
-        } else if (a11y.isHasHtmlLangAttribute()) {
-            score += 10;
-        }
-
-        // Form Control Labels (20 pts)
-        if (a11y.getFormInputsMissingLabelsCount() == 0) {
-            score += 20;
-        } else {
-            score += Math.max(0, 20 - (a11y.getFormInputsMissingLabelsCount() * 4));
-        }
-
-        // Interactive Button & Link Accessible Names (15 pts)
-        int namelessInteractive = a11y.getButtonsMissingAccessibleNameCount() + a11y.getLinksMissingAccessibleTextCount();
-        if (namelessInteractive == 0) {
-            score += 15;
-        } else {
-            score += Math.max(0, 15 - (namelessInteractive * 3));
-        }
-
-        // Semantic Landmarks & Tabindex (10 pts)
-        if (a11y.isHasMainLandmark()) {
-            score += 5;
-        }
-        if (a11y.getPositiveTabindexCount() == 0) {
-            score += 5;
-        }
-
+        int score = scoreImages(a11y)
+                + scoreLanguage(a11y)
+                + scoreFormLabels(a11y)
+                + scoreInteractiveElements(a11y)
+                + scoreLandmarks(a11y);
         return Math.clamp(score, 0, 100);
+    }
+
+    private int scoreImages(AccessibilityMetrics a11y) {
+        if (a11y.getTotalImageCount() == 0) return 35;
+        double altRatio = (double) (a11y.getTotalImageCount() - a11y.getImagesMissingAltCount()) / a11y.getTotalImageCount();
+        return (int) (altRatio * 35);
+    }
+
+    private int scoreLanguage(AccessibilityMetrics a11y) {
+        if (a11y.isHasHtmlLangAttribute() && a11y.isValidLangCode()) return 20;
+        if (a11y.isHasHtmlLangAttribute()) return 10;
+        return 0;
+    }
+
+    private int scoreFormLabels(AccessibilityMetrics a11y) {
+        int missing = a11y.getFormInputsMissingLabelsCount();
+        return missing == 0 ? 20 : Math.max(0, 20 - (missing * 4));
+    }
+
+    private int scoreInteractiveElements(AccessibilityMetrics a11y) {
+        int nameless = a11y.getButtonsMissingAccessibleNameCount() + a11y.getLinksMissingAccessibleTextCount();
+        return nameless == 0 ? 15 : Math.max(0, 15 - (nameless * 3));
+    }
+
+    private int scoreLandmarks(AccessibilityMetrics a11y) {
+        int pts = 0;
+        if (a11y.isHasMainLandmark()) pts += 5;
+        if (a11y.getPositiveTabindexCount() == 0) pts += 5;
+        return pts;
     }
 
     private int computePerformanceScore(PerformanceMetrics perf) {
         if (perf == null) return 0;
-        int score = 0;
+        int score = scoreHttpStatus(perf)
+                + scoreResponseTime(perf)
+                + scoreAssetsAndCaching(perf);
+        return Math.clamp(score, 0, 100);
+    }
 
-        // HTTP Status Code (30 pts)
-        if (perf.getStatusCode() == 200) {
-            score += 30;
-        } else if (perf.getStatusCode() >= 200 && perf.getStatusCode() < 400) {
-            score += 20;
-        }
+    private int scoreHttpStatus(PerformanceMetrics perf) {
+        int status = perf.getStatusCode();
+        if (status == 200) return 30;
+        if (status >= 200 && status < 400) return 20;
+        return 0;
+    }
 
-        // Response Time (30 pts)
+    private int scoreResponseTime(PerformanceMetrics perf) {
         long responseTime = perf.getResponseTimeMs();
-        if (responseTime <= 300) {
-            score += 30;
-        } else if (responseTime <= 800) {
-            score += 24;
-        } else if (responseTime <= 1500) {
-            score += 16;
-        } else if (responseTime <= 3000) {
-            score += 8;
-        }
+        if (responseTime <= 300) return 30;
+        if (responseTime <= 800) return 24;
+        if (responseTime <= 1500) return 16;
+        if (responseTime <= 3000) return 8;
+        return 0;
+    }
 
-        // SSL / HTTPS Security (10 pts)
-        if (perf.isSecureSsl()) {
-            score += 10;
-        }
+    private int scoreAssetsAndCaching(PerformanceMetrics perf) {
+        int pts = 0;
+        if (perf.isSecureSsl()) pts += 10;
 
-        // Modern Images & Render-Blocking Optimization (15 pts)
         if (perf.getModernImageRatioPercentage() >= 60.0 || perf.getImageResourceCount() == 0) {
-            score += 8;
+            pts += 8;
         } else if (perf.getModernImageRatioPercentage() > 0) {
-            score += 4;
+            pts += 4;
         }
 
         if (perf.getRenderBlockingHeadScriptsCount() == 0) {
-            score += 7;
+            pts += 7;
         } else if (perf.getRenderBlockingHeadScriptsCount() <= 2) {
-            score += 3;
+            pts += 3;
         }
 
-        // Caching & Compression (15 pts)
-        if (perf.isHasCompression()) {
-            score += 8;
-        }
-        if (perf.isHasBrowserCaching()) {
-            score += 7;
-        }
-
-        return Math.clamp(score, 0, 100);
+        if (perf.isHasCompression()) pts += 8;
+        if (perf.isHasBrowserCaching()) pts += 7;
+        return pts;
     }
 }

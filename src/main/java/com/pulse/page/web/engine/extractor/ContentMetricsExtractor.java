@@ -65,92 +65,22 @@ public class ContentMetricsExtractor {
             headingCounts.put(tag, doc.select(tag).size());
         }
 
-        List<HeadingNode> headingHierarchy = new ArrayList<>();
         List<String> headingIssues = new ArrayList<>();
         List<String> duplicateHeadings = new ArrayList<>();
-        Set<String> seenHeadingTexts = new HashSet<>();
-
-        Elements headings = doc.select("h1, h2, h3, h4, h5, h6");
-        int lastLevel = 0;
-        int h1Count = 0;
-
-        for (Element h : headings) {
-            String tag = h.tagName().toLowerCase();
-            int currentLevel = Integer.parseInt(tag.substring(1));
-            String text = h.text().trim();
-            int lineHint = estimateLineNumber(doc, h);
-
-            List<String> issuesForNode = new ArrayList<>();
-
-            if (currentLevel == 1) {
-                h1Count++;
-            }
-
-            if (text.isBlank()) {
-                issuesForNode.add("EMPTY_HEADING");
-                headingIssues.add("Empty " + tag.toUpperCase() + " heading tag found (line ~" + lineHint + ")");
-            } else {
-                String normalizedText = text.toLowerCase();
-                if (!seenHeadingTexts.add(normalizedText)) {
-                    issuesForNode.add("DUPLICATE_TEXT");
-                    duplicateHeadings.add(text);
-                    headingIssues.add("Duplicate heading text: \"" + truncate(text, 40) + "\"");
-                }
-            }
-
-            // Check hierarchy level skipping (e.g. H1 to H3 without H2)
-            if (lastLevel > 0 && currentLevel > lastLevel + 1) {
-                issuesForNode.add("SKIPPED_LEVEL");
-                headingIssues.add("Heading level skipped: jumps from H" + lastLevel + " to H" + currentLevel + " without intermediate heading");
-            }
-
-            lastLevel = currentLevel;
-
-            headingHierarchy.add(HeadingNode.builder()
-                    .tag(tag)
-                    .level(currentLevel)
-                    .text(text)
-                    .estimatedLine(lineHint)
-                    .issues(issuesForNode)
-                    .build());
-        }
-
-        if (h1Count == 0) {
-            headingIssues.add(0, "Missing primary <h1> heading tag.");
-        } else if (h1Count > 1) {
-            headingIssues.add(0, "Multiple <h1> heading tags detected (" + h1Count + " tags found). WCAG & SEO best practices recommend 1 primary <h1> per page.");
-        }
-
+        List<HeadingNode> headingHierarchy = extractHeadingHierarchy(doc, headingIssues, duplicateHeadings);
         boolean hasValidHeadingHierarchy = headingIssues.isEmpty();
 
         // 2. Visible Text & Paragraphs
-        Document cleanDoc = doc.clone();
-        cleanDoc.select("script, style, noscript, svg, nav, footer, header, form").remove();
-        for (Element el : cleanDoc.select("h1, h2, h3, h4, h5, h6, p, li, blockquote, dt, dd")) {
-            String elText = el.text().trim();
-            if (!elText.isEmpty() && !elText.endsWith(".") && !elText.endsWith("!") && !elText.endsWith("?")) {
-                el.appendText(". ");
-            } else {
-                el.appendText(" ");
-            }
-        }
-
-        Element bodyEl = cleanDoc.body();
-        String visibleText = (bodyEl != null ? bodyEl.text() : cleanDoc.text()).trim();
+        String visibleText = extractVisibleText(doc);
         int charCount = visibleText.length();
-
-        String rawHtml = doc.html();
-        int totalHtmlLength = Math.max(1, rawHtml.length());
+        int totalHtmlLength = Math.max(1, doc.html().length());
         double textToHtmlRatio = ((double) charCount / totalHtmlLength) * 100.0;
-
-        Elements paragraphs = doc.select("p");
-        int paragraphCount = paragraphs.size();
+        int paragraphCount = doc.select("p").size();
 
         // 3. Word & Readability Metrics
         String[] rawWords = visibleText.isBlank() ? new String[0] : visibleText.split("\\s+");
         int wordCount = rawWords.length;
         int readingTimeMinutes = (int) Math.ceil((double) wordCount / WORDS_PER_MINUTE);
-
         ReadabilityMetrics readability = computeReadability(visibleText, rawWords);
 
         // 4. Keyword Density & N-Grams
@@ -159,24 +89,8 @@ public class ContentMetricsExtractor {
         boolean isThinContent = wordCount < 300;
 
         // 5. In-Content Link Density & Generic Anchor Analysis
-        Elements bodyLinks = doc.select("body a[href]");
-        int wordsInsideLinks = 0;
         List<String> genericAnchorWarnings = new ArrayList<>();
-
-        for (Element a : bodyLinks) {
-            String anchorText = a.text().trim();
-            if (!anchorText.isBlank()) {
-                wordsInsideLinks += anchorText.split("\\s+").length;
-                String normalizedAnchor = anchorText.toLowerCase();
-                if (GENERIC_ANCHOR_PATTERNS.contains(normalizedAnchor)) {
-                    genericAnchorWarnings.add("Generic non-descriptive anchor text: \"" + anchorText + "\"");
-                }
-            } else if (a.select("img").isEmpty()) {
-                genericAnchorWarnings.add("Empty anchor tag with no text or image alt: " + truncate(a.attr("href"), 40));
-            }
-        }
-
-        double linkDensity = wordCount > 0 ? ((double) wordsInsideLinks / wordCount) * 100.0 : 0.0;
+        double linkDensity = extractLinkMetrics(doc, wordCount, genericAnchorWarnings);
 
         return ContentMetrics.builder()
                 .headingCounts(headingCounts)
@@ -198,6 +112,91 @@ public class ContentMetricsExtractor {
                 .build();
     }
 
+    private List<HeadingNode> extractHeadingHierarchy(Document doc, List<String> headingIssues, List<String> duplicateHeadings) {
+        List<HeadingNode> hierarchy = new ArrayList<>();
+        Set<String> seenHeadingTexts = new HashSet<>();
+        Elements headings = doc.select("h1, h2, h3, h4, h5, h6");
+        int lastLevel = 0;
+        int h1Count = 0;
+
+        for (Element h : headings) {
+            String tag = h.tagName().toLowerCase();
+            int currentLevel = Integer.parseInt(tag.substring(1));
+            String text = h.text().trim();
+            int lineHint = estimateLineNumber(doc, h);
+            List<String> issuesForNode = new ArrayList<>();
+
+            if (currentLevel == 1) h1Count++;
+
+            if (text.isBlank()) {
+                issuesForNode.add("EMPTY_HEADING");
+                headingIssues.add("Empty " + tag.toUpperCase() + " heading tag found (line ~" + lineHint + ")");
+            } else {
+                String normalizedText = text.toLowerCase();
+                if (!seenHeadingTexts.add(normalizedText)) {
+                    issuesForNode.add("DUPLICATE_TEXT");
+                    duplicateHeadings.add(text);
+                    headingIssues.add("Duplicate heading text: \"" + truncate(text, 40) + "\"");
+                }
+            }
+
+            if (lastLevel > 0 && currentLevel > lastLevel + 1) {
+                issuesForNode.add("SKIPPED_LEVEL");
+                headingIssues.add("Heading level skipped: jumps from H" + lastLevel + " to H" + currentLevel + " without intermediate heading");
+            }
+
+            lastLevel = currentLevel;
+            hierarchy.add(HeadingNode.builder()
+                    .tag(tag)
+                    .level(currentLevel)
+                    .text(text)
+                    .estimatedLine(lineHint)
+                    .issues(issuesForNode)
+                    .build());
+        }
+
+        if (h1Count == 0) {
+            headingIssues.add(0, "Missing primary <h1> heading tag.");
+        } else if (h1Count > 1) {
+            headingIssues.add(0, "Multiple <h1> heading tags detected (" + h1Count + " tags found). WCAG & SEO best practices recommend 1 primary <h1> per page.");
+        }
+
+        return hierarchy;
+    }
+
+    private String extractVisibleText(Document doc) {
+        Document cleanDoc = doc.clone();
+        cleanDoc.select("script, style, noscript, svg, nav, footer, header, form").remove();
+        for (Element el : cleanDoc.select("h1, h2, h3, h4, h5, h6, p, li, blockquote, dt, dd")) {
+            String elText = el.text().trim();
+            if (!elText.isEmpty() && !elText.endsWith(".") && !elText.endsWith("!") && !elText.endsWith("?")) {
+                el.appendText(". ");
+            } else {
+                el.appendText(" ");
+            }
+        }
+        return cleanDoc.body().text().trim();
+    }
+
+    private double extractLinkMetrics(Document doc, int wordCount, List<String> genericAnchorWarnings) {
+        Elements bodyLinks = doc.select("body a[href]");
+        int wordsInsideLinks = 0;
+
+        for (Element a : bodyLinks) {
+            String anchorText = a.text().trim();
+            if (!anchorText.isBlank()) {
+                wordsInsideLinks += anchorText.split("\\s+").length;
+                String normalizedAnchor = anchorText.toLowerCase();
+                if (GENERIC_ANCHOR_PATTERNS.contains(normalizedAnchor)) {
+                    genericAnchorWarnings.add("Generic non-descriptive anchor text: \"" + anchorText + "\"");
+                }
+            } else if (a.select("img").isEmpty()) {
+                genericAnchorWarnings.add("Empty anchor tag with no text or image alt: " + truncate(a.attr("href"), 40));
+            }
+        }
+        return wordCount > 0 ? ((double) wordsInsideLinks / wordCount) * 100.0 : 0.0;
+    }
+
     private ReadabilityMetrics computeReadability(String text, String[] words) {
         if (text.isBlank() || words.length == 0) {
             return ReadabilityMetrics.builder()
@@ -205,11 +204,44 @@ public class ContentMetricsExtractor {
                     .build();
         }
 
-        // Sentences
         String[] sentences = text.split("(?<=[.!?])\\s+");
         int sentenceCount = Math.max(1, sentences.length);
         int totalWords = words.length;
 
+        WordStats stats = analyzeWordStats(words);
+
+        double avgWordsPerSentence = (double) totalWords / sentenceCount;
+        double avgSyllablesPerWord = totalWords > 0 ? (double) stats.totalSyllables / totalWords : 1.0;
+        double complexWordsPct = totalWords > 0 ? ((double) stats.complexWordsCount / totalWords) * 100.0 : 0.0;
+
+        // Flesch-Kincaid Reading Ease
+        double readingEase = 206.835 - (1.015 * avgWordsPerSentence) - (84.6 * avgSyllablesPerWord);
+        readingEase = Math.clamp(readingEase, 0.0, 100.0);
+
+        // Flesch-Kincaid Grade Level
+        double gradeLevel = (0.39 * avgWordsPerSentence) + (11.8 * avgSyllablesPerWord) - 15.59;
+        gradeLevel = Math.max(0.0, gradeLevel);
+
+        // Automated Readability Index (ARI)
+        double charsPerWord = totalWords > 0 ? (double) stats.totalCharsWithoutSpaces / totalWords : 4.5;
+        double ari = (4.71 * charsPerWord) + (0.5 * avgWordsPerSentence) - 21.43;
+        ari = Math.max(0.0, ari);
+
+        String level = classifyReadingEaseLevel(readingEase);
+
+        return ReadabilityMetrics.builder()
+                .fleschKincaidReadingEase(Math.round(readingEase * 10.0) / 10.0)
+                .fleschKincaidGradeLevel(Math.round(gradeLevel * 10.0) / 10.0)
+                .automatedReadabilityIndex(Math.round(ari * 10.0) / 10.0)
+                .readingEaseLevel(level)
+                .sentenceCount(sentenceCount)
+                .averageWordsPerSentence(Math.round(avgWordsPerSentence * 10.0) / 10.0)
+                .averageSyllablesPerWord(Math.round(avgSyllablesPerWord * 100.0) / 100.0)
+                .complexWordsPercentage(Math.round(complexWordsPct * 10.0) / 10.0)
+                .build();
+    }
+
+    private WordStats analyzeWordStats(String[] words) {
         int totalSyllables = 0;
         int complexWordsCount = 0;
         int totalCharsWithoutSpaces = 0;
@@ -225,43 +257,17 @@ public class ContentMetricsExtractor {
                 complexWordsCount++;
             }
         }
+        return new WordStats(totalSyllables, complexWordsCount, totalCharsWithoutSpaces);
+    }
 
-        double avgWordsPerSentence = (double) totalWords / sentenceCount;
-        double avgSyllablesPerWord = totalWords > 0 ? (double) totalSyllables / totalWords : 1.0;
-        double complexWordsPct = totalWords > 0 ? ((double) complexWordsCount / totalWords) * 100.0 : 0.0;
-
-        // Flesch-Kincaid Reading Ease: 206.835 - 1.015 * (totalWords / totalSentences) - 84.6 * (totalSyllables / totalWords)
-        double readingEase = 206.835 - (1.015 * avgWordsPerSentence) - (84.6 * avgSyllablesPerWord);
-        readingEase = Math.clamp(readingEase, 0.0, 100.0);
-
-        // Flesch-Kincaid Grade Level: 0.39 * (totalWords / totalSentences) + 11.8 * (totalSyllables / totalWords) - 15.59
-        double gradeLevel = (0.39 * avgWordsPerSentence) + (11.8 * avgSyllablesPerWord) - 15.59;
-        gradeLevel = Math.max(0.0, gradeLevel);
-
-        // Automated Readability Index (ARI): 4.71 * (characters / words) + 0.5 * (words / sentences) - 21.43
-        double charsPerWord = totalWords > 0 ? (double) totalCharsWithoutSpaces / totalWords : 4.5;
-        double ari = (4.71 * charsPerWord) + (0.5 * avgWordsPerSentence) - 21.43;
-        ari = Math.max(0.0, ari);
-
-        String level;
-        if (readingEase >= 90) level = "Very Easy (5th Grade)";
-        else if (readingEase >= 80) level = "Easy (6th Grade)";
-        else if (readingEase >= 70) level = "Fairly Easy (7th Grade)";
-        else if (readingEase >= 60) level = "Standard (8th-9th Grade)";
-        else if (readingEase >= 50) level = "Fairly Difficult (10th-12th Grade)";
-        else if (readingEase >= 30) level = "Difficult (College Level)";
-        else level = "Very Difficult (Graduate Level)";
-
-        return ReadabilityMetrics.builder()
-                .fleschKincaidReadingEase(Math.round(readingEase * 10.0) / 10.0)
-                .fleschKincaidGradeLevel(Math.round(gradeLevel * 10.0) / 10.0)
-                .automatedReadabilityIndex(Math.round(ari * 10.0) / 10.0)
-                .readingEaseLevel(level)
-                .sentenceCount(sentenceCount)
-                .averageWordsPerSentence(Math.round(avgWordsPerSentence * 10.0) / 10.0)
-                .averageSyllablesPerWord(Math.round(avgSyllablesPerWord * 100.0) / 100.0)
-                .complexWordsPercentage(Math.round(complexWordsPct * 10.0) / 10.0)
-                .build();
+    private String classifyReadingEaseLevel(double readingEase) {
+        if (readingEase >= 90) return "Very Easy (5th Grade)";
+        if (readingEase >= 80) return "Easy (6th Grade)";
+        if (readingEase >= 70) return "Fairly Easy (7th Grade)";
+        if (readingEase >= 60) return "Standard (8th-9th Grade)";
+        if (readingEase >= 50) return "Fairly Difficult (10th-12th Grade)";
+        if (readingEase >= 30) return "Difficult (College Level)";
+        return "Very Difficult (Graduate Level)";
     }
 
     private int countSyllables(String word) {
@@ -293,7 +299,7 @@ public class ContentMetricsExtractor {
         Map<String, Integer> unigramCounts = new HashMap<>();
         Map<String, Integer> bigramCounts = new HashMap<>();
 
-        // Unigrams (filtered for stop words)
+        // Unigrams
         for (String token : cleanedTokens) {
             if (token.length() >= 3 && !STOP_WORDS.contains(token)) {
                 unigramCounts.put(token, unigramCounts.getOrDefault(token, 0) + 1);
@@ -361,4 +367,6 @@ public class ContentMetricsExtractor {
         if (str == null) return "";
         return str.length() <= max ? str : str.substring(0, max) + "...";
     }
+
+    private record WordStats(int totalSyllables, int complexWordsCount, int totalCharsWithoutSpaces) {}
 }

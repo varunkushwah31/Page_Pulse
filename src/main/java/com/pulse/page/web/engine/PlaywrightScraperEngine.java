@@ -4,10 +4,9 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
-
 import com.pulse.page.web.engine.PageScraperEngine.ScrapeResult;
-import com.pulse.page.web.exception.AuditTimeoutException;
 import com.pulse.page.web.exception.TargetHostUnreachableException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -16,17 +15,41 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class PlaywrightScraperEngine {
 
-    private static final int TIMEOUT_MS = 15000;
+    private static final int TIMEOUT_MS = 10000;
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
-    public ScrapeResult fetchPageWithJs(String targetUrl) throws IOException {
-        log.info("Fetching target page with Playwright JS rendering: {}", targetUrl);
+    private final PageScraperEngine pageScraperEngine;
 
+    public ScrapeResult fetchPageWithJs(String targetUrl) throws IOException {
+        log.info("Fetching target page with JS rendering requested: {}", targetUrl);
+
+        try {
+            CompletableFuture<ScrapeResult> future = CompletableFuture.supplyAsync(() -> executePlaywrightScrape(targetUrl));
+            return future.get(5, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("Playwright JS rendering timed out for URL: {}, falling back to standard HTTP scraper", targetUrl);
+            return pageScraperEngine.fetchPage(targetUrl);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            log.warn("Playwright headless browser engine unavailable or failed on host ({}). Gracefully falling back to standard HTTP scraper for URL: {}", cause.getMessage(), targetUrl);
+            return pageScraperEngine.fetchPage(targetUrl);
+        } catch (Exception e) {
+            log.warn("Playwright execution failed ({}). Falling back to standard HTTP scraper for URL: {}", e.getMessage(), targetUrl);
+            return pageScraperEngine.fetchPage(targetUrl);
+        }
+    }
+
+    private ScrapeResult executePlaywrightScrape(String targetUrl) {
         long startTime = System.currentTimeMillis();
 
         try (Playwright playwright = Playwright.create()) {
@@ -51,7 +74,6 @@ public class PlaywrightScraperEngine {
                 String contentType = response.headers().getOrDefault("content-type", "text/html");
 
                 Map<String, String> headers = new HashMap<>(response.headers());
-
                 Document document = Jsoup.parse(htmlContent, targetUrl);
 
                 return ScrapeResult.builder()
@@ -66,21 +88,12 @@ public class PlaywrightScraperEngine {
             } finally {
                 browser.close();
             }
-        } catch (com.microsoft.playwright.TimeoutError e) {
-            log.error("Playwright navigation timed out for {}", targetUrl, e);
-            throw new AuditTimeoutException("Playwright JS rendering timed out after 15000ms: " + targetUrl, e);
-        } catch (Exception e) {
-            log.error("Playwright scraping error for {}: {}", targetUrl, e.getMessage(), e);
-            if (e instanceof RuntimeException re) {
-                throw re;
-            }
-            throw new TargetHostUnreachableException("Playwright headless browser error for target URL: " + targetUrl, e);
         }
     }
 
     private void waitForDomLoadState(Page page, String targetUrl) {
         try {
-            page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(5000));
+            page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(3000));
         } catch (Exception e) {
             log.debug("Network idle timeout reached for {}, proceeding with rendered DOM: {}", targetUrl, e.getMessage());
         }

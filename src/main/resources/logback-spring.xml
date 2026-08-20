@@ -31,9 +31,9 @@
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_DIR}/application.json</file>
+        <file>${LOG_DIR}/application.jsonl</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_DIR}/application-%d{yyyy-MM-dd}.json.gz</fileNamePattern>
+            <fileNamePattern>${LOG_DIR}/application-%d{yyyy-MM-dd}.jsonl.gz</fileNamePattern>
             <maxHistory>30</maxHistory>
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>

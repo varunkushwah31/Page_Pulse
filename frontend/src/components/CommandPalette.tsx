@@ -196,17 +196,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   if (!isOpen) return null;
 
   return (
-    <div
-      role="presentation"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in-up"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in-up">
+      <button
+        type="button"
+        className="fixed inset-0 w-full h-full bg-transparent border-0 cursor-default"
+        onClick={onClose}
+        aria-label="Close command palette"
+        tabIndex={-1}
+      />
+      <dialog
+        open
         aria-label="Command Palette"
-        className="w-full max-w-xl rounded-xl border border-[#262B33] bg-[#12151A] shadow-2xl overflow-hidden font-mono text-xs text-[#E7EAEE]"
-        onClick={(e) => e.stopPropagation()}
+        className="relative z-10 w-full max-w-xl rounded-xl border border-[#262B33] bg-[#12151A] shadow-2xl overflow-hidden font-mono text-xs text-[#E7EAEE] p-0 m-0 block"
         onKeyDown={handleKeyDown}
       >
         {/* Search Header Input */}
@@ -349,7 +350,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           </div>
           <span className="text-[#4FD8C4] font-semibold">PAGE PULSE</span>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 };

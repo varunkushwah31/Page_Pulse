@@ -39,7 +39,7 @@ public class PlaywrightScraperEngine {
         } catch (TimeoutException _) {
             log.warn("Playwright JS rendering timed out for URL: {}, falling back to standard HTTP scraper", targetUrl);
             return pageScraperEngine.fetchPage(targetUrl);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             log.warn("Playwright execution interrupted for URL: {}, falling back to standard HTTP scraper", targetUrl);
             return pageScraperEngine.fetchPage(targetUrl);

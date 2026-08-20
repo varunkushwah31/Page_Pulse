@@ -36,6 +36,7 @@ class ReportControllerTest {
     private PdfReportGeneratorService pdfReportGeneratorService;
 
     @BeforeEach
+    @SuppressWarnings({"deprecation", "removal"})
     void setUp() {
         ReportController controller = new ReportController(reportSearchService, pdfReportGeneratorService);
         com.fasterxml.jackson.databind.ObjectMapper mapper = new com.pulse.page.web.config.JacksonConfig().objectMapper();

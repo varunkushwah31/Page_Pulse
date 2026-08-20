@@ -27,7 +27,7 @@ export const ScheduledAuditConsole: React.FC = () => {
       const data = await fetchScheduledAudits();
       setSchedules(data);
     } catch (err) {
-      // Quiet fallback when user has no monitors configured yet
+      console.warn('Could not load scheduled audits:', err);
       setSchedules([]);
     } finally {
       setFetching(false);
@@ -38,7 +38,7 @@ export const ScheduledAuditConsole: React.FC = () => {
     loadSchedules();
   }, []);
 
-  const handleRegisterSchedule = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleRegisterSchedule = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!targetUrl.trim() || loading) return;
 

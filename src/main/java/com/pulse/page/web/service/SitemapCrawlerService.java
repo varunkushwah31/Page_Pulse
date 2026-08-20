@@ -46,14 +46,43 @@ public class SitemapCrawlerService {
         log.info("Starting sitemap audit for: {}", sitemapUrl);
 
         List<String> candidateUrls = buildCandidateSitemapUrls(sitemapUrl);
-        Document xmlDoc = null;
+        ResolvedSitemapTarget resolvedTarget = resolveTargetUrls(sitemapUrl, candidateUrls, maxUrls);
+        List<String> targetUrls = resolvedTarget.targetUrls();
+        String resolvedSitemapUrl = resolvedTarget.resolvedUrl();
+
+        log.info("Auditing {} URLs concurrently using Java Virtual Threads", targetUrls.size());
+        List<AuditResponse> childAudits = executeConcurrentAudits(targetUrls);
+
+        if (childAudits.isEmpty()) {
+            throw new TargetHostUnreachableException("Failed to audit any URLs from sitemap " + resolvedSitemapUrl + ". Target servers were unreachable or blocked the scraper.");
+        }
+
+        double avgScore = childAudits.stream()
+            .mapToInt(a -> a.getScores() != null ? a.getScores().getOverallScore() : 0)
+            .average()
+            .orElse(0.0);
+
+        double roundedAvgScore = Math.round(avgScore * 100.0) / 100.0;
+        saveSnapshotQuietly(resolvedSitemapUrl, childAudits, roundedAvgScore);
+
+        return SitemapAuditResponse.builder()
+            .sitemapUrl(resolvedSitemapUrl)
+            .totalUrlsAudited(childAudits.size())
+            .averageOverallScore(roundedAvgScore)
+            .childAudits(childAudits)
+            .build();
+    }
+
+    private record ResolvedSitemapTarget(String resolvedUrl, List<String> targetUrls) {}
+
+    private ResolvedSitemapTarget resolveTargetUrls(String sitemapUrl, List<String> candidateUrls, int maxUrls) {
         String resolvedSitemapUrl = sitemapUrl;
         List<String> targetUrls = new ArrayList<>();
         Exception lastException = null;
 
         for (String candidateUrl : candidateUrls) {
             try {
-                xmlDoc = fetchSitemapXmlDocument(candidateUrl);
+                Document xmlDoc = fetchSitemapXmlDocument(candidateUrl);
                 targetUrls = extractTargetUrls(xmlDoc, candidateUrl, maxUrls);
                 if (!targetUrls.isEmpty()) {
                     resolvedSitemapUrl = candidateUrl;
@@ -73,21 +102,10 @@ public class SitemapCrawlerService {
             throw new IllegalArgumentException("No valid web page URLs found in sitemap or index at: " + sitemapUrl + (lastException != null ? " (" + lastException.getMessage() + ")" : ""));
         }
 
-        log.info("Auditing {} URLs concurrently using Java Virtual Threads", targetUrls.size());
-        List<AuditResponse> childAudits = executeConcurrentAudits(targetUrls);
+        return new ResolvedSitemapTarget(resolvedSitemapUrl, targetUrls);
+    }
 
-        if (childAudits.isEmpty()) {
-            throw new TargetHostUnreachableException("Failed to audit any URLs from sitemap " + resolvedSitemapUrl + ". Target servers were unreachable or blocked the scraper.");
-        }
-
-        double avgScore = childAudits.stream()
-            .mapToInt(a -> a.getScores() != null ? a.getScores().getOverallScore() : 0)
-            .average()
-            .orElse(0.0);
-
-        double roundedAvgScore = Math.round(avgScore * 100.0) / 100.0;
-
-        // Persist SitemapSnapshot in MongoDB for Delta Diff Engine
+    private void saveSnapshotQuietly(String resolvedSitemapUrl, List<AuditResponse> childAudits, double roundedAvgScore) {
         try {
             Map<String, Integer> urlScores = new HashMap<>();
             for (AuditResponse child : childAudits) {
@@ -109,13 +127,6 @@ public class SitemapCrawlerService {
         } catch (Exception e) {
             log.warn("Failed to save sitemap snapshot to MongoDB: {}", e.getMessage());
         }
-
-        return SitemapAuditResponse.builder()
-            .sitemapUrl(resolvedSitemapUrl)
-            .totalUrlsAudited(childAudits.size())
-            .averageOverallScore(roundedAvgScore)
-            .childAudits(childAudits)
-            .build();
     }
 
     public SitemapDeltaResponse computeDelta(String rawSitemapUrl) {
@@ -130,18 +141,26 @@ public class SitemapCrawlerService {
         SitemapSnapshot previous = snapshots.size() > 1 ? snapshots.get(1) : null;
 
         if (previous == null) {
-            return SitemapDeltaResponse.builder()
-                .sitemapUrl(sitemapUrl)
-                .currentCrawlTimestamp(current.getCrawlTimestamp())
-                .previousCrawlTimestamp(null)
-                .newPages(new ArrayList<>(current.getUrlScores() != null ? current.getUrlScores().keySet() : List.of()))
-                .removedPages(List.of())
-                .scoreRegressions(List.of())
-                .scoreImprovements(List.of())
-                .unchangedCount(0)
-                .build();
+            return buildInitialDeltaResponse(sitemapUrl, current);
         }
 
+        return buildComparisonDeltaResponse(sitemapUrl, current, previous);
+    }
+
+    private SitemapDeltaResponse buildInitialDeltaResponse(String sitemapUrl, SitemapSnapshot current) {
+        return SitemapDeltaResponse.builder()
+            .sitemapUrl(sitemapUrl)
+            .currentCrawlTimestamp(current.getCrawlTimestamp())
+            .previousCrawlTimestamp(null)
+            .newPages(new ArrayList<>(current.getUrlScores() != null ? current.getUrlScores().keySet() : List.of()))
+            .removedPages(List.of())
+            .scoreRegressions(List.of())
+            .scoreImprovements(List.of())
+            .unchangedCount(0)
+            .build();
+    }
+
+    private SitemapDeltaResponse buildComparisonDeltaResponse(String sitemapUrl, SitemapSnapshot current, SitemapSnapshot previous) {
         Map<String, Integer> currScores = current.getUrlScores() != null ? current.getUrlScores() : Map.of();
         Map<String, Integer> prevScores = previous.getUrlScores() != null ? previous.getUrlScores() : Map.of();
 
@@ -295,7 +314,7 @@ public class SitemapCrawlerService {
         }
 
         byte[] rawBytes = response.bodyAsBytes();
-        if (rawBytes == null || rawBytes.length == 0) {
+        if (rawBytes.length == 0) {
             throw new IllegalArgumentException("Target sitemap URL returned an empty response body: " + targetUrl);
         }
 
@@ -324,62 +343,78 @@ public class SitemapCrawlerService {
         int effectiveLimit = maxUrls > 0 ? maxUrls : 10;
 
         // 1. Check if this is a <sitemapindex> containing child <sitemap> entries
-        Elements sitemapElements = xmlDoc.getElementsByTag("sitemap");
-        if (!sitemapElements.isEmpty()) {
-            log.info("Detected sitemap index with {} <sitemap> entries in {}", sitemapElements.size(), sitemapUrl);
-            int childCount = 0;
-
-            for (Element sitemapElem : sitemapElements) {
-                if (pageUrls.size() >= effectiveLimit || childCount >= 5) {
-                    break;
-                }
-                Element locNode = sitemapElem.getElementsByTag("loc").first();
-                if (locNode == null) continue;
-
-                String childSitemapUrl = locNode.text().trim();
-                if (childSitemapUrl.isBlank()) continue;
-
-                childCount++;
-                try {
-                    log.info("Expanding child sitemap [#{}/{}]: {}", childCount, sitemapElements.size(), childSitemapUrl);
-                    Document childDoc = fetchSitemapXmlDocument(childSitemapUrl);
-                    
-                    for (Element childLoc : childDoc.getElementsByTag("loc")) {
-                        if (pageUrls.size() >= effectiveLimit) break;
-                        String pageUrl = childLoc.text().trim();
-                        if (isValidWebPageUrl(pageUrl)) {
-                            pageUrls.add(pageUrl);
-                        }
-                    }
-                } catch (Exception e) {
-                    log.warn("Could not parse child sitemap {}: {}", childSitemapUrl, e.getMessage());
-                }
-            }
-        }
+        extractFromSitemapIndex(xmlDoc, sitemapUrl, effectiveLimit, pageUrls);
 
         // 2. Direct <loc> elements in standard <urlset>
         if (pageUrls.isEmpty()) {
-            for (Element locElem : xmlDoc.getElementsByTag("loc")) {
-                if (pageUrls.size() >= effectiveLimit) break;
-                String pageUrl = locElem.text().trim();
-                if (isValidWebPageUrl(pageUrl)) {
-                    pageUrls.add(pageUrl);
-                }
-            }
+            extractFromDirectLocTags(xmlDoc, effectiveLimit, pageUrls);
         }
 
         // 3. Regex fallback to extract <loc> tags directly from raw XML string
         if (pageUrls.isEmpty()) {
-            Matcher matcher = LOC_TAG_REGEX.matcher(xmlDoc.html());
-            while (matcher.find() && pageUrls.size() < effectiveLimit) {
-                String candidate = matcher.group(1).trim();
-                if (isValidWebPageUrl(candidate)) {
-                    pageUrls.add(candidate);
-                }
-            }
+            extractFromRegexFallback(xmlDoc, effectiveLimit, pageUrls);
         }
 
         return new ArrayList<>(pageUrls);
+    }
+
+    private void extractFromSitemapIndex(Document xmlDoc, String sitemapUrl, int effectiveLimit, Set<String> pageUrls) {
+        Elements sitemapElements = xmlDoc.getElementsByTag("sitemap");
+        if (sitemapElements.isEmpty()) return;
+
+        log.info("Detected sitemap index with {} <sitemap> entries in {}", sitemapElements.size(), sitemapUrl);
+        int childCount = 0;
+
+        for (Element sitemapElem : sitemapElements) {
+            if (pageUrls.size() >= effectiveLimit || childCount >= 5) {
+                break;
+            }
+            Element locNode = sitemapElem.getElementsByTag("loc").first();
+            if (locNode == null) continue;
+
+            String childSitemapUrl = locNode.text().trim();
+            if (childSitemapUrl.isBlank()) continue;
+
+            childCount++;
+            expandChildSitemap(childSitemapUrl, childCount, sitemapElements.size(), effectiveLimit, pageUrls);
+        }
+    }
+
+    private void expandChildSitemap(String childSitemapUrl, int childIndex, int totalChildren, int effectiveLimit, Set<String> pageUrls) {
+        try {
+            log.info("Expanding child sitemap [#{}/{}]: {}", childIndex, totalChildren, childSitemapUrl);
+            Document childDoc = fetchSitemapXmlDocument(childSitemapUrl);
+
+            for (Element childLoc : childDoc.getElementsByTag("loc")) {
+                if (pageUrls.size() >= effectiveLimit) break;
+                String pageUrl = childLoc.text().trim();
+                if (isValidWebPageUrl(pageUrl)) {
+                    pageUrls.add(pageUrl);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not parse child sitemap {}: {}", childSitemapUrl, e.getMessage());
+        }
+    }
+
+    private void extractFromDirectLocTags(Document xmlDoc, int effectiveLimit, Set<String> pageUrls) {
+        for (Element locElem : xmlDoc.getElementsByTag("loc")) {
+            if (pageUrls.size() >= effectiveLimit) break;
+            String pageUrl = locElem.text().trim();
+            if (isValidWebPageUrl(pageUrl)) {
+                pageUrls.add(pageUrl);
+            }
+        }
+    }
+
+    private void extractFromRegexFallback(Document xmlDoc, int effectiveLimit, Set<String> pageUrls) {
+        Matcher matcher = LOC_TAG_REGEX.matcher(xmlDoc.html());
+        while (matcher.find() && pageUrls.size() < effectiveLimit) {
+            String candidate = matcher.group(1).trim();
+            if (isValidWebPageUrl(candidate)) {
+                pageUrls.add(candidate);
+            }
+        }
     }
 
     private boolean isValidWebPageUrl(String url) {
@@ -388,15 +423,14 @@ public class SitemapCrawlerService {
         if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false;
 
         String lower = trimmed.toLowerCase();
-        // Filter out child XML/GZ sitemaps or binary static media from being treated as audit HTML targets
-        if (lower.endsWith(".xml") || lower.endsWith(".xml.gz") || lower.endsWith(".gz") ||
-            lower.endsWith(".pdf") || lower.endsWith(".zip") || lower.endsWith(".tar") ||
-            lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") ||
-            lower.endsWith(".gif") || lower.endsWith(".svg") || lower.endsWith(".mp4")) {
-            return false;
-        }
+        return !isDisallowedMediaOrArchiveExtension(lower);
+    }
 
-        return true;
+    private boolean isDisallowedMediaOrArchiveExtension(String lower) {
+        return lower.endsWith(".xml") || lower.endsWith(".xml.gz") || lower.endsWith(".gz")
+                || lower.endsWith(".pdf") || lower.endsWith(".zip") || lower.endsWith(".tar")
+                || lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+                || lower.endsWith(".gif") || lower.endsWith(".svg") || lower.endsWith(".mp4");
     }
 
     private List<AuditResponse> executeConcurrentAudits(List<String> targetUrls) {

@@ -15,9 +15,7 @@ import {
   PlusIcon,
   TrashIcon,
   LockIcon,
-  ClockIcon,
-  EnvelopeIcon,
-  ShieldCheckIcon
+  EnvelopeIcon
 } from '@phosphor-icons/react';
 
 export const UserProfilePage: React.FC = () => {
@@ -44,7 +42,9 @@ export const UserProfilePage: React.FC = () => {
       const count = Array.isArray(reports) ? reports.length : (reports?.totalElements ?? reports?.content?.length ?? 0);
       setSavedReportsCount(count);
       setScheduledMonitorsCount(schedules.length);
-    } catch (_) {}
+    } catch (err) {
+      console.warn('Failed to load user profile metrics:', err);
+    }
   };
 
   useEffect(() => {
@@ -117,7 +117,7 @@ export const UserProfilePage: React.FC = () => {
   }
 
   /* ─── Authenticated Handlers ─── */
-  const handleCreateApiKey = async (e: React.FormEvent) => {
+  const handleCreateApiKey = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newKeyName.trim() || loading) return;
 
@@ -147,7 +147,9 @@ export const UserProfilePage: React.FC = () => {
     try {
       await revokeApiKey(id);
       await loadData();
-    } catch (_) {}
+    } catch (err) {
+      console.warn('Failed to revoke API key:', err);
+    }
   };
 
   const handleLogout = () => {

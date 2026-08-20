@@ -18,7 +18,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
   const [url, setUrl] = useState(initialValue);
   const [enableJsRendering, setEnableJsRendering] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!url.trim() || isLoading) return;
     onAuditSubmit(url.trim(), enableJsRendering);

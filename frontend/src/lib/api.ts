@@ -73,6 +73,7 @@ export function streamFullAuditProgress(
       const errorData = JSON.parse(event.data);
       onError(errorData.message || 'Streaming audit failed.');
     } catch (e) {
+      console.warn('Failed to parse SSE error payload:', e);
       onError('Audit stream disconnected unexpectedly.');
     }
     eventSource.close();

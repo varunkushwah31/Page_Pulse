@@ -6,13 +6,14 @@ import com.pulse.page.web.dto.AuditResponse;
 import com.pulse.page.web.model.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
+import org.springframework.beans.factory.annotation.Autowired;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 @Slf4j
 @Service
+@Autowired
 public class AiRecommendationService {
 
     private static final String CATEGORY_SEO = "SEO";
@@ -34,10 +35,15 @@ public class AiRecommendationService {
     private static final String SCORE_IMPROVE_MEDIUM = "+5 to +8 pts";
     private static final String SCORE_IMPROVE_LOW = "+3 to +5 pts";
 
-    private final AppProperties appProperties;
+    private static final String TITLE_TAG = "<title>";
+    private static final String DEFAULT_DOMAIN = "example.com";
+
+    public AiRecommendationService() {
+        // Default constructor
+    }
 
     public AiRecommendationService(AppProperties appProperties) {
-        this.appProperties = appProperties;
+        // Maintained for backwards compatibility
     }
 
     public List<AiRecommendationDto> generateRecommendations(AuditResponse report) {
@@ -75,8 +81,8 @@ public class AiRecommendationService {
                     .priority(PRIORITY_P0)
                     .issue("Missing HTML <title> element in document <head>.")
                     .title("Add Descriptive Page Title Tag")
-                    .codeSnippet("<title>" + capitalizeDomain(domain) + " | Official Website</title>")
-                    .diffSnippet("- <head>\n+ <head>\n+   <title>" + capitalizeDomain(domain) + " | Official Website</title>")
+                    .codeSnippet(TITLE_TAG + capitalizeDomain(domain) + " | Official Website</title>")
+                    .diffSnippet("- <head>\n+ <head>\n+   " + TITLE_TAG + capitalizeDomain(domain) + " | Official Website</title>")
                     .targetElementSelector("head")
                     .explanation("Title tags define the document title displayed on Search Engine Results Pages (SERPs) and browser tabs.")
                     .impactLevel(IMPACT_HIGH)
@@ -90,8 +96,8 @@ public class AiRecommendationService {
                     .priority(PRIORITY_P2)
                     .issue("Page title exceeds optimal 60 character SERP limit (" + seo.getTitleLength() + " chars).")
                     .title("Optimize Page Title Length")
-                    .codeSnippet("<title>" + optimizedTitle + "</title>")
-                    .diffSnippet("- <title>" + seo.getPageTitle() + "</title>\n+ <title>" + optimizedTitle + "</title>")
+                    .codeSnippet(TITLE_TAG + optimizedTitle + "</title>")
+                    .diffSnippet("- " + TITLE_TAG + seo.getPageTitle() + "</title>\n+ " + TITLE_TAG + optimizedTitle + "</title>")
                     .targetElementSelector("head > title")
                     .explanation("Search engines truncate titles longer than 60 characters (~600px). Truncate long titles to prevent clipping on mobile and desktop.")
                     .impactLevel(IMPACT_MEDIUM)
@@ -104,8 +110,8 @@ public class AiRecommendationService {
                     .priority(PRIORITY_P2)
                     .issue("Page title is too brief (" + seo.getTitleLength() + " chars).")
                     .title("Expand Descriptive Page Title")
-                    .codeSnippet("<title>" + seo.getPageTitle() + " - " + capitalizeDomain(domain) + " Official Guide</title>")
-                    .diffSnippet("- <title>" + seo.getPageTitle() + "</title>\n+ <title>" + seo.getPageTitle() + " - " + capitalizeDomain(domain) + " Official Guide</title>")
+                    .codeSnippet(TITLE_TAG + seo.getPageTitle() + " - " + capitalizeDomain(domain) + " Official Guide</title>")
+                    .diffSnippet("- " + TITLE_TAG + seo.getPageTitle() + "</title>\n+ " + TITLE_TAG + seo.getPageTitle() + " - " + capitalizeDomain(domain) + " Official Guide</title>")
                     .targetElementSelector("head > title")
                     .explanation("Descriptive titles between 30-60 characters capture search intent and improve click-through rates.")
                     .impactLevel(IMPACT_MEDIUM)
@@ -514,7 +520,7 @@ public class AiRecommendationService {
     }
 
     private String extractDomainFromUrl(String url) {
-        if (url == null || url.isBlank()) return "example.com";
+        if (url == null || url.isBlank()) return DEFAULT_DOMAIN;
         try {
             String clean = url.replace("http://", "").replace("https://", "");
             int slashIdx = clean.indexOf('/');
@@ -525,9 +531,9 @@ public class AiRecommendationService {
             if (colonIdx != -1) {
                 clean = clean.substring(0, colonIdx);
             }
-            return clean.isBlank() ? "example.com" : clean;
-        } catch (Exception e) {
-            return "example.com";
+            return clean.isBlank() ? DEFAULT_DOMAIN : clean;
+        } catch (Exception _) {
+            return DEFAULT_DOMAIN;
         }
     }
 

@@ -11,6 +11,7 @@ import com.pulse.page.web.model.*;
 import com.pulse.page.web.repository.jpa.AuditReportJpaRepository;
 import com.pulse.page.web.repository.mongo.AuditReportMongoRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -34,18 +35,17 @@ class PdfReportGeneratorServiceTest {
     @Mock
     private CacheService cacheService;
 
-    private AiRecommendationService recommendationService;
-
     private PdfReportGeneratorService pdfReportGeneratorService;
 
     @BeforeEach
     void setUp() {
-        recommendationService = new AiRecommendationService(new AppProperties());
+        AiRecommendationService recommendationService = new AiRecommendationService(new AppProperties());
         pdfReportGeneratorService = new PdfReportGeneratorService(mongoRepository, jpaRepository, cacheService, recommendationService);
     }
 
     @Test
-    void generatePdfReport_existingMongoReport_returnsNonEmptyPdfBytes() {
+    @DisplayName("Should generate non-empty PDF bytes for existing Mongo report")
+    void generatePdfReportExistingMongoReportReturnsNonEmptyPdfBytes() {
         AuditReportDocument doc = AuditReportDocument.builder()
             .id("doc-100")
             .url("https://example.com")
@@ -70,7 +70,8 @@ class PdfReportGeneratorServiceTest {
     }
 
     @Test
-    void generatePdfReport_existingJpaTransientReport_returnsNonEmptyPdfBytes() {
+    @DisplayName("Should generate non-empty PDF bytes for existing JPA transient report")
+    void generatePdfReportExistingJpaTransientReportReturnsNonEmptyPdfBytes() {
         AuditReportEntity entity = AuditReportEntity.builder()
             .id(42L)
             .url("https://transient-example.com")
@@ -96,7 +97,8 @@ class PdfReportGeneratorServiceTest {
     }
 
     @Test
-    void generatePdfReportFromAudit_withFullMetrics_generatesDetailedPdf() {
+    @DisplayName("Should generate detailed PDF report with full metrics")
+    void generatePdfReportFromAuditWithFullMetricsGeneratesDetailedPdf() {
         AuditResponse audit = AuditResponse.builder()
             .id(1L)
             .url("https://wikipedia.org")
@@ -183,7 +185,8 @@ class PdfReportGeneratorServiceTest {
     }
 
     @Test
-    void generatePdfReport_missingReport_throwsReportNotFoundException() {
+    @DisplayName("Should throw ReportNotFoundException when report is missing")
+    void generatePdfReportMissingReportThrowsReportNotFoundException() {
         when(mongoRepository.findById("doc-missing")).thenReturn(Optional.empty());
 
         assertThrows(ReportNotFoundException.class, () ->

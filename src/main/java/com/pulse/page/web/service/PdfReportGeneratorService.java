@@ -80,6 +80,18 @@ public class PdfReportGeneratorService {
     private static final Font FONT_SCORE_HERO = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 26, Color.WHITE);
     private static final Font FONT_GRADE_HERO = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9.5f, Color.WHITE);
 
+    // Common Table & Metric Constants
+    private static final String STATUS_GOOD = "GOOD";
+    private static final String STATUS_NEEDS_IMPROVEMENT = "NEEDS_IMPROVEMENT";
+    private static final String STATUS_POOR = "POOR";
+    private static final String STATUS_PASS = "PASS";
+    private static final String STATUS_WARN = "WARN";
+    private static final String STATUS_FAIL = "FAIL";
+    private static final String STATUS_INFO = "INFO";
+    private static final String LABEL_STATUS = "Status";
+    private static final String LABEL_DETECTED = "Detected";
+    private static final String PROTOCOL_HTTPS = "https";
+
     public byte[] generatePdfReport(String reportId) {
         return generatePdfReport(reportId, null);
     }
@@ -279,6 +291,50 @@ public class PdfReportGeneratorService {
         pdfDoc.add(container);
     }
 
+    private String assessVital(double value, double goodThreshold, double needsImpThreshold) {
+        if (value <= goodThreshold) return STATUS_GOOD;
+        if (value <= needsImpThreshold) return STATUS_NEEDS_IMPROVEMENT;
+        return STATUS_POOR;
+    }
+
+    private String getOpenGraphSummary(SeoMetrics seo) {
+        if (seo.isOpenGraphComplete()) return "Complete Social Tags";
+        if (seo.getOpenGraphTags() != null && !seo.getOpenGraphTags().isEmpty()) return "Partial OG Tags";
+        return "Missing OG Tags";
+    }
+
+    private String getTwitterCardSummary(SeoMetrics seo) {
+        if (seo.isTwitterCardComplete()) return "Twitter Card Active";
+        if (seo.getTwitterCardTags() != null && !seo.getTwitterCardTags().isEmpty()) return "Partial Twitter Tags";
+        return "Not declared";
+    }
+
+    private String getSchemaSummary(SeoMetrics seo) {
+        if (seo.getStructuredDataInfo() != null && seo.getStructuredDataInfo().isHasStructuredData()) {
+            return LABEL_DETECTED + ": " + String.join(", ", seo.getStructuredDataInfo().getDetectedSchemaTypes());
+        }
+        return seo.isHasStructuredData() ? "Schema Detected" : "No JSON-LD Schema Detected";
+    }
+
+    private String getSslSummary(SecurityMetrics sec) {
+        if (!sec.isSslValid()) return "Invalid or Missing SSL Certificate";
+        String tls = sec.getTlsVersion() != null ? sec.getTlsVersion() : "TLS 1.3";
+        String issuer = sec.getSslIssuer() != null ? sec.getSslIssuer() : "Verified CA";
+        return String.format("Valid TLS (%s) • Issuer: %s • %d days remaining", tls, issuer, sec.getDaysUntilSslExpiry());
+    }
+
+    private String getPageLangSummary(AccessibilityMetrics a11y) {
+        if (!a11y.isHasHtmlLangAttribute()) return "Missing lang attribute on root <html> tag";
+        String lang = a11y.getHtmlLangValue() != null ? a11y.getHtmlLangValue() : "en";
+        return "Declared valid lang attribute: <html lang=\"" + lang + "\">";
+    }
+
+    private String getCompressionSummary(PerformanceMetrics perf) {
+        if (!perf.isHasCompression()) return "No compression header";
+        String enc = perf.getContentEncoding() != null ? perf.getContentEncoding() : "gzip/br";
+        return "Compression active: " + enc;
+    }
+
     private void buildCoreWebVitalsSection(Document pdfDoc, AuditResponse audit) throws DocumentException {
         addSectionHeader(pdfDoc, "1. Core Web Vitals & Real-User Performance Diagnostics");
 
@@ -295,11 +351,11 @@ public class PdfReportGeneratorService {
         addHeaderCell(table, "Audit Assessment");
 
         if (vitals != null) {
-            String lcpCat = vitals.getLcpMs() <= 2500 ? "GOOD" : (vitals.getLcpMs() <= 4000 ? "NEEDS_IMPROVEMENT" : "POOR");
-            String fcpCat = vitals.getFcpMs() <= 1800 ? "GOOD" : (vitals.getFcpMs() <= 3000 ? "NEEDS_IMPROVEMENT" : "POOR");
-            String ttfbCat = vitals.getTtfbMs() <= 800 ? "GOOD" : (vitals.getTtfbMs() <= 1800 ? "NEEDS_IMPROVEMENT" : "POOR");
-            String clsCat = vitals.getClsRatio() <= 0.1 ? "GOOD" : (vitals.getClsRatio() <= 0.25 ? "NEEDS_IMPROVEMENT" : "POOR");
-            String inpCat = vitals.getInpMs() <= 200 ? "GOOD" : (vitals.getInpMs() <= 500 ? "NEEDS_IMPROVEMENT" : "POOR");
+            String lcpCat = assessVital(vitals.getLcpMs(), 2500, 4000);
+            String fcpCat = assessVital(vitals.getFcpMs(), 1800, 3000);
+            String ttfbCat = assessVital(vitals.getTtfbMs(), 800, 1800);
+            String clsCat = assessVital(vitals.getClsRatio(), 0.1, 0.25);
+            String inpCat = assessVital(vitals.getInpMs(), 200, 500);
 
             addVitalRow(table, "Largest Contentful Paint (LCP)", vitals.getLcpMs() + " ms", "< 2500 ms", lcpCat);
             addVitalRow(table, "First Contentful Paint (FCP)", vitals.getFcpMs() + " ms", "< 1800 ms", fcpCat);
@@ -307,11 +363,11 @@ public class PdfReportGeneratorService {
             addVitalRow(table, "Cumulative Layout Shift (CLS)", String.format("%.3f", vitals.getClsRatio()), "< 0.100", clsCat);
             addVitalRow(table, "Interaction to Next Paint (INP)", vitals.getInpMs() + " ms", "< 200 ms", inpCat);
         } else {
-            addVitalRow(table, "Largest Contentful Paint (LCP)", audit.getResponseTimeMs() + " ms", "< 2500 ms", "GOOD");
-            addVitalRow(table, "First Contentful Paint (FCP)", (audit.getResponseTimeMs() / 2) + " ms", "< 1800 ms", "GOOD");
-            addVitalRow(table, "Time to First Byte (TTFB)", "120 ms", "< 800 ms", "GOOD");
-            addVitalRow(table, "Cumulative Layout Shift (CLS)", "0.012", "< 0.100", "GOOD");
-            addVitalRow(table, "Interaction to Next Paint (INP)", "85 ms", "< 200 ms", "GOOD");
+            addVitalRow(table, "Largest Contentful Paint (LCP)", audit.getResponseTimeMs() + " ms", "< 2500 ms", STATUS_GOOD);
+            addVitalRow(table, "First Contentful Paint (FCP)", (audit.getResponseTimeMs() / 2) + " ms", "< 1800 ms", STATUS_GOOD);
+            addVitalRow(table, "Time to First Byte (TTFB)", "120 ms", "< 800 ms", STATUS_GOOD);
+            addVitalRow(table, "Cumulative Layout Shift (CLS)", "0.012", "< 0.100", STATUS_GOOD);
+            addVitalRow(table, "Interaction to Next Paint (INP)", "85 ms", "< 200 ms", STATUS_GOOD);
         }
 
         if (bottlenecks != null) {
@@ -339,39 +395,32 @@ public class PdfReportGeneratorService {
 
         addHeaderCell(table, "SEO Parameter");
         addHeaderCell(table, "Detected Content / Value");
-        addHeaderCell(table, "Status");
+        addHeaderCell(table, LABEL_STATUS);
 
         if (seo != null) {
             String titleText = seo.getPageTitle() != null ? seo.getPageTitle() : "Missing <title> tag";
-            String titleStatus = (seo.isHasTitle() && seo.getTitleLength() >= 20 && seo.getTitleLength() <= 60) ? "PASS" : "WARN";
+            String titleStatus = (seo.isHasTitle() && seo.getTitleLength() >= 20 && seo.getTitleLength() <= 60) ? STATUS_PASS : STATUS_WARN;
             addTableRow(table, "Page Title (" + seo.getTitleLength() + " chars)", titleText, titleStatus);
 
             String descText = seo.getMetaDescription() != null ? seo.getMetaDescription() : "Missing meta description";
-            String descStatus = seo.isHasMetaDescription() ? "PASS" : "FAIL";
+            String descStatus = seo.isHasMetaDescription() ? STATUS_PASS : STATUS_FAIL;
             addTableRow(table, "Meta Description (" + seo.getDescriptionLength() + " chars)", descText, descStatus);
 
             String canonical = seo.getCanonicalUrl() != null ? seo.getCanonicalUrl() : "Not declared";
-            addTableRow(table, "Canonical URL", canonical, seo.getCanonicalUrl() != null ? "PASS" : "WARN");
+            addTableRow(table, "Canonical URL", canonical, seo.getCanonicalUrl() != null ? STATUS_PASS : STATUS_WARN);
 
-            addTableRow(table, "Mobile Viewport Meta", seo.isHasViewportMeta() ? "Viewport Meta Present" : "Missing Viewport", seo.isHasViewportMeta() ? "PASS" : "FAIL");
+            addTableRow(table, "Mobile Viewport Meta", seo.isHasViewportMeta() ? "Viewport Meta Present" : "Missing Viewport", seo.isHasViewportMeta() ? STATUS_PASS : STATUS_FAIL);
 
             String robots = (seo.isIndexable() ? "Indexable" : "NoIndex") + ", " + (seo.isFollowable() ? "Follow" : "NoFollow");
-            addTableRow(table, "Search Indexability", robots, seo.isIndexable() ? "PASS" : "WARN");
+            addTableRow(table, "Search Indexability", robots, seo.isIndexable() ? STATUS_PASS : STATUS_WARN);
 
-            String ogSummary = seo.isOpenGraphComplete() ? "Complete Social Tags" : (seo.getOpenGraphTags() != null && !seo.getOpenGraphTags().isEmpty() ? "Partial OG Tags" : "Missing OG Tags");
-            addTableRow(table, "OpenGraph Social Cards", ogSummary, seo.isOpenGraphComplete() ? "PASS" : "WARN");
-
-            String twitter = seo.isTwitterCardComplete() ? "Twitter Card Active" : (seo.getTwitterCardTags() != null && !seo.getTwitterCardTags().isEmpty() ? "Partial Twitter Tags" : "Not declared");
-            addTableRow(table, "Twitter Card Meta", twitter, seo.isTwitterCardComplete() ? "PASS" : "INFO");
-
-            String schema = (seo.getStructuredDataInfo() != null && seo.getStructuredDataInfo().isHasStructuredData())
-                    ? ("Detected: " + String.join(", ", seo.getStructuredDataInfo().getDetectedSchemaTypes()))
-                    : (seo.isHasStructuredData() ? "Schema Detected" : "No JSON-LD Schema Detected");
-            addTableRow(table, "Structured Data (JSON-LD)", schema, seo.isHasStructuredData() ? "PASS" : "WARN");
+            addTableRow(table, "OpenGraph Social Cards", getOpenGraphSummary(seo), seo.isOpenGraphComplete() ? STATUS_PASS : STATUS_WARN);
+            addTableRow(table, "Twitter Card Meta", getTwitterCardSummary(seo), seo.isTwitterCardComplete() ? STATUS_PASS : STATUS_INFO);
+            addTableRow(table, "Structured Data (JSON-LD)", getSchemaSummary(seo), seo.isHasStructuredData() ? STATUS_PASS : STATUS_WARN);
         } else {
-            addTableRow(table, "Page Title", "Detected", "PASS");
-            addTableRow(table, "Meta Description", "Detected", "PASS");
-            addTableRow(table, "Search Indexability", "Indexable, Follow", "PASS");
+            addTableRow(table, "Page Title", LABEL_DETECTED, STATUS_PASS);
+            addTableRow(table, "Meta Description", LABEL_DETECTED, STATUS_PASS);
+            addTableRow(table, "Search Indexability", "Indexable, Follow", STATUS_PASS);
         }
 
         pdfDoc.add(table);
@@ -388,19 +437,19 @@ public class PdfReportGeneratorService {
 
         if (content != null) {
             int words = content.getWordCount();
-            addTwoColGridRow(table, "Total Word Count", String.valueOf(words), words >= 300 ? "PASS" : "WARN",
-                    "Paragraph Count", String.valueOf(content.getParagraphCount()), "INFO");
+            addTwoColGridRow(table, "Total Word Count", String.valueOf(words), words >= 300 ? STATUS_PASS : STATUS_WARN,
+                    "Paragraph Count", String.valueOf(content.getParagraphCount()), STATUS_INFO);
 
             ReadabilityMetrics read = content.getReadabilityMetrics();
             if (read != null) {
-                addTwoColGridRow(table, "Flesch Reading Ease", String.format("%.1f / 100", read.getFleschKincaidReadingEase()), read.getFleschKincaidReadingEase() >= 60 ? "PASS" : "INFO",
-                        "FK Grade Level", String.format("Grade %.1f (%s)", read.getFleschKincaidGradeLevel(), read.getReadingEaseLevel() != null ? read.getReadingEaseLevel() : "Standard"), "INFO");
+                addTwoColGridRow(table, "Flesch Reading Ease", String.format("%.1f / 100", read.getFleschKincaidReadingEase()), read.getFleschKincaidReadingEase() >= 60 ? STATUS_PASS : STATUS_INFO,
+                        "FK Grade Level", String.format("Grade %.1f (%s)", read.getFleschKincaidGradeLevel(), read.getReadingEaseLevel() != null ? read.getReadingEaseLevel() : "Standard"), STATUS_INFO);
 
-                addTwoColGridRow(table, "Avg Words / Sentence", String.format("%.1f", read.getAverageWordsPerSentence()), "INFO",
-                        "Complex Words Ratio", String.format("%.1f%%", read.getComplexWordsPercentage()), read.getComplexWordsPercentage() < 25 ? "PASS" : "WARN");
+                addTwoColGridRow(table, "Avg Words / Sentence", String.format("%.1f", read.getAverageWordsPerSentence()), STATUS_INFO,
+                        "Complex Words Ratio", String.format("%.1f%%", read.getComplexWordsPercentage()), read.getComplexWordsPercentage() < 25 ? STATUS_PASS : STATUS_WARN);
             } else {
-                addTwoColGridRow(table, "Flesch Reading Ease", "68.0 / 100", "PASS",
-                        "FK Grade Level", "Grade 7.5 (Standard)", "INFO");
+                addTwoColGridRow(table, "Flesch Reading Ease", "68.0 / 100", STATUS_PASS,
+                        "FK Grade Level", "Grade 7.5 (Standard)", STATUS_INFO);
             }
 
             Map<String, Integer> headings = content.getHeadingCounts();
@@ -412,8 +461,8 @@ public class PdfReportGeneratorService {
                     : "H1: 1";
             int h1Count = headings != null ? headings.getOrDefault("h1", 0) : 1;
             boolean hasDup = content.getDuplicateHeadingTexts() != null && !content.getDuplicateHeadingTexts().isEmpty();
-            addTwoColGridRow(table, "Heading Structure", headingBreakdown, h1Count == 1 ? "PASS" : "WARN",
-                    "Duplicate Headings", hasDup ? "Detected Duplicates" : "None Detected", !hasDup ? "PASS" : "WARN");
+            addTwoColGridRow(table, "Heading Structure", headingBreakdown, h1Count == 1 ? STATUS_PASS : STATUS_WARN,
+                    "Duplicate Headings", hasDup ? "Detected Duplicates" : "None Detected", !hasDup ? STATUS_PASS : STATUS_WARN);
 
             if (content.getTopKeywords() != null && !content.getTopKeywords().isEmpty()) {
                 String topKw = String.join(", ", content.getTopKeywords().stream().limit(6).map(KeywordPhrase::getPhrase).toList());
@@ -425,8 +474,8 @@ public class PdfReportGeneratorService {
                 table.addCell(kwCell);
             }
         } else {
-            addTwoColGridRow(table, "Total Word Count", "Detected", "PASS",
-                    "H1 Heading Count", "1", "PASS");
+            addTwoColGridRow(table, "Total Word Count", LABEL_DETECTED, STATUS_PASS,
+                    "H1 Heading Count", "1", STATUS_PASS);
         }
 
         pdfDoc.add(table);
@@ -443,36 +492,32 @@ public class PdfReportGeneratorService {
 
         addHeaderCell(table, "Accessibility Rule / Check");
         addHeaderCell(table, "Findings & Detected Attributes");
-        addHeaderCell(table, "WCAG Status");
+        addHeaderCell(table, "WCAG " + LABEL_STATUS);
 
         if (a11y != null) {
             String imgText = a11y.getImagesMissingAltCount() == 0
                     ? "All " + a11y.getTotalImageCount() + " images contain descriptive alt text"
                     : a11y.getImagesMissingAltCount() + " of " + a11y.getTotalImageCount() + " images missing alt text";
-            addTableRow(table, "Image Alt Attributes (SC 1.1.1)", imgText, a11y.getImagesMissingAltCount() == 0 ? "PASS" : "FAIL");
-
-            String langText = a11y.isHasHtmlLangAttribute()
-                    ? "Declared valid lang attribute: <html lang=\"" + (a11y.getHtmlLangValue() != null ? a11y.getHtmlLangValue() : "en") + "\">"
-                    : "Missing lang attribute on root <html> tag";
-            addTableRow(table, "Page Language (SC 3.1.1)", langText, a11y.isHasHtmlLangAttribute() ? "PASS" : "FAIL");
+            addTableRow(table, "Image Alt Attributes (SC 1.1.1)", imgText, a11y.getImagesMissingAltCount() == 0 ? STATUS_PASS : STATUS_FAIL);
+            addTableRow(table, "Page Language (SC 3.1.1)", getPageLangSummary(a11y), a11y.isHasHtmlLangAttribute() ? STATUS_PASS : STATUS_FAIL);
 
             String formText = a11y.getFormInputsMissingLabelsCount() == 0
                     ? "All form inputs have associated <label> or aria-label"
                     : a11y.getFormInputsMissingLabelsCount() + " input(s) missing associated label";
-            addTableRow(table, "Form Input Labels (SC 3.3.2)", formText, a11y.getFormInputsMissingLabelsCount() == 0 ? "PASS" : "FAIL");
+            addTableRow(table, "Form Input Labels (SC 3.3.2)", formText, a11y.getFormInputsMissingLabelsCount() == 0 ? STATUS_PASS : STATUS_FAIL);
 
             String btnText = a11y.getButtonsMissingAccessibleNameCount() == 0
                     ? "All buttons have accessible names / text"
                     : a11y.getButtonsMissingAccessibleNameCount() + " button(s) lack accessible name";
-            addTableRow(table, "Button Accessible Name (SC 4.1.2)", btnText, a11y.getButtonsMissingAccessibleNameCount() == 0 ? "PASS" : "WARN");
+            addTableRow(table, "Button Accessible Name (SC 4.1.2)", btnText, a11y.getButtonsMissingAccessibleNameCount() == 0 ? STATUS_PASS : STATUS_WARN);
 
             String landmarks = String.format("Main: %s | Header: %s | Nav: %s | Footer: %s",
                     a11y.isHasMainLandmark() ? "Yes" : "No", a11y.isHasHeaderLandmark() ? "Yes" : "No",
                     a11y.isHasNavLandmark() ? "Yes" : "No", a11y.isHasFooterLandmark() ? "Yes" : "No");
-            addTableRow(table, "Semantic Landmarks (SC 1.3.1)", landmarks, a11y.isHasMainLandmark() ? "PASS" : "WARN");
+            addTableRow(table, "Semantic Landmarks (SC 1.3.1)", landmarks, a11y.isHasMainLandmark() ? STATUS_PASS : STATUS_WARN);
         } else {
-            addTableRow(table, "Image Alt Attributes", "Checked", "PASS");
-            addTableRow(table, "Page Language", "Declared", "PASS");
+            addTableRow(table, "Image Alt Attributes", "Checked", STATUS_PASS);
+            addTableRow(table, "Page Language", "Declared", STATUS_PASS);
         }
 
         pdfDoc.add(table);
@@ -489,29 +534,27 @@ public class PdfReportGeneratorService {
 
         addHeaderCell(table, "Optimization Vector");
         addHeaderCell(table, "Diagnostic Observation");
-        addHeaderCell(table, "Status");
+        addHeaderCell(table, LABEL_STATUS);
 
         if (perf != null) {
             String scriptText = perf.getRenderBlockingHeadScriptsCount() == 0
                     ? "No render-blocking scripts detected in <head>"
                     : perf.getRenderBlockingHeadScriptsCount() + " render-blocking script(s) found in <head>";
-            addTableRow(table, "Render-Blocking JavaScript", scriptText, perf.getRenderBlockingHeadScriptsCount() == 0 ? "PASS" : "FAIL");
+            addTableRow(table, "Render-Blocking JavaScript", scriptText, perf.getRenderBlockingHeadScriptsCount() == 0 ? STATUS_PASS : STATUS_FAIL);
 
             String imgRatio = String.format("%.0f%% next-gen format ratio (%d modern, %d legacy)",
                     perf.getModernImageRatioPercentage(), perf.getModernImageFormatsCount(), perf.getLegacyImageFormatsCount());
-            addTableRow(table, "Next-Gen Image Formats (WebP/AVIF)", imgRatio, perf.getModernImageRatioPercentage() >= 50 ? "PASS" : "WARN");
-
-            String compText = perf.isHasCompression() ? ("Compression active: " + (perf.getContentEncoding() != null ? perf.getContentEncoding() : "gzip/br")) : "No compression header";
-            addTableRow(table, "HTTP Content Compression", compText, perf.isHasCompression() ? "PASS" : "WARN");
+            addTableRow(table, "Next-Gen Image Formats (WebP/AVIF)", imgRatio, perf.getModernImageRatioPercentage() >= 50 ? STATUS_PASS : STATUS_WARN);
+            addTableRow(table, "HTTP Content Compression", getCompressionSummary(perf), perf.isHasCompression() ? STATUS_PASS : STATUS_WARN);
 
             String cache = perf.getCacheControlHeader() != null ? perf.getCacheControlHeader() : "No Cache-Control header found";
-            addTableRow(table, "Browser Caching Directives", cache, perf.getCacheControlHeader() != null ? "PASS" : "WARN");
+            addTableRow(table, "Browser Caching Directives", cache, perf.getCacheControlHeader() != null ? STATUS_PASS : STATUS_WARN);
 
             String domText = String.format("Max DOM Depth: %d levels • Total Nodes: %d", perf.getMaxDomDepth(), perf.getTotalDomNodesCount());
-            addTableRow(table, "DOM Tree Complexity", domText, (perf.getMaxDomDepth() <= 32 && perf.getTotalDomNodesCount() <= 1500) ? "PASS" : "WARN");
+            addTableRow(table, "DOM Tree Complexity", domText, (perf.getMaxDomDepth() <= 32 && perf.getTotalDomNodesCount() <= 1500) ? STATUS_PASS : STATUS_WARN);
         } else {
-            addTableRow(table, "Server Latency", audit.getResponseTimeMs() + " ms", audit.getResponseTimeMs() < 1000 ? "PASS" : "WARN");
-            addTableRow(table, "HTTP Compression", "Enabled", "PASS");
+            addTableRow(table, "Server Latency", audit.getResponseTimeMs() + " ms", audit.getResponseTimeMs() < 1000 ? STATUS_PASS : STATUS_WARN);
+            addTableRow(table, "HTTP Compression", "Enabled", STATUS_PASS);
         }
 
         pdfDoc.add(table);
@@ -529,13 +572,10 @@ public class PdfReportGeneratorService {
 
         addHeaderCell(table, "Security / Integrity Audit");
         addHeaderCell(table, "Certificate & Header Configuration");
-        addHeaderCell(table, "Status");
+        addHeaderCell(table, LABEL_STATUS);
 
         if (sec != null) {
-            String sslText = sec.isSslValid()
-                    ? String.format("Valid TLS (%s) • Issuer: %s • %d days remaining", sec.getTlsVersion() != null ? sec.getTlsVersion() : "TLS 1.3", sec.getSslIssuer() != null ? sec.getSslIssuer() : "Verified CA", sec.getDaysUntilSslExpiry())
-                    : "Invalid or Missing SSL Certificate";
-            addTableRow(table, "SSL / TLS Encryption", sslText, sec.isSslValid() ? "PASS" : "FAIL");
+            addTableRow(table, "SSL / TLS Encryption", getSslSummary(sec), sec.isSslValid() ? STATUS_PASS : STATUS_FAIL);
 
             Map<String, Boolean> headers = sec.getSecurityHeadersPresent();
             boolean hasHsts = headers != null && Boolean.TRUE.equals(headers.get("HSTS"));
@@ -543,26 +583,26 @@ public class PdfReportGeneratorService {
             boolean hasXfo = headers != null && Boolean.TRUE.equals(headers.get("X-Frame-Options"));
             boolean hasXcto = headers != null && Boolean.TRUE.equals(headers.get("X-Content-Type-Options"));
 
-            addTableRow(table, "HSTS (Strict-Transport-Security)", hasHsts ? "Enforced" : "Missing HSTS Header", hasHsts ? "PASS" : "WARN");
-            addTableRow(table, "Content-Security-Policy (CSP)", hasCsp ? "Configured" : "Missing CSP Policy Header", hasCsp ? "PASS" : "WARN");
-            addTableRow(table, "X-Frame-Options (Clickjacking)", hasXfo ? "DENY / SAMEORIGIN" : "Missing X-Frame-Options", hasXfo ? "PASS" : "WARN");
-            addTableRow(table, "X-Content-Type-Options (MIME Sniff)", hasXcto ? "nosniff active" : "Missing nosniff Header", hasXcto ? "PASS" : "WARN");
+            addTableRow(table, "HSTS (Strict-Transport-Security)", hasHsts ? "Enforced" : "Missing HSTS Header", hasHsts ? STATUS_PASS : STATUS_WARN);
+            addTableRow(table, "Content-Security-Policy (CSP)", hasCsp ? "Configured" : "Missing CSP Policy Header", hasCsp ? STATUS_PASS : STATUS_WARN);
+            addTableRow(table, "X-Frame-Options (Clickjacking)", hasXfo ? "DENY / SAMEORIGIN" : "Missing X-Frame-Options", hasXfo ? STATUS_PASS : STATUS_WARN);
+            addTableRow(table, "X-Content-Type-Options (MIME Sniff)", hasXcto ? "nosniff active" : "Missing nosniff Header", hasXcto ? STATUS_PASS : STATUS_WARN);
 
             String mixedText = sec.isHasMixedContent() ? (sec.getMixedContentCount() + " insecure HTTP asset(s) loaded") : "Zero mixed content detected";
-            addTableRow(table, "Mixed Content Inspection", mixedText, !sec.isHasMixedContent() ? "PASS" : "FAIL");
+            addTableRow(table, "Mixed Content Inspection", mixedText, !sec.isHasMixedContent() ? STATUS_PASS : STATUS_FAIL);
         } else {
-            addTableRow(table, "HTTPS Protocol", audit.getUrl().startsWith("https") ? "HTTPS Secure" : "Insecure HTTP", audit.getUrl().startsWith("https") ? "PASS" : "FAIL");
+            addTableRow(table, "HTTPS Protocol", audit.getUrl().startsWith(PROTOCOL_HTTPS) ? "HTTPS Secure" : "Insecure HTTP", audit.getUrl().startsWith(PROTOCOL_HTTPS) ? STATUS_PASS : STATUS_FAIL);
         }
 
         if (links != null) {
             String linkSum = String.format("Total: %d links (Internal: %d, External: %d) • Broken: %d",
                     links.getTotalLinksFound(), links.getInternalLinksCount(), links.getExternalLinksCount(), links.getBrokenLinksCount());
-            addTableRow(table, "Hyperlink Integrity & Crawl", linkSum, links.getBrokenLinksCount() == 0 ? "PASS" : "FAIL");
+            addTableRow(table, "Hyperlink Integrity & Crawl", linkSum, links.getBrokenLinksCount() == 0 ? STATUS_PASS : STATUS_FAIL);
 
             String tabnab = links.getTargetBlankWithoutNoopenerCount() == 0
                     ? "All external target='_blank' links secure with rel='noopener'"
                     : links.getTargetBlankWithoutNoopenerCount() + " link(s) vulnerable to Reverse Tabnabbing";
-            addTableRow(table, "Reverse Tabnabbing (target='_blank')", tabnab, links.getTargetBlankWithoutNoopenerCount() == 0 ? "PASS" : "FAIL");
+            addTableRow(table, "Reverse Tabnabbing (target='_blank')", tabnab, links.getTargetBlankWithoutNoopenerCount() == 0 ? STATUS_PASS : STATUS_FAIL);
         }
 
         pdfDoc.add(table);
@@ -776,7 +816,7 @@ public class PdfReportGeneratorService {
                 String hex = branding.getPrimaryColorHex().trim();
                 if (!hex.startsWith("#")) hex = "#" + hex;
                 return Color.decode(hex);
-            } catch (Exception e) {
+            } catch (Exception _) {
                 log.warn("Invalid primaryColorHex '{}', falling back to default primary color", branding.getPrimaryColorHex());
             }
         }
@@ -969,9 +1009,6 @@ public class PdfReportGeneratorService {
 
             // Right footer: Page X of [Template]
             String pageStr = "Page " + writer.getPageNumber() + " of ";
-            float textWidth = baseFont != null ? baseFont.getWidthPoint(pageStr, 7.5f) : 40;
-            float pageNumX = document.right() - textWidth - 12;
-
             ColumnText.showTextAligned(cb, Element.ALIGN_RIGHT, new Phrase(pageStr, FONT_FOOTER),
                     document.right() - 12, document.bottom() - 20, 0);
 

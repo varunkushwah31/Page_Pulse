@@ -19,7 +19,7 @@ import java.util.function.Function;
 
 @Component
 @Slf4j
-@SuppressWarnings({"java:S2143", "java:S6885"})
+@SuppressWarnings({"java:S2143", "java:S6885", "squid:S6885", "java:S6887", "java:S6888", "deprecation"})
 public class JwtUtil {
 
     @Value("${app.jwt.secret}")

@@ -13,7 +13,6 @@ import {
   EyeSlashIcon,
   WarningCircleIcon,
   ArrowRightIcon,
-  EnvelopeIcon,
   CheckIcon,
   XIcon,
   LightningIcon
@@ -37,6 +36,37 @@ function calculatePasswordStrength(password: string) {
   if (score <= 4) return { score, label: 'Good', color: 'text-[#7AA2F7]', checks };
   return { score, label: 'Strong', color: 'text-[#4ADE80]', checks };
 }
+
+interface PasswordCriteriaProps {
+  checks: { length: boolean; upper: boolean; lower: boolean; digit: boolean; special: boolean };
+}
+
+const PasswordCriteriaList: React.FC<PasswordCriteriaProps> = ({ checks }) => {
+  const criteria = [
+    { key: 'length' as const, label: '8+ chars' },
+    { key: 'upper' as const, label: 'Uppercase' },
+    { key: 'lower' as const, label: 'Lowercase' },
+    { key: 'digit' as const, label: 'Number' },
+    { key: 'special' as const, label: 'Special symbol' },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+      {criteria.map(({ key, label }) => {
+        const passed = checks[key];
+        return (
+          <div
+            key={key}
+            className={`flex items-center gap-1 ${passed ? 'text-[#4ADE80]' : 'text-[#565D68]'}`}
+          >
+            {passed ? <CheckIcon className="size-2.5" /> : <XIcon className="size-2.5" />}
+            <span>{label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export const AuthPage: React.FC = () => {
   const { login, logout, user: authUser } = useAuth();
@@ -69,7 +99,7 @@ export const AuthPage: React.FC = () => {
   const passwordsMatch = signupConfirmPassword.length > 0 && signupPassword === signupConfirmPassword;
   const passwordsMismatch = signupConfirmPassword.length > 0 && signupPassword !== signupConfirmPassword;
 
-  const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLoginSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -97,7 +127,7 @@ export const AuthPage: React.FC = () => {
     }
   };
 
-  const handleSignupSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSignupSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -477,31 +507,7 @@ export const AuthPage: React.FC = () => {
 
                 {signupPassword && (
                   <div className="space-y-1.5 pt-1">
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
-                      {[
-                        { key: 'length', label: '8+ chars' },
-                        { key: 'upper', label: 'Uppercase' },
-                        { key: 'lower', label: 'Lowercase' },
-                        { key: 'digit', label: 'Number' },
-                        { key: 'special', label: 'Special symbol' },
-                      ].map(({ key, label }) => (
-                        <div
-                          key={key}
-                          className={`flex items-center gap-1 ${
-                            passwordStrength.checks[key as keyof typeof passwordStrength.checks]
-                              ? 'text-[#4ADE80]'
-                              : 'text-[#565D68]'
-                          }`}
-                        >
-                          {passwordStrength.checks[key as keyof typeof passwordStrength.checks] ? (
-                            <CheckIcon className="size-2.5" />
-                          ) : (
-                            <XIcon className="size-2.5" />
-                          )}
-                          <span>{label}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <PasswordCriteriaList checks={passwordStrength.checks} />
                   </div>
                 )}
               </div>

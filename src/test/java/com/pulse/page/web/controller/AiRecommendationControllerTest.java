@@ -55,6 +55,7 @@ class AiRecommendationControllerTest {
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @BeforeEach
+    @SuppressWarnings({"deprecation", "removal"})
     void setUp() {
         org.springframework.http.converter.json.MappingJackson2HttpMessageConverter converter =
                 new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(objectMapper);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { AuditResponse } from '../types';
-import { saveReportToMongo, downloadPdfReport, exportAuditToPdf } from '../lib/api';
+import { saveReportToMongo, exportAuditToPdf } from '../lib/api';
 import {
   BookOpenIcon,
   CheckIcon,
@@ -35,6 +35,18 @@ const getStatusColor = (status: number): string => {
   if (status >= 300 && status < 400) return 'text-[#7AA2F7] border-[#7AA2F7]/30 bg-[#7AA2F7]/10';
   if (status >= 400 && status < 500) return 'text-[#FBBF24] border-[#FBBF24]/30 bg-[#FBBF24]/10';
   return 'text-[#F87171] border-[#F87171]/30 bg-[#F87171]/10';
+};
+
+const getOverallScoreStrokeColor = (score: number): string => {
+  if (score >= 80) return '#4ADE80';
+  if (score >= 60) return '#4FD8C4';
+  if (score >= 40) return '#FBBF24';
+  return '#F87171';
+};
+
+const getStructuredDataStatusLabel = (info?: { hasStructuredData?: boolean; validJsonLd?: boolean } | null): string => {
+  if (!info?.hasStructuredData) return 'No Schema Found';
+  return info.validJsonLd ? 'Valid JSON-LD' : 'Syntax Error';
 };
 
 export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
@@ -213,7 +225,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                   cx="40"
                   cy="40"
                   r={radius}
-                  stroke={overallScore >= 80 ? '#4ADE80' : overallScore >= 60 ? '#4FD8C4' : overallScore >= 40 ? '#FBBF24' : '#F87171'}
+                  stroke={getOverallScoreStrokeColor(overallScore)}
                   strokeWidth="6"
                   strokeDasharray={circumference}
                   strokeDashoffset={strokeDashoffset}
@@ -723,7 +735,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                 <h3 className="font-bold text-[#E7EAEE] text-sm">Schema.org JSON-LD Structured Data</h3>
               </div>
               <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${seoMetrics?.structuredDataInfo?.validJsonLd ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
-                {seoMetrics?.structuredDataInfo?.hasStructuredData ? (seoMetrics.structuredDataInfo.validJsonLd ? 'Valid JSON-LD' : 'Syntax Error') : 'No Schema Found'}
+                {getStructuredDataStatusLabel(seoMetrics?.structuredDataInfo)}
               </span>
             </div>
 

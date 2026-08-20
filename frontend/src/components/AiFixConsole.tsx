@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { AuditResponse, AiRecommendation } from '../types';
 import { fetchAiRecommendations } from '../lib/api';
-import { Sparkles, Copy, Check, Code, ShieldAlert, Cpu, CheckCircle2, RefreshCw } from 'lucide-react';
+import { SparkleIcon, CopyIcon, CheckIcon, CodeIcon, ShieldWarningIcon, CpuIcon, CheckCircleIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react';
 
 interface AiFixConsoleProps {
   audit: AuditResponse;
@@ -20,7 +20,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
     try {
       const data = await fetchAiRecommendations(audit);
       setRecommendations(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load AI recommendations:', err);
       setError('Could not generate AI code fixes.');
     } finally {
@@ -61,7 +61,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#262B33] pb-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Sparkles className="size-4 text-[#4FD8C4] animate-pulse" />
+            <SparkleIcon className="size-4 text-[#4FD8C4] animate-pulse" />
             <h3 className="font-bold text-[#E7EAEE] text-sm">AI Actionable Fix Suggestions</h3>
             <span className="rounded bg-[#4FD8C4]/10 border border-[#4FD8C4]/30 px-2 py-0.5 text-[10px] text-[#4FD8C4] font-semibold">
               Gemini Engine Enabled
@@ -84,7 +84,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
               }}
               className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-3 py-1.5 text-xs text-[#4FD8C4] hover:bg-[#262B33] transition-all cursor-pointer"
             >
-              {copiedIndex === -1 ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+              {copiedIndex === -1 ? <CheckIcon className="size-3.5 text-emerald-400" /> : <CopyIcon className="size-3.5" />}
               <span>{copiedIndex === -1 ? 'All Copied!' : 'Copy All Fixes'}</span>
             </button>
           )}
@@ -95,7 +95,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
             disabled={loading}
             className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-3 py-1.5 text-xs text-[#E7EAEE] hover:bg-[#262B33] transition-all cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw className={`size-3.5 ${loading ? 'animate-spin text-[#4FD8C4]' : 'text-[#8B93A1]'}`} />
+            <ArrowsClockwiseIcon className={`size-3.5 ${loading ? 'animate-spin text-[#4FD8C4]' : 'text-[#8B93A1]'}`} />
             <span>Regenerate Fixes</span>
           </button>
         </div>
@@ -123,7 +123,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
       {/* Loading State */}
       {loading && (
         <div className="p-8 text-center space-y-2 rounded-lg border border-[#262B33] bg-[#0A0C0F]">
-          <Cpu className="size-6 text-[#4FD8C4] animate-spin mx-auto" />
+          <CpuIcon className="size-6 text-[#4FD8C4] animate-spin mx-auto" />
           <p className="text-[#E7EAEE] font-semibold text-xs">Analyzing DOM audit findings with AI engine...</p>
           <p className="text-[11px] text-[#8B93A1]">Building tailored HTML meta tags, alt attributes, and JSON-LD schemas.</p>
         </div>
@@ -132,7 +132,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
       {/* Error State */}
       {error && !loading && (
         <div className="p-4 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs flex items-center gap-2">
-          <ShieldAlert className="size-4 shrink-0" />
+          <ShieldWarningIcon className="size-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
@@ -140,7 +140,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
       {/* Empty State */}
       {!loading && !error && filteredRecs.length === 0 && (
         <div className="p-8 text-center space-y-2 rounded-lg border border-[#262B33] bg-[#0A0C0F] text-[#8B93A1]">
-          <CheckCircle2 className="size-6 text-[#4ADE80] mx-auto" />
+          <CheckCircleIcon className="size-6 text-[#4ADE80] mx-auto" />
           <p className="text-[#E7EAEE] font-semibold text-xs">No AI code fixes needed for this category!</p>
           <p className="text-[11px]">The audited page already adheres to standards for selected metrics.</p>
         </div>
@@ -158,7 +158,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <Code className="size-4 text-[#4FD8C4] shrink-0" />
+                    <CodeIcon className="size-4 text-[#4FD8C4] shrink-0" />
                     <span className="font-bold text-[#E7EAEE] text-xs">{rec.title}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -184,12 +184,12 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
                     >
                       {isCopied ? (
                         <>
-                          <Check className="size-3 text-emerald-400" />
+                          <CheckIcon className="size-3 text-emerald-400" />
                           <span className="text-emerald-400">Copied!</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="size-3" />
+                          <CopyIcon className="size-3" />
                           <span>Copy Code</span>
                         </>
                       )}

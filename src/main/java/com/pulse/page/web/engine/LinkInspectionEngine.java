@@ -249,25 +249,6 @@ public class LinkInspectionEngine {
         }
     }
 
-    private LinkInspectionMetrics buildDefaultMetrics() {
-        return LinkInspectionMetrics.builder()
-                .totalLinksFound(0)
-                .workingLinksCount(0)
-                .brokenLinksCount(0)
-                .redirectLinksCount(0)
-                .internalLinksCount(0)
-                .externalLinksCount(0)
-                .inPageAnchorLinksCount(0)
-                .protocolLinksCount(0)
-                .targetBlankWithoutNoopenerCount(0)
-                .insecureHttpLinksCount(0)
-                .nofollowLinksCount(0)
-                .genericAnchorLinksCount(0)
-                .emptyAnchorLinksCount(0)
-                .securityWarnings(Collections.emptyList())
-                .brokenLinks(Collections.emptyList())
-                .build();
-    }
 
     private static class LinkAccumulator {
         int internalLinks = 0;

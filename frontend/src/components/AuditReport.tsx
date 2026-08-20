@@ -1,12 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { AuditResponse } from '../types';
 import { saveReportToMongo, downloadPdfReport } from '../lib/api';
 import {
-  Download, Database, Lock, AlertCircle, FileText, CheckCircle2,
-  AlertTriangle, XCircle, Globe, Search, BookOpen, Layers,
-  Compass, Code, Cpu
-} from 'lucide-react';
+  BookOpenIcon,
+  CheckIcon,
+  CheckCircleIcon,
+  CodeIcon,
+  CompassIcon,
+  CopyIcon,
+  CpuIcon,
+  DatabaseIcon,
+  DesktopIcon,
+  DeviceMobileIcon,
+  DownloadSimpleIcon,
+  GlobeIcon,
+  LockIcon,
+  MagnifyingGlassIcon,
+  StackIcon,
+  WarningIcon,
+  WarningCircleIcon,
+  XCircleIcon
+} from '@phosphor-icons/react';
 import { AiFixConsole } from './AiFixConsole';
 import { AdvancedEngineConsole } from './AdvancedEngineConsole';
 import { DomInspectorConsole } from './DomInspectorConsole';
@@ -29,10 +44,47 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CONTENT' | 'SCHEMA' | 'ENGINE' | 'AI_FIXES'>('OVERVIEW');
+  const [serpViewMode, setSerpViewMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
   const navigate = useNavigate();
   const location = useLocation();
 
   const isAuthenticated = !!localStorage.getItem('pagepulse_token');
+
+  // Keyboard shortcut navigation (1-5 for tabs, Ctrl+S for save, Ctrl+P for PDF)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSaveToMongo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        handlePdfDownload();
+      } else if (e.key === '1') {
+        setActiveTab('OVERVIEW');
+      } else if (e.key === '2') {
+        setActiveTab('CONTENT');
+      } else if (e.key === '3') {
+        setActiveTab('SCHEMA');
+      } else if (e.key === '4') {
+        setActiveTab('ENGINE');
+      } else if (e.key === '5') {
+        setActiveTab('AI_FIXES');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [audit]);
+
+  const handleCopy = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   const handleSaveToMongo = async () => {
     setSaveError(null);
@@ -82,16 +134,6 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
     }
   };
 
-  const getTimingColor = (ms: number): string => {
-    if (ms <= 800) return 'bg-[#4ADE80]';
-    if (ms <= 2000) return 'bg-[#FBBF24]';
-    return 'bg-[#F87171]';
-  };
-
-  const responseTimeMs = audit.responseTimeMs || 0;
-  const timingWidth = Math.min(100, Math.max(5, (responseTimeMs / 3000) * 100));
-  const timingColor = getTimingColor(responseTimeMs);
-
   const seoMetrics = audit.seoMetrics;
   const contentMetrics = audit.contentMetrics;
   const accessibilityMetrics = audit.accessibilityMetrics;
@@ -100,9 +142,6 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
   const pageTitle = seoMetrics?.pageTitle ?? null;
   const metaDescription = seoMetrics?.metaDescription ?? null;
-  const h1Count = contentMetrics?.headingCounts?.['h1'] ?? 0;
-  const imagesMissingAlt = accessibilityMetrics?.imagesMissingAltCount ?? 0;
-  const wordCount = contentMetrics?.wordCount ?? 0;
 
   const overallScore = scores?.overallScore ?? 0;
   const seoScore = scores?.seoScore ?? 0;
@@ -120,8 +159,13 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
     }
   };
 
+  // Radial progress calculations
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (overallScore / 100) * circumference;
+
   return (
-    <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden shadow-2xl space-y-0 font-mono text-xs">
+    <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden shadow-2xl space-y-0 font-mono text-xs text-[#E7EAEE]">
       {/* Report Header Strip */}
       <div className="bg-[#191D24] px-5 py-4 border-b border-[#262B33] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="space-y-1">
@@ -150,28 +194,59 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
         </div>
       </div>
 
-      {/* Health Grade & 4-Way Sub-Scores Breakdown */}
+      {/* Health Grade & Radial Meter Breakdown */}
       <div className="p-5 border-b border-[#262B33] space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#565D68]">
-              Overall Health Grade & Indexability
-            </span>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${getGradeColor(healthGrade)}`}>
-                {healthGrade.replace('_', ' ')}
-              </span>
-              <span className="text-3xl font-extrabold text-[#E7EAEE]">{overallScore} / 100</span>
+          <div className="flex items-center gap-4">
+            {/* Radial SVG Circular Score Gauge */}
+            <div className="relative size-20 flex items-center justify-center shrink-0">
+              <svg className="size-20 transform -rotate-90" viewBox="0 0 80 80">
+                <circle
+                  cx="40"
+                  cy="40"
+                  r={radius}
+                  stroke="#191D24"
+                  strokeWidth="6"
+                  fill="transparent"
+                />
+                <circle
+                  cx="40"
+                  cy="40"
+                  r={radius}
+                  stroke={overallScore >= 80 ? '#4ADE80' : overallScore >= 60 ? '#4FD8C4' : overallScore >= 40 ? '#FBBF24' : '#F87171'}
+                  strokeWidth="6"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  fill="transparent"
+                  className="transition-all duration-1000 ease-out"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xl font-extrabold text-[#E7EAEE] leading-none">{overallScore}</span>
+                <span className="text-[9px] text-[#565D68]">/100</span>
+              </div>
+            </div>
 
-              {seoMetrics?.isIndexable ? (
-                <span className="rounded bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2.5 py-1 text-[11px] text-[#4ADE80] font-bold inline-flex items-center gap-1">
-                  <CheckCircle2 className="size-3" /> Indexable
+            <div className="space-y-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#565D68]">
+                Overall Health Grade & Indexability
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-bold ${getGradeColor(healthGrade)}`}>
+                  {healthGrade.replace('_', ' ')}
                 </span>
-              ) : (
-                <span className="rounded bg-[#F87171]/10 border border-[#F87171]/30 px-2.5 py-1 text-[11px] text-[#F87171] font-bold inline-flex items-center gap-1">
-                  <XCircle className="size-3" /> NoIndex Detected
-                </span>
-              )}
+
+                {seoMetrics?.isIndexable ? (
+                  <span className="rounded bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2.5 py-0.5 text-[11px] text-[#4ADE80] font-bold inline-flex items-center gap-1">
+                    <CheckCircleIcon className="size-3" /> Indexable
+                  </span>
+                ) : (
+                  <span className="rounded bg-[#F87171]/10 border border-[#F87171]/30 px-2.5 py-0.5 text-[11px] text-[#F87171] font-bold inline-flex items-center gap-1">
+                    <XCircleIcon className="size-3" /> NoIndex Detected
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -180,19 +255,21 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
               type="button"
               onClick={handlePdfDownload}
               disabled={downloadingPdf}
-              className="rounded border border-[#4FD8C4]/40 bg-[#4FD8C4]/10 px-3 py-1.5 font-semibold text-[#4FD8C4] hover:bg-[#4FD8C4]/20 transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              className="rounded border border-[#4FD8C4]/40 bg-[#4FD8C4]/10 px-3 py-2 font-semibold text-[#4FD8C4] hover:bg-[#4FD8C4]/20 transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              title="Export Report as PDF (Ctrl+P)"
             >
-              <Download className="size-3.5" />
+              <DownloadSimpleIcon className="size-3.5" />
               <span>{downloadingPdf ? 'Generating PDF...' : 'Export PDF'}</span>
             </button>
             <button
               type="button"
               onClick={handleSaveToMongo}
               disabled={saving}
-              className="rounded border border-[#333A45] bg-[#191D24] px-4 py-1.5 font-semibold text-[#E7EAEE] hover:border-[#4FD8C4] hover:text-[#4FD8C4] transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              className="rounded border border-[#333A45] bg-[#191D24] px-4 py-2 font-semibold text-[#E7EAEE] hover:border-[#4FD8C4] hover:text-[#4FD8C4] transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              title="Persist Report to MongoDB Atlas (Ctrl+S)"
             >
-              <Database className="size-3.5 text-[#4ADE80]" />
-              <span>{saving ? 'Saving...' : 'Save to DB'}</span>
+              <DatabaseIcon className="size-3.5 text-[#4ADE80]" />
+              <span>{saving ? 'Saving...' : 'Save to Cloud DB'}</span>
             </button>
           </div>
         </div>
@@ -205,7 +282,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
               <span className="font-bold text-[#4FD8C4]">{seoScore}%</span>
             </div>
             <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
-              <div className="h-full bg-[#4FD8C4] transition-all" style={{ width: `${seoScore}%` }}></div>
+              <div className="h-full bg-[#4FD8C4] transition-all" style={{ width: `${seoScore}%` }} />
             </div>
           </div>
 
@@ -215,7 +292,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
               <span className="font-bold text-[#7AA2F7]">{contentScore}%</span>
             </div>
             <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
-              <div className="h-full bg-[#7AA2F7] transition-all" style={{ width: `${contentScore}%` }}></div>
+              <div className="h-full bg-[#7AA2F7] transition-all" style={{ width: `${contentScore}%` }} />
             </div>
           </div>
 
@@ -225,23 +302,23 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
               <span className="font-bold text-[#4ADE80]">{accessibilityScore}%</span>
             </div>
             <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
-              <div className="h-full bg-[#4ADE80] transition-all" style={{ width: `${accessibilityScore}%` }}></div>
+              <div className="h-full bg-[#4ADE80] transition-all" style={{ width: `${accessibilityScore}%` }} />
             </div>
           </div>
 
           <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
             <div className="flex justify-between items-center text-[11px]">
-              <span className="text-[#8B93A1]">Performance & Core Vitals</span>
+              <span className="text-[#8B93A1]">Performance & Vitals</span>
               <span className="font-bold text-[#FBBF24]">{performanceScore}%</span>
             </div>
             <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
-              <div className="h-full bg-[#FBBF24] transition-all" style={{ width: `${performanceScore}%` }}></div>
+              <div className="h-full bg-[#FBBF24] transition-all" style={{ width: `${performanceScore}%` }} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation View Switcher Tabs */}
+      {/* Navigation View Switcher Tabs with Keyboard Badges */}
       <div className="flex flex-wrap items-center gap-1 px-5 py-2.5 bg-[#161A20] border-b border-[#262B33]">
         <button
           type="button"
@@ -250,8 +327,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             activeTab === 'OVERVIEW' ? 'bg-[#191D24] text-[#4FD8C4] border border-[#4FD8C4]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
           }`}
         >
-          <Search className="size-3.5" />
+          <MagnifyingGlassIcon className="size-3.5" />
           <span>SEO & SERP Preview</span>
+          <span className="text-[9px] bg-[#0A0C0F] text-[#565D68] px-1 py-0.2 rounded border border-[#262B33]">1</span>
         </button>
 
         <button
@@ -261,8 +339,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             activeTab === 'CONTENT' ? 'bg-[#191D24] text-[#7AA2F7] border border-[#7AA2F7]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
           }`}
         >
-          <BookOpen className="size-3.5" />
+          <BookOpenIcon className="size-3.5" />
           <span>Editorial & Hierarchy</span>
+          <span className="text-[9px] bg-[#0A0C0F] text-[#565D68] px-1 py-0.2 rounded border border-[#262B33]">2</span>
         </button>
 
         <button
@@ -272,8 +351,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             activeTab === 'SCHEMA' ? 'bg-[#191D24] text-[#4ADE80] border border-[#4ADE80]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
           }`}
         >
-          <Code className="size-3.5" />
+          <CodeIcon className="size-3.5" />
           <span>Schema & Social Meta</span>
+          <span className="text-[9px] bg-[#0A0C0F] text-[#565D68] px-1 py-0.2 rounded border border-[#262B33]">3</span>
         </button>
 
         <button
@@ -283,8 +363,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             activeTab === 'ENGINE' ? 'bg-[#191D24] text-[#FBBF24] border border-[#FBBF24]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
           }`}
         >
-          <Cpu className="size-3.5" />
+          <CpuIcon className="size-3.5" />
           <span>Advanced Diagnostics</span>
+          <span className="text-[9px] bg-[#0A0C0F] text-[#565D68] px-1 py-0.2 rounded border border-[#262B33]">4</span>
         </button>
 
         <button
@@ -294,28 +375,64 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             activeTab === 'AI_FIXES' ? 'bg-[#191D24] text-[#4FD8C4] border border-[#4FD8C4]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
           }`}
         >
-          <Compass className="size-3.5" />
+          <CompassIcon className="size-3.5" />
           <span>AI Recommendations</span>
+          <span className="text-[9px] bg-[#0A0C0F] text-[#565D68] px-1 py-0.2 rounded border border-[#262B33]">5</span>
         </button>
       </div>
 
       {/* TAB 1: OVERVIEW & TECHNICAL SEO */}
       {activeTab === 'OVERVIEW' && (
         <div className="divide-y divide-[#262B33]">
-          {/* SERP Simulator Card */}
+          {/* SERP Simulator Card with Desktop / Mobile Toggle */}
           {seoMetrics?.serpPreview && (
             <div className="p-5 bg-[#0A0C0F]/60 space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[11px] uppercase tracking-wider font-bold text-[#4FD8C4] flex items-center gap-1.5">
-                  <Search className="size-3.5" /> Google Search SERP Simulator
+                  <MagnifyingGlassIcon className="size-3.5" /> Google Search SERP Simulator
                 </span>
-                <span className="text-[10px] text-[#8B93A1]">
-                  Title width: {seoMetrics.serpPreview.titlePixelWidth}px / 600px max
-                </span>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-[#12151A] border border-[#262B33] rounded p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setSerpViewMode('desktop')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                        serpViewMode === 'desktop'
+                          ? 'bg-[#191D24] text-[#4FD8C4] border border-[#333A45]'
+                          : 'text-[#8B93A1] hover:text-[#E7EAEE]'
+                      }`}
+                    >
+                      <DesktopIcon className="size-3" />
+                      <span>Desktop</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSerpViewMode('mobile')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                        serpViewMode === 'mobile'
+                          ? 'bg-[#191D24] text-[#4FD8C4] border border-[#333A45]'
+                          : 'text-[#8B93A1] hover:text-[#E7EAEE]'
+                      }`}
+                    >
+                      <DeviceMobileIcon className="size-3" />
+                      <span>Mobile</span>
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-[#8B93A1]">
+                    Pixel width: {seoMetrics.serpPreview.titlePixelWidth}px / 600px
+                  </span>
+                </div>
               </div>
-              <div className="bg-[#12151A] p-4 rounded-xl border border-[#262B33] font-sans space-y-1 max-w-2xl">
+
+              {/* SERP Preview Box */}
+              <div
+                className={`bg-[#12151A] p-4 rounded-xl border border-[#262B33] font-sans space-y-1 transition-all ${
+                  serpViewMode === 'mobile' ? 'max-w-sm border-l-4 border-l-[#4FD8C4]' : 'max-w-2xl'
+                }`}
+              >
                 <div className="flex items-center gap-2 text-xs text-[#8B93A1]">
-                  <Globe className="size-3 text-[#4ADE80]" />
+                  <GlobeIcon className="size-3 text-[#4ADE80]" />
                   <span className="text-[#8B93A1] font-mono text-[11px] truncate">{seoMetrics.serpPreview.displayedUrl}</span>
                 </div>
                 <h4 className="text-[#7AA2F7] text-base font-medium hover:underline cursor-pointer">
@@ -328,10 +445,20 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             </div>
           )}
 
-          {/* Page Title Row */}
+          {/* Page Title Row with 1-Click Copy */}
           <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
-              Title Tag ({seoMetrics?.titleLength ?? 0} chars)
+            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider flex items-center justify-between">
+              <span>Title Tag ({seoMetrics?.titleLength ?? 0})</span>
+              {pageTitle && (
+                <button
+                  type="button"
+                  onClick={() => handleCopy(pageTitle, 'title')}
+                  className="text-[#8B93A1] hover:text-[#4FD8C4] cursor-pointer p-0.5"
+                  title="Copy Title"
+                >
+                  {copiedField === 'title' ? <CheckIcon className="size-3 text-[#4ADE80]" /> : <CopyIcon className="size-3" />}
+                </button>
+              )}
             </div>
             <div className="flex-1 font-sans text-sm text-[#E7EAEE]">
               {pageTitle ? (
@@ -355,10 +482,20 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             </div>
           </div>
 
-          {/* Meta Description Row */}
+          {/* Meta Description Row with 1-Click Copy */}
           <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
-              Description ({seoMetrics?.descriptionLength ?? 0} chars)
+            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider flex items-center justify-between">
+              <span>Description ({seoMetrics?.descriptionLength ?? 0})</span>
+              {metaDescription && (
+                <button
+                  type="button"
+                  onClick={() => handleCopy(metaDescription, 'description')}
+                  className="text-[#8B93A1] hover:text-[#4FD8C4] cursor-pointer p-0.5"
+                  title="Copy Description"
+                >
+                  {copiedField === 'description' ? <CheckIcon className="size-3 text-[#4ADE80]" /> : <CopyIcon className="size-3" />}
+                </button>
+              )}
             </div>
             <div className="flex-1 font-sans text-sm text-[#E7EAEE] leading-relaxed">
               {metaDescription ? (
@@ -394,7 +531,17 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                   {seoMetrics?.canonicalStatus || 'MISSING'}
                 </span>
                 {seoMetrics?.canonicalUrl && (
-                  <span className="text-xs text-[#8B93A1] font-mono break-all">{seoMetrics.canonicalUrl}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-[#8B93A1] font-mono break-all">{seoMetrics.canonicalUrl}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(seoMetrics.canonicalUrl!, 'canonical')}
+                      className="text-[#8B93A1] hover:text-[#4FD8C4] cursor-pointer p-0.5"
+                      title="Copy Canonical URL"
+                    >
+                      {copiedField === 'canonical' ? <CheckIcon className="size-3 text-[#4ADE80]" /> : <CopyIcon className="size-3" />}
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -423,22 +570,22 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             </div>
             <div className="flex-1 flex flex-wrap gap-2">
               <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasViewportMeta ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
-                {seoMetrics?.hasViewportMeta ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
+                {seoMetrics?.hasViewportMeta ? <CheckCircleIcon className="size-3" /> : <XCircleIcon className="size-3" />}
                 <span>Mobile Viewport Meta</span>
               </span>
 
               <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${seoMetrics?.hasFavicon ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30'}`}>
-                {seoMetrics?.hasFavicon ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+                {seoMetrics?.hasFavicon ? <CheckCircleIcon className="size-3" /> : <WarningIcon className="size-3" />}
                 <span>Favicon Icon</span>
               </span>
 
               <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${accessibilityMetrics?.hasHtmlLangAttribute ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
-                {accessibilityMetrics?.hasHtmlLangAttribute ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
+                {accessibilityMetrics?.hasHtmlLangAttribute ? <CheckCircleIcon className="size-3" /> : <XCircleIcon className="size-3" />}
                 <span>HTML Lang: {accessibilityMetrics?.htmlLangValue || 'missing'}</span>
               </span>
 
               <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${perfMetrics?.hasCompression ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#191D24] text-[#8B93A1] border border-[#262B33]'}`}>
-                {perfMetrics?.hasCompression ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+                {perfMetrics?.hasCompression ? <CheckCircleIcon className="size-3" /> : <WarningIcon className="size-3" />}
                 <span>Compression ({perfMetrics?.contentEncoding || 'none'})</span>
               </span>
             </div>
@@ -454,7 +601,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-4">
               <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
                 <div className="flex items-center gap-2">
-                  <BookOpen className="size-4 text-[#7AA2F7]" />
+                  <BookOpenIcon className="size-4 text-[#7AA2F7]" />
                   <h3 className="font-bold text-[#E7EAEE] text-sm">Linguistic Readability & Content Health</h3>
                 </div>
                 <span className="rounded bg-[#7AA2F7]/10 border border-[#7AA2F7]/30 px-2.5 py-0.5 text-xs text-[#7AA2F7] font-bold">
@@ -498,7 +645,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-3">
             <div className="flex items-center justify-between border-b border-[#262B33] pb-2">
               <div className="flex items-center gap-2">
-                <Layers className="size-4 text-[#4FD8C4]" />
+                <StackIcon className="size-4 text-[#4FD8C4]" />
                 <h3 className="font-bold text-[#E7EAEE] text-sm">Heading Hierarchy (H1-H6)</h3>
               </div>
               <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${contentMetrics?.hasValidHeadingHierarchy ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#FBBF24]/10 text-[#FBBF24] border border-[#FBBF24]/30'}`}>
@@ -508,8 +655,8 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
             {contentMetrics?.headingIssues && contentMetrics.headingIssues.length > 0 && (
               <div className="p-3 bg-[#FBBF24]/5 border border-[#FBBF24]/20 rounded-lg space-y-1 text-xs text-[#FBBF24]">
-                {contentMetrics.headingIssues.map((issue, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5">
+                {contentMetrics.headingIssues.map((issue) => (
+                  <div key={issue} className="flex items-center gap-1.5">
                     <span>⚠</span> <span>{issue}</span>
                   </div>
                 ))}
@@ -517,9 +664,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             )}
 
             <div className="space-y-1.5 max-h-60 overflow-y-auto pt-1">
-              {contentMetrics?.headingHierarchy && contentMetrics.headingHierarchy.map((node, idx) => (
+              {contentMetrics?.headingHierarchy?.map((node, idx) => (
                 <div
-                  key={idx}
+                  key={`${node.tag}-${node.text}-${idx}`}
                   className="flex items-center justify-between p-2 rounded bg-[#12151A] border border-[#262B33] text-xs"
                   style={{ marginLeft: `${(node.level - 1) * 16}px` }}
                 >
@@ -546,9 +693,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                 Top N-Gram Key Phrases & Density
               </span>
               <div className="flex flex-wrap gap-2">
-                {contentMetrics.topKeywords.map((kw, idx) => (
+                {contentMetrics.topKeywords.map((kw) => (
                   <span
-                    key={idx}
+                    key={kw.phrase}
                     className={`rounded border px-2.5 py-1 text-xs inline-flex items-center gap-1.5 ${
                       kw.isStuffingWarning
                         ? 'bg-[#F87171]/10 border-[#F87171]/30 text-[#F87171]'
@@ -572,7 +719,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-4">
             <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
               <div className="flex items-center gap-2">
-                <Code className="size-4 text-[#4ADE80]" />
+                <CodeIcon className="size-4 text-[#4ADE80]" />
                 <h3 className="font-bold text-[#E7EAEE] text-sm">Schema.org JSON-LD Structured Data</h3>
               </div>
               <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${seoMetrics?.structuredDataInfo?.validJsonLd ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30'}`}>
@@ -584,17 +731,27 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-[#8B93A1]">Detected Schema Types:</span>
-                  {seoMetrics.structuredDataInfo.detectedSchemaTypes.map((type, idx) => (
-                    <span key={idx} className="rounded bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2 py-0.5 text-xs text-[#4ADE80] font-bold">
+                  {seoMetrics.structuredDataInfo.detectedSchemaTypes.map((type) => (
+                    <span key={type} className="rounded bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2 py-0.5 text-xs text-[#4ADE80] font-bold">
                       @{type}
                     </span>
                   ))}
                 </div>
 
                 {seoMetrics.structuredDataInfo.rawJsonLdSnippets.map((snippet, idx) => (
-                  <pre key={idx} className="p-3 bg-[#12151A] rounded border border-[#262B33] text-[11px] text-[#A9B1D6] font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
-                    {snippet}
-                  </pre>
+                  <div key={`${snippet.slice(0, 20)}-${idx}`} className="relative group">
+                    <pre className="p-3 bg-[#12151A] rounded border border-[#262B33] text-[11px] text-[#A9B1D6] font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+                      {snippet}
+                    </pre>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(snippet, `jsonld-${idx}`)}
+                      className="absolute top-2 right-2 rounded bg-[#191D24] border border-[#262B33] p-1.5 text-[#8B93A1] hover:text-[#4FD8C4] transition-all cursor-pointer"
+                      title="Copy JSON-LD Schema"
+                    >
+                      {copiedField === `jsonld-${idx}` ? <CheckIcon className="size-3 text-[#4ADE80]" /> : <CopyIcon className="size-3" />}
+                    </button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -674,7 +831,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
       {/* Permanent Save Confirmation Footer */}
       {savedMessage && (
         <div className="bg-[#4ADE80]/10 p-4 border-t border-[#4ADE80]/30 text-[#4ADE80] flex items-center gap-2">
-          <CheckCircle2 className="size-4 shrink-0 text-[#4ADE80]" />
+          <CheckCircleIcon className="size-4 shrink-0 text-[#4ADE80]" />
           <span>{savedMessage}</span>
         </div>
       )}
@@ -682,7 +839,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
       {/* Save Error Footer */}
       {saveError && (
         <div className="bg-[#F87171]/10 p-4 border-t border-[#F87171]/30 text-[#F87171] flex items-center gap-2">
-          <AlertCircle className="size-4 shrink-0 text-[#F87171]" />
+          <WarningCircleIcon className="size-4 shrink-0 text-[#F87171]" />
           <span>{saveError}</span>
         </div>
       )}
@@ -693,7 +850,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           <div className="bg-[#12151A] border border-[#262B33] rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
             <div className="flex items-center gap-3 text-center mx-auto">
               <div className="size-12 rounded-full bg-[#F87171]/10 border border-[#F87171]/30 flex items-center justify-center mx-auto text-[#F87171]">
-                <Lock className="size-6" />
+                <LockIcon className="size-6" />
               </div>
               <div>
                 <h3 className="font-mono text-base font-bold text-[#E7EAEE]">Authentication Required</h3>
@@ -714,7 +871,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                   onClick={handleLoginPromptAction}
                   className="flex-1 rounded border border-[#4FD8C4] bg-[#4FD8C4] px-4 py-2 font-mono text-xs font-semibold text-[#0A0C0F] hover:bg-[#4FD8C4]/90 transition-all cursor-pointer inline-flex items-center justify-center gap-1"
                 >
-                  <AlertCircle className="size-3.5" />
+                  <WarningCircleIcon className="size-3.5" />
                   <span>Sign In</span>
                 </button>
               </div>

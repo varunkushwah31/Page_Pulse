@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { PageHeaderNav } from './components/PageHeaderNav';
 import { SingleAuditPage } from './pages/SingleAuditPage';
@@ -14,8 +15,24 @@ import { UserProfilePage } from './pages/UserProfilePage';
 import { Footer } from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
 import { SeoHead } from './components/SeoHead';
+import { CommandPalette } from './components/CommandPalette';
+import { BackToTop } from './components/BackToTop';
 
 export function App() {
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -27,7 +44,13 @@ export function App() {
           </div>
 
           {/* Sticky Navigation Bar */}
-          <PageHeaderNav />
+          <PageHeaderNav onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
+
+          {/* Global Command Palette */}
+          <CommandPalette
+            isOpen={commandPaletteOpen}
+            onClose={() => setCommandPaletteOpen(false)}
+          />
 
           {/* Main Application Container */}
           <div className="mx-auto max-w-7xl px-4 sm:px-6 space-y-8">
@@ -52,6 +75,9 @@ export function App() {
             {/* Footer */}
             <Footer />
           </div>
+
+          {/* Back to Top Floating Action */}
+          <BackToTop />
         </div>
       </AuthProvider>
     </BrowserRouter>

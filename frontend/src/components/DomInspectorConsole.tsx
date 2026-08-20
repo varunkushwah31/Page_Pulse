@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { DomIssueSnippet } from '../types';
-import { Code, Copy, Check, Info } from 'lucide-react';
+import { CodeIcon, CopyIcon, CheckIcon } from '@phosphor-icons/react';
 
 interface DomInspectorConsoleProps {
   issues: DomIssueSnippet[];
@@ -38,7 +38,7 @@ export const DomInspectorConsole: React.FC<DomInspectorConsoleProps> = ({ issues
     <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 sm:p-5 space-y-3 shadow-xl font-mono text-xs">
       <div className="flex items-center justify-between border-b border-[#262B33] pb-2 text-[#8B93A1]">
         <div className="flex items-center gap-2">
-          <Code className="size-4 text-[#4FD8C4]" />
+          <CodeIcon className="size-4 text-[#4FD8C4]" />
           <span className="font-bold text-[#E7EAEE]">{title}</span>
           <span className="text-[10px] bg-[#4FD8C4]/10 text-[#4FD8C4] border border-[#4FD8C4]/30 px-1.5 py-0.5 rounded font-bold">
             {issues.length} {issues.length === 1 ? 'SNIPPET' : 'SNIPPETS'}
@@ -71,12 +71,12 @@ export const DomInspectorConsole: React.FC<DomInspectorConsoleProps> = ({ issues
               >
                 {copiedIndex === idx ? (
                   <>
-                    <Check className="size-3 text-[#4ADE80]" />
+                    <CheckIcon className="size-3 text-[#4ADE80]" />
                     <span className="text-[#4ADE80]">Copied</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="size-3" />
+                    <CopyIcon className="size-3" />
                     <span>Copy HTML</span>
                   </>
                 )}

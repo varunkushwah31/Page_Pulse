@@ -3,16 +3,18 @@ import type { TrendResponse, TrendDataPoint } from '../types';
 import { fetchDomainTrends } from '../lib/api';
 import { exportToCsv, exportToJson } from '../lib/ExportUtils';
 import {
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Activity,
-  BarChart3,
-  AlertTriangle,
-  Zap,
-  CheckCircle2,
-  ShieldAlert,
-} from 'lucide-react';
+  TrendUpIcon,
+  TrendDownIcon,
+  MinusIcon,
+  PulseIcon,
+  ChartBarIcon,
+  WarningIcon,
+  LightningIcon,
+  CheckCircleIcon,
+  ShieldWarningIcon,
+  ChartLineIcon,
+  ListIcon
+} from '@phosphor-icons/react';
 
 interface TrendConsoleProps {
   initialDomain?: string;
@@ -34,6 +36,8 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
   const [loading, setLoading] = useState(false);
   const [trendResponse, setTrendResponse] = useState<TrendResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'chart' | 'list'>('chart');
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
 
   const executeFetch = async (targetDomain: string, targetMetric: string, targetDays: number) => {
     if (!targetDomain.trim() || loading) return;
@@ -56,13 +60,13 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
   };
 
   useEffect(() => {
-    if (initialDomain && initialDomain.trim()) {
+    if (initialDomain?.trim()) {
       setDomain(initialDomain);
       executeFetch(initialDomain, metric, days);
     }
   }, [initialDomain]);
 
-  const handleFetchTrend = (e: React.FormEvent) => {
+  const handleFetchTrend = (e: React.ChangeEvent) => {
     e.preventDefault();
     executeFetch(domain, metric, days);
   };
@@ -144,16 +148,48 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
             : 'bg-[#191D24] text-[#8B93A1] border border-[#262B33]'
         }`}
       >
-        {isUp && <TrendingUp className="size-3.5" />}
-        {isDown && <TrendingDown className="size-3.5" />}
-        {!isUp && !isDown && <Minus className="size-3.5" />}
+        {isUp && <TrendUpIcon className="size-3.5" />}
+        {isDown && <TrendDownIcon className="size-3.5" />}
+        {!isUp && !isDown && <MinusIcon className="size-3.5" />}
         {trendStr.toUpperCase()}
       </span>
     );
   };
 
+  // Compute SVG chart coordinates
+  const svgChart = useMemo(() => {
+    if (dataPoints.length === 0) return null;
+
+    const width = 700;
+    const height = 220;
+    const paddingX = 40;
+    const paddingY = 25;
+
+    const values = dataPoints.map((d) => d.value ?? 0);
+    const minVal = Math.max(0, Math.min(...values) * 0.85);
+    const maxVal = metric === 'responseTimeMs' ? Math.max(...values, 100) * 1.15 : 100;
+
+    const range = maxVal - minVal || 1;
+
+    const points = dataPoints.map((d, idx) => {
+      const x = paddingX + (idx / Math.max(1, dataPoints.length - 1)) * (width - 2 * paddingX);
+      const y = height - paddingY - (((d.value ?? 0) - minVal) / range) * (height - 2 * paddingY);
+      return { x, y, value: d.value, timestamp: d.timestamp };
+    });
+
+    const linePath = points.reduce((acc, p, idx) => {
+      return idx === 0 ? `M ${p.x},${p.y}` : `${acc} L ${p.x},${p.y}`;
+    }, '');
+
+    const areaPath = points.length > 0
+      ? `${linePath} L ${points[points.length - 1].x},${height - paddingY} L ${points[0].x},${height - paddingY} Z`
+      : '';
+
+    return { width, height, points, linePath, areaPath, minVal, maxVal };
+  }, [dataPoints, metric]);
+
   return (
-    <div className="space-y-6 font-mono text-xs">
+    <div className="space-y-6 font-mono text-xs text-[#E7EAEE]">
       {/* Terminal Prompt Bar */}
       <form onSubmit={handleFetchTrend} className="w-full">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-lg border border-[#333A45] bg-[#12151A] p-1.5 focus-within:ring-2 focus-within:ring-[#4FD8C4] focus-within:ring-offset-2 focus-within:ring-offset-[#0A0C0F]">
@@ -255,9 +291,38 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
       {/* Historical Trend Data & Anomaly Digest */}
       {trendResponse && !loading && (
         <div className="space-y-5">
-          <div className="flex items-center justify-between">
-            <span className="text-[#565D68] uppercase text-[11px] font-bold">Trend Analysis for {trendResponse.domain}</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[#565D68] uppercase text-[11px] font-bold">
+              Trend Analysis for {trendResponse.domain}
+            </span>
             <div className="flex items-center gap-2">
+              <div className="flex items-center bg-[#12151A] border border-[#262B33] rounded p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('chart')}
+                  className={`px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                    viewMode === 'chart'
+                      ? 'bg-[#191D24] text-[#4FD8C4] border border-[#333A45]'
+                      : 'text-[#8B93A1] hover:text-[#E7EAEE]'
+                  }`}
+                >
+                  <ChartLineIcon className="size-3" />
+                  <span>Chart</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={`px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                    viewMode === 'list'
+                      ? 'bg-[#191D24] text-[#4FD8C4] border border-[#333A45]'
+                      : 'text-[#8B93A1] hover:text-[#E7EAEE]'
+                  }`}
+                >
+                  <ListIcon className="size-3" />
+                  <span>Timeline</span>
+                </button>
+              </div>
+
               <button
                 onClick={() => {
                   const headers = ['Timestamp', 'Metric Value', 'Audit ID'];
@@ -299,7 +364,7 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
               <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-3 space-y-1">
                 <div className="text-[#565D68] uppercase text-[10px]">Stability Index</div>
                 <div className="text-base font-bold text-[#4ADE80] flex items-center gap-1">
-                  <Zap className="size-3.5 text-[#4ADE80]" />
+                  <LightningIcon className="size-3.5 text-[#4ADE80]" />
                   <span>{anomalyAnalysis.stabilityIndex}%</span>
                 </div>
               </div>
@@ -315,7 +380,7 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
             <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-[#262B33] pb-2 text-[#4FD8C4] font-bold">
                 <div className="flex items-center gap-1.5">
-                  <ShieldAlert className="size-4 text-[#FBBF24]" />
+                  <ShieldWarningIcon className="size-4 text-[#FBBF24]" />
                   <span>Smart Anomaly & Regression Digest</span>
                 </div>
                 <span className="text-[11px] text-[#8B93A1]">
@@ -325,7 +390,7 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
 
               {anomalyAnalysis.anomalies.length === 0 ? (
                 <div className="flex items-center gap-2 text-[#4ADE80] py-1 text-xs">
-                  <CheckCircle2 className="size-4 shrink-0" />
+                  <CheckCircleIcon className="size-4 shrink-0" />
                   <span>No severe performance or score regression anomalies detected in the last {days} days. Domain metric is stable!</span>
                 </div>
               ) : (
@@ -341,7 +406,7 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2 font-bold">
-                          <AlertTriangle className="size-3.5 shrink-0" />
+                          <WarningIcon className="size-3.5 shrink-0" />
                           <span>{anom.severity} REGRESSION — {anom.date}</span>
                         </div>
                         <p className="text-xs font-sans text-[#E7EAEE]">{anom.reason}</p>
@@ -357,24 +422,113 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
             </div>
           )}
 
-          {/* Historical Score Trend Timeline */}
-          <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden p-5 space-y-4">
+          {/* Interactive SVG Area Chart / Timeline */}
+          <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden p-5 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
               <div className="flex items-center gap-2">
-                <BarChart3 className="size-4 text-[#4FD8C4]" />
-                <span className="text-[#565D68] uppercase tracking-wider font-semibold">Domain Historical Score Trend</span>
+                <ChartBarIcon className="size-4 text-[#4FD8C4]" />
+                <span className="text-[#565D68] uppercase tracking-wider font-semibold">
+                  Domain Historical Trajectory ({metric})
+                </span>
               </div>
-              <span className="text-[#4ADE80] font-bold">Domain: {trendResponse.domain}</span>
+              <span className="text-[#4ADE80] font-bold text-xs">Target: {trendResponse.domain}</span>
             </div>
 
             {dataPoints.length === 0 ? (
-              <div className="text-center py-8 text-[#565D68] space-y-2">
-                <Activity className="size-6 mx-auto text-[#565D68]" />
+              <div className="text-center py-10 text-[#565D68] space-y-2">
+                <PulseIcon className="size-8 mx-auto text-[#565D68]" />
                 <p className="italic">No saved report data found for domain "{trendResponse.domain}" in MongoDB Atlas within the last {days} days.</p>
                 <p className="text-[11px] text-[#8B93A1] font-normal">Tip: Run audits for this URL and click "Save Report to Database" to build historical trend metrics.</p>
               </div>
+            ) : viewMode === 'chart' && svgChart ? (
+              <div className="space-y-3">
+                {/* SVG Visual Graph Container */}
+                <div className="relative bg-[#0A0C0F] border border-[#262B33] rounded-lg p-3 overflow-x-auto">
+                  <svg
+                    viewBox={`0 0 ${svgChart.width} ${svgChart.height}`}
+                    className="w-full h-56 select-none"
+                  >
+                    <defs>
+                      <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#4FD8C4" stopOpacity="0.35" />
+                        <stop offset="100%" stopColor="#4FD8C4" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Horizontal Grid lines */}
+                    {[0.25, 0.5, 0.75].map((factor, i) => {
+                      const y = 25 + factor * (svgChart.height - 50);
+                      return (
+                        <line
+                          key={i}
+                          x1="40"
+                          y1={y}
+                          x2={svgChart.width - 40}
+                          y2={y}
+                          stroke="#262B33"
+                          strokeDasharray="4 4"
+                        />
+                      );
+                    })}
+
+                    {/* Area fill */}
+                    <path d={svgChart.areaPath} fill="url(#areaGradient)" />
+
+                    {/* Line stroke */}
+                    <path
+                      d={svgChart.linePath}
+                      fill="none"
+                      stroke="#4FD8C4"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+
+                    {/* Data interactive points */}
+                    {svgChart.points.map((pt, idx) => (
+                      <g
+                        key={idx}
+                        onMouseEnter={() => setHoveredPointIndex(idx)}
+                        onMouseLeave={() => setHoveredPointIndex(null)}
+                        className="cursor-pointer"
+                      >
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={hoveredPointIndex === idx ? 6 : 3.5}
+                          fill={hoveredPointIndex === idx ? '#4FD8C4' : '#12151A'}
+                          stroke="#4FD8C4"
+                          strokeWidth="2"
+                          className="transition-all duration-150"
+                        />
+                      </g>
+                    ))}
+                  </svg>
+
+                  {/* Hover Tooltip Overlay */}
+                  {hoveredPointIndex !== null && svgChart.points[hoveredPointIndex] && (
+                    <div className="absolute top-4 right-4 bg-[#191D24] border border-[#4FD8C4]/60 p-2.5 rounded-lg shadow-xl text-xs space-y-1">
+                      <div className="text-[10px] text-[#8B93A1]">
+                        {svgChart.points[hoveredPointIndex].timestamp
+                          ? new Date(svgChart.points[hoveredPointIndex].timestamp!).toLocaleString()
+                          : `Scan #${hoveredPointIndex + 1}`}
+                      </div>
+                      <div className="font-bold text-[#4FD8C4] text-sm">
+                        {Math.round(svgChart.points[hoveredPointIndex].value ?? 0)}{' '}
+                        {metric === 'responseTimeMs' ? 'ms' : '/ 100'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-[#565D68] px-1">
+                  <span>Start: {dataPoints[0]?.timestamp ? new Date(dataPoints[0].timestamp).toLocaleDateString() : 'Baseline'}</span>
+                  <span>Hover over points to inspect metrics</span>
+                  <span>End: {dataPoints[dataPoints.length - 1]?.timestamp ? new Date(dataPoints[dataPoints.length - 1].timestamp).toLocaleDateString() : 'Latest'}</span>
+                </div>
+              </div>
             ) : (
-              <div className="space-y-2">
+              /* Timeline List View */
+              <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
                 {dataPoints.map((dp, idx) => {
                   const formattedDate = dp.timestamp ? new Date(dp.timestamp).toLocaleString() : 'N/A';
                   const val = dp.value != null ? Math.round(dp.value) : 0;
@@ -382,11 +536,15 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
                   const maxRange = isMs ? 3000 : 100;
                   const barWidth = Math.min(100, Math.max(5, (val / maxRange) * 100));
 
-                  // Check if this point is an anomaly
                   const isAnomaly = anomalyAnalysis.anomalies.some((a) => a.date === formattedDate);
 
                   return (
-                    <div key={idx} className={`flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-[#262B33]/50 hover:bg-[#191D24]/50 px-2.5 rounded transition-colors gap-2 ${isAnomaly ? 'bg-[#F87171]/5 border-l-2 border-l-[#F87171]' : ''}`}>
+                    <div
+                      key={idx}
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-[#262B33]/50 hover:bg-[#191D24]/50 px-2.5 rounded transition-colors gap-2 ${
+                        isAnomaly ? 'bg-[#F87171]/5 border-l-2 border-l-[#F87171]' : ''
+                      }`}
+                    >
                       <div className="flex items-center gap-2">
                         <span className="text-[#8B93A1] text-xs font-mono">{formattedDate}</span>
                         {isAnomaly && (

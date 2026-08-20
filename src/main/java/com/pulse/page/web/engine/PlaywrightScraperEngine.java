@@ -36,8 +36,12 @@ public class PlaywrightScraperEngine {
         try {
             CompletableFuture<ScrapeResult> future = CompletableFuture.supplyAsync(() -> executePlaywrightScrape(targetUrl));
             return future.get(5, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
+        } catch (TimeoutException _) {
             log.warn("Playwright JS rendering timed out for URL: {}, falling back to standard HTTP scraper", targetUrl);
+            return pageScraperEngine.fetchPage(targetUrl);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Playwright execution interrupted for URL: {}, falling back to standard HTTP scraper", targetUrl);
             return pageScraperEngine.fetchPage(targetUrl);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;

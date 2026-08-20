@@ -1,6 +1,16 @@
 import React from 'react';
 import type { AuditResponse } from '../types';
-import { Gauge, ShieldCheck, Link, AlertTriangle, CheckCircle2, XCircle, Lock, ExternalLink, Activity } from 'lucide-react';
+import {
+  PulseIcon,
+  ArrowSquareOutIcon,
+  CheckCircleIcon,
+  GaugeIcon,
+  LinkIcon,
+  LockIcon,
+  ShieldCheckIcon,
+  WarningIcon,
+  XCircleIcon
+} from '@phosphor-icons/react';
 
 interface AdvancedEngineConsoleProps {
   audit: AuditResponse;
@@ -36,7 +46,7 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
         <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#262B33] pb-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Gauge className="size-4 text-[#4FD8C4]" />
+              <GaugeIcon className="size-4 text-[#4FD8C4]" />
               <h3 className="font-bold text-[#E7EAEE] text-sm">Core Web Vitals</h3>
               {vitals.cruxDataAvailable || vitals.dataSource === 'CRUX_FIELD' ? (
                 <span className="text-[10px] text-[#4ADE80] bg-[#4ADE80]/10 border border-[#4ADE80]/30 px-2 py-0.5 rounded font-bold">
@@ -97,12 +107,12 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
         <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
           <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="size-4 text-[#4ADE80]" />
+              <ShieldCheckIcon className="size-4 text-[#4ADE80]" />
               <h3 className="font-bold text-[#E7EAEE] text-sm">Deep Security & SSL Certificate Inspector</h3>
             </div>
             <div className="flex items-center gap-2">
               <span className={`inline-flex items-center gap-1 rounded border px-2.5 py-0.5 text-[11px] font-bold ${security.sslValid ? 'bg-[#4ADE80]/10 text-[#4ADE80] border-[#4ADE80]/30' : 'bg-[#F87171]/10 text-[#F87171] border-[#F87171]/30'}`}>
-                <Lock className="size-3" />
+                <LockIcon className="size-3" />
                 {security.sslValid ? 'Valid SSL Certificate' : 'Insecure / Invalid SSL'}
               </span>
             </div>
@@ -143,7 +153,7 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
               {security.securityHeadersPresent && Object.entries(security.securityHeadersPresent).map(([header, present]) => (
                 <div key={header} className={`flex items-center justify-between p-2.5 rounded border text-[11px] ${present ? 'bg-[#4ADE80]/5 border-[#4ADE80]/20 text-[#4ADE80]' : 'bg-[#F87171]/5 border-[#F87171]/20 text-[#F87171]'}`}>
                   <span className="font-semibold font-mono truncate">{header}</span>
-                  {present ? <CheckCircle2 className="size-3.5 shrink-0" /> : <XCircle className="size-3.5 shrink-0" />}
+                  {present ? <CheckCircleIcon className="size-3.5 shrink-0" /> : <XCircleIcon className="size-3.5 shrink-0" />}
                 </div>
               ))}
             </div>
@@ -156,7 +166,7 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
         <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#262B33] pb-3">
             <div className="flex items-center gap-2">
-              <Link className="size-4 text-[#7AA2F7]" />
+              <LinkIcon className="size-4 text-[#7AA2F7]" />
               <h3 className="font-bold text-[#E7EAEE] text-sm">Broken Link & Redirect Chain Detector</h3>
             </div>
             <div className="flex items-center gap-3 text-[#8B93A1] text-[11px]">
@@ -169,13 +179,13 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
 
           {links.brokenLinksCount === 0 ? (
             <div className="p-4 rounded-lg border border-[#4ADE80]/30 bg-[#4ADE80]/10 text-[#4ADE80] flex items-center gap-2">
-              <CheckCircle2 className="size-4 shrink-0 text-[#4ADE80]" />
+              <CheckCircleIcon className="size-4 shrink-0 text-[#4ADE80]" />
               <span>No 404 broken links or dead anchor tags detected on this page!</span>
             </div>
           ) : (
             <div className="space-y-2">
               <span className="text-[#F87171] font-bold text-[11px] flex items-center gap-1.5">
-                <AlertTriangle className="size-3.5" />
+                <WarningIcon className="size-3.5" />
                 <span>Detected Broken Anchor Links ({links.brokenLinksCount})</span>
               </span>
 
@@ -190,8 +200,8 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#262B33]">
-                    {links.brokenLinks.map((b, idx) => (
-                      <tr key={`${b.url}-${idx}`} className="hover:bg-[#191D24]/50">
+                    {links.brokenLinks.map((b) => (
+                      <tr key={b.url} className="hover:bg-[#191D24]/50">
                         <td className="p-2.5 text-[#E7EAEE] font-mono break-all max-w-xs">{b.url}</td>
                         <td className="p-2.5 text-[#8B93A1] font-sans truncate max-w-[150px]">{b.anchorText || 'N/A'}</td>
                         <td className="p-2.5 text-center">
@@ -201,7 +211,7 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
                         </td>
                         <td className="p-2.5 text-center">
                           <span className="text-[10px] text-[#8B93A1] inline-flex items-center gap-1">
-                            {b.external ? <ExternalLink className="size-3" /> : <Activity className="size-3" />}
+                            {b.external ? <ArrowSquareOutIcon className="size-3" /> : <PulseIcon className="size-3" />}
                             {b.external ? 'External' : 'Internal'}
                           </span>
                         </td>
@@ -220,7 +230,7 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
         <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
           <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
             <div className="flex items-center gap-2">
-              <Activity className="size-4 text-[#FBBF24]" />
+              <PulseIcon className="size-4 text-[#FBBF24]" />
               <h3 className="font-bold text-[#E7EAEE] text-sm">Web Font & Asset Bottlenecks</h3>
             </div>
             <span className="text-[10px] text-[#8B93A1] bg-[#191D24] border border-[#262B33] px-2 py-0.5 rounded">
@@ -261,12 +271,12 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
           {audit.assetBottleneckMetrics.bottleneckIssues.length > 0 && (
             <div className="space-y-2 pt-2">
               <span className="text-[#FBBF24] font-bold text-[11px] flex items-center gap-1.5">
-                <AlertTriangle className="size-3.5" />
+                <WarningIcon className="size-3.5" />
                 <span>Detected Asset Bottleneck Warnings</span>
               </span>
               <ul className="space-y-1.5 text-[11px] text-[#8B93A1] bg-[#0A0C0F] p-3 rounded-lg border border-[#262B33]">
-                {audit.assetBottleneckMetrics.bottleneckIssues.map((issue, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
+                {audit.assetBottleneckMetrics.bottleneckIssues.map((issue) => (
+                  <li key={issue} className="flex items-start gap-2">
                     <span className="text-[#FBBF24]">•</span>
                     <span>{issue}</span>
                   </li>

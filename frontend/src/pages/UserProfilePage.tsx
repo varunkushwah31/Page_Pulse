@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { createApiKey, fetchApiKeys, revokeApiKey, fetchSavedReports, fetchScheduledAudits } from '../lib/api';
 import type { ApiKeyResponse } from '../types';
-import { User, Key, Shield, Database, Activity, LogOut, Copy, Check, Plus, Trash2 } from 'lucide-react';
+import { UserIcon, KeyIcon, ShieldIcon, DatabaseIcon, PulseIcon, SignOutIcon, CopyIcon, CheckIcon, PlusIcon, TrashIcon} from '@phosphor-icons/react';
 
 export const UserProfilePage: React.FC = () => {
   const { user, logout } = useAuth();
@@ -40,17 +40,18 @@ export const UserProfilePage: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-8 text-center space-y-4 font-mono text-xs">
-        <div className="size-12 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center mx-auto text-purple-400">
-          <User className="size-6" />
+      <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-8 text-center space-y-4 font-mono text-xs">
+        <div className="size-12 rounded-full bg-[#4FD8C4]/10 border border-[#4FD8C4]/30 flex items-center justify-center mx-auto text-[#4FD8C4]">
+          <UserIcon className="size-6" />
         </div>
         <div className="space-y-1">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider">Authentication Required</h2>
-          <p className="text-slate-400">You must be logged in to view your user profile and API keys.</p>
+          <h2 className="text-sm font-bold text-[#E7EAEE] uppercase tracking-wider">Authentication Required</h2>
+          <p className="text-[#8B93A1]">You must be logged in to view your user profile and API keys.</p>
         </div>
         <button
           onClick={() => navigate('/auth')}
-          className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold cursor-pointer transition-all inline-flex items-center gap-1.5"
+          type='button'
+          className="px-4 py-2 rounded-lg bg-[#4FD8C4] hover:bg-[#4FD8C4]/80 text-[#0A0C0F] font-bold cursor-pointer transition-all inline-flex items-center gap-1.5"
         >
           Sign In to Account
         </button>
@@ -58,7 +59,7 @@ export const UserProfilePage: React.FC = () => {
     );
   }
 
-  const handleCreateApiKey = async (e: React.FormEvent) => {
+  const handleCreateApiKey = async (e: React.ChangeEvent) => {
     e.preventDefault();
     if (!newKeyName.trim() || loading) return;
 
@@ -98,65 +99,81 @@ export const UserProfilePage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-mono text-xs">
+      {/* Terminal Header */}
+      <div className="flex items-center justify-between border-b border-[#262B33] pb-4">
+        <div className="flex items-center gap-2 text-[#4FD8C4]">
+          <ShieldIcon className="size-4" />
+          <span className="font-bold">$ profile --user</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#4ADE80] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#4ADE80]"></span>
+          </span>
+          <span className="text-[10px] font-bold text-[#4ADE80] tracking-wider uppercase">Session Active</span>
+        </div>
+      </div>
+
       {/* Profile Header Card */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="size-14 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400 font-extrabold text-xl">
+          <div className="size-14 rounded-2xl bg-[#4FD8C4]/20 border border-[#4FD8C4]/40 flex items-center justify-center text-[#4FD8C4] font-extrabold text-xl">
             {user.username.charAt(0).toUpperCase()}
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-white">{user.username}</h1>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+              <h1 className="text-base font-bold text-[#E7EAEE]">{user.username}</h1>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#4FD8C4]/20 text-[#4FD8C4] border border-[#4FD8C4]/30">
                 {user.role || 'ROLE_USER'}
               </span>
             </div>
-            <p className="text-slate-400 text-xs font-sans">{user.email}</p>
+            <p className="text-[#8B93A1] text-xs font-sans">{user.email}</p>
           </div>
         </div>
 
         <button
           onClick={handleLogout}
-          className="px-3.5 py-2 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0"
+          type='button'
+          className="px-3.5 py-2 rounded-lg border border-[#F87171]/30 bg-[#F87171]/10 hover:bg-[#F87171]/20 text-[#F87171] font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0"
         >
-          <LogOut className="size-3.5" />
+          <SignOutIcon className="size-3.5" />
           <span>Sign Out</span>
         </button>
       </div>
 
       {/* Account Activity Summary Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-1">
-          <div className="flex items-center justify-between text-slate-400 text-[11px]">
+        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
+          <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>Saved MongoDB Reports</span>
-            <Database className="size-4 text-emerald-400" />
+            <DatabaseIcon className="size-4 text-[#4ADE80]" />
           </div>
-          <div className="text-2xl font-bold text-white">{savedReportsCount}</div>
+          <div className="text-2xl font-bold text-[#E7EAEE]">{savedReportsCount}</div>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-1">
-          <div className="flex items-center justify-between text-slate-400 text-[11px]">
+        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
+          <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>Active Background Monitors</span>
-            <Activity className="size-4 text-cyan-400" />
+            <PulseIcon className="size-4 text-[#4FD8C4]" />
           </div>
-          <div className="text-2xl font-bold text-white">{scheduledMonitorsCount}</div>
+          <div className="text-2xl font-bold text-[#E7EAEE]">{scheduledMonitorsCount}</div>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-1">
-          <div className="flex items-center justify-between text-slate-400 text-[11px]">
+        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
+          <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>API Access Tokens</span>
-            <Key className="size-4 text-purple-400" />
+            <KeyIcon className="size-4 text-[#4FD8C4]" />
           </div>
-          <div className="text-2xl font-bold text-white">{apiKeys.length}</div>
+          <div className="text-2xl font-bold text-[#E7EAEE]">{apiKeys.length}</div>
         </div>
       </div>
 
       {/* API Key Management Card */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden space-y-0">
-        <div className="bg-slate-950 p-4 border-b border-slate-800 flex items-center justify-between">
+      <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden space-y-0">
+        <div className="bg-[#191D24] p-4 border-b border-[#262B33] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Key className="size-4 text-purple-400" />
-            <span className="font-semibold text-white uppercase tracking-wider">REST API Access Keys</span>
+            <KeyIcon className="size-4 text-[#4FD8C4]" />
+            <span className="font-semibold text-[#E7EAEE] uppercase tracking-wider">REST API Access Keys</span>
           </div>
         </div>
 
@@ -169,32 +186,32 @@ export const UserProfilePage: React.FC = () => {
               value={newKeyName}
               onChange={(e) => setNewKeyName(e.target.value)}
               disabled={loading}
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="flex-1 bg-[#0A0C0F] border border-[#333A45] rounded-lg px-3 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none focus:ring-1 focus:ring-[#4FD8C4]"
             />
             <button
               type="submit"
               disabled={loading || !newKeyName.trim()}
-              className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold transition-all cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5"
+              className="px-4 py-2 rounded-lg bg-[#4FD8C4] hover:bg-[#4FD8C4]/80 disabled:opacity-40 text-[#0A0C0F] font-bold transition-all cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5"
             >
-              <Plus className="size-3.5" />
+              <PlusIcon className="size-3.5" />
               <span>Generate API Key</span>
             </button>
           </form>
 
           {/* Newly Generated Secret Banner */}
           {generatedKey && (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-2 text-emerald-400">
+            <div className="rounded-xl border border-[#4ADE80]/30 bg-[#4ADE80]/10 p-4 space-y-2 text-[#4ADE80]">
               <div className="flex items-center justify-between font-bold">
                 <span>✓ API Key Generated Successfully! Copy it now (shown once):</span>
                 <button
                   onClick={handleCopyKey}
-                  className="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-white text-[11px] font-mono cursor-pointer inline-flex items-center gap-1"
+                  className="px-2.5 py-1 rounded bg-[#4ADE80]/20 hover:bg-[#4ADE80]/30 text-[#E7EAEE] text-[11px] font-mono cursor-pointer inline-flex items-center gap-1"
                 >
-                  {copiedKey ? <Check className="size-3 text-emerald-300" /> : <Copy className="size-3" />}
+                  {copiedKey ? <CheckIcon className="size-3 text-[#4ADE80]" /> : <CopyIcon className="size-3" />}
                   <span>{copiedKey ? 'Copied!' : 'Copy Key'}</span>
                 </button>
               </div>
-              <div className="bg-slate-950 p-2.5 rounded border border-slate-800 text-white break-all font-mono">
+              <div className="bg-[#0A0C0F] p-2.5 rounded border border-[#262B33] text-[#E7EAEE] break-all font-mono">
                 {generatedKey}
               </div>
             </div>
@@ -202,22 +219,22 @@ export const UserProfilePage: React.FC = () => {
 
           {/* Active Keys Listing Table */}
           <div className="space-y-2 pt-2">
-            <span className="text-slate-400 font-semibold uppercase text-[11px] block">Active Keys ({apiKeys.length})</span>
+            <span className="text-[#8B93A1] font-semibold uppercase text-[11px] block">Active Keys ({apiKeys.length})</span>
             {apiKeys.length === 0 ? (
-              <p className="text-slate-500 italic py-2">No custom REST API keys generated yet.</p>
+              <p className="text-[#565D68] italic py-2">No custom REST API keys generated yet.</p>
             ) : (
-              <div className="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden bg-slate-950">
+              <div className="divide-y divide-[#262B33] border border-[#262B33] rounded-lg overflow-hidden bg-[#0A0C0F]">
                 {apiKeys.map((k, idx) => (
                   <div key={k.id || idx} className="p-3 flex items-center justify-between gap-3 text-xs">
                     <div className="space-y-0.5 truncate">
-                      <div className="font-semibold text-white">{k.name}</div>
-                      <div className="text-[11px] text-slate-500 font-mono truncate">{k.apiKey}</div>
+                      <div className="font-semibold text-[#E7EAEE]">{k.name}</div>
+                      <div className="text-[11px] text-[#565D68] font-mono truncate">{k.apiKey}</div>
                     </div>
                     <button
                       onClick={() => handleRevokeKey(k.id)}
-                      className="px-2 py-1 rounded text-red-400 hover:bg-red-500/10 border border-red-500/20 transition-all cursor-pointer shrink-0"
+                      className="px-2 py-1 rounded text-[#F87171] hover:bg-[#F87171]/10 border border-[#F87171]/20 transition-all cursor-pointer shrink-0"
                     >
-                      <Trash2 className="size-3.5" />
+                      <TrashIcon className="size-3.5" />
                     </button>
                   </div>
                 ))}

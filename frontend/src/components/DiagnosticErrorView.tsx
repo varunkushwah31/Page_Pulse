@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertOctagon, RefreshCw, ArrowLeft, Terminal } from 'lucide-react';
+import { WarningOctagonIcon, ArrowsClockwiseIcon, ArrowLeftIcon, TerminalIcon } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -18,36 +18,36 @@ export const DiagnosticErrorView: React.FC<DiagnosticErrorViewProps> = ({
 }) => {
   return (
     <div className="max-w-2xl mx-auto py-12 px-4 space-y-6 text-center">
-      <div className="flex size-16 items-center justify-center rounded-2xl bg-red-500/10 text-red-400 border border-red-500/30 mx-auto shadow-xl shadow-red-500/10">
-        <AlertOctagon className="size-8" />
+      <div className="flex size-16 items-center justify-center rounded-2xl bg-[#F87171]/10 text-[#F87171] border border-[#F87171]/30 mx-auto shadow-xl shadow-[#F87171]/10">
+        <WarningOctagonIcon className="size-8" />
       </div>
 
       <div className="space-y-2">
-        <span className="inline-block rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-400 uppercase tracking-widest">
+        <span className="inline-block rounded-full border border-[#F87171]/30 bg-[#F87171]/10 px-3 py-1 text-[10px] font-bold text-[#F87171] uppercase tracking-widest font-mono">
           Diagnostic System Alert
         </span>
-        <h2 className="text-3xl font-extrabold text-white tracking-tight">{errorTitle}</h2>
-        <p className="text-slate-400 text-sm">{errorMessage}</p>
+        <h2 className="text-3xl font-extrabold text-[#E7EAEE] tracking-tight font-mono">{errorTitle}</h2>
+        <p className="text-[#8B93A1] text-sm font-sans">{errorMessage}</p>
       </div>
 
-      <Card className="border-slate-800 bg-slate-950 p-4 text-left font-mono text-xs text-red-300">
-        <div className="flex items-center gap-2 border-b border-slate-900 pb-2 text-slate-500 mb-2">
-          <Terminal className="size-3.5" />
-          <span>Diagnostic Log Stream</span>
+      <Card className="border-[#262B33] bg-[#0A0C0F] p-4 text-left font-mono text-xs text-[#F87171]">
+        <div className="flex items-center gap-2 border-b border-[#262B33] pb-2 text-[#565D68] mb-2">
+          <TerminalIcon className="size-3.5" />
+          <span>$ diagnostic --error --log-stream</span>
         </div>
-        <p className="text-slate-400">[SocketTimeoutException]: 5000ms read limit exceeded during Jsoup handshake.</p>
-        <p className="text-slate-400">[CircuitBreaker]: Fallback handler invoked for URL scraper service.</p>
+        <p className="text-[#8B93A1]">[SocketTimeoutException]: 5000ms read limit exceeded during Jsoup handshake.</p>
+        <p className="text-[#8B93A1]">[CircuitBreaker]: Fallback handler invoked for URL scraper service.</p>
       </Card>
 
       <div className="flex items-center justify-center gap-3 pt-4">
         {onGoBack && (
-          <Button onClick={onGoBack} variant="outline" className="border-slate-800 bg-slate-900 text-slate-300 hover:text-white cursor-pointer">
-            <ArrowLeft className="mr-2 size-4" /> Go Back
+          <Button onClick={onGoBack} variant="outline" className="border-[#262B33] bg-[#12151A] text-[#E7EAEE] hover:text-[#E7EAEE] hover:bg-[#191D24] cursor-pointer transition-all font-mono">
+            <ArrowLeftIcon className="mr-2 size-4" /> Go Back
           </Button>
         )}
         {onRetry && (
-          <Button onClick={onRetry} className="bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-lg shadow-blue-600/30 cursor-pointer">
-            <RefreshCw className="mr-2 size-4" /> Retry Audit
+          <Button onClick={onRetry} className="bg-[#4FD8C4] hover:bg-[#4FD8C4]/90 text-[#0A0C0F] font-semibold shadow-lg shadow-[#4FD8C4]/30 cursor-pointer transition-all font-mono">
+            <ArrowsClockwiseIcon className="mr-2 size-4" /> Retry Audit
           </Button>
         )}
       </div>

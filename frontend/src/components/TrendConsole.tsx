@@ -192,7 +192,7 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
     <div className="space-y-6 font-mono text-xs text-[#E7EAEE]">
       {/* Terminal Prompt Bar */}
       <form onSubmit={handleFetchTrend} className="w-full">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-lg border border-[#333A45] bg-[#12151A] p-1.5 focus-within:ring-2 focus-within:ring-[#4FD8C4] focus-within:ring-offset-2 focus-within:ring-offset-[#0A0C0F]">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-lg border border-[#333A45] bg-[#12151A] p-1.5 focus-within:border-[#4FD8C4] transition-colors">
           <div className="flex items-center gap-1.5 pl-2 pr-1 text-[#565D68] select-none">
             <span className="text-[#4FD8C4] font-bold">$</span>
             <span className="text-[#8B93A1]">trend --domain</span>

@@ -180,7 +180,7 @@ export const BatchAuditorConsole: React.FC = () => {
           value={urlListText}
           onChange={(e) => setUrlListText(e.target.value)}
           disabled={loading}
-          className="w-full rounded border border-[#333A45] bg-[#191D24] p-3 font-mono text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none focus:ring-1 focus:ring-[#4FD8C4] disabled:opacity-50"
+          className="w-full rounded border border-[#333A45] bg-[#191D24] p-3 font-mono text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none focus:border-[#4FD8C4] transition-colors disabled:opacity-50"
         />
 
         {/* Quick Presets */}

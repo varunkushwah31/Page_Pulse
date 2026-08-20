@@ -1,9 +1,13 @@
 package com.pulse.page.web.service;
 
+import com.pulse.page.web.config.AppProperties;
 import com.pulse.page.web.document.AuditReportDocument;
+import com.pulse.page.web.dto.AuditResponse;
+import com.pulse.page.web.dto.PdfBrandingConfig;
 import com.pulse.page.web.entity.AuditReportEntity;
 import com.pulse.page.web.enums.HealthGrade;
 import com.pulse.page.web.exception.ReportNotFoundException;
+import com.pulse.page.web.model.*;
 import com.pulse.page.web.repository.jpa.AuditReportJpaRepository;
 import com.pulse.page.web.repository.mongo.AuditReportMongoRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,11 +31,17 @@ class PdfReportGeneratorServiceTest {
     @Mock
     private AuditReportJpaRepository jpaRepository;
 
+    @Mock
+    private CacheService cacheService;
+
+    private AiRecommendationService recommendationService;
+
     private PdfReportGeneratorService pdfReportGeneratorService;
 
     @BeforeEach
     void setUp() {
-        pdfReportGeneratorService = new PdfReportGeneratorService(mongoRepository, jpaRepository);
+        recommendationService = new AiRecommendationService(new AppProperties());
+        pdfReportGeneratorService = new PdfReportGeneratorService(mongoRepository, jpaRepository, cacheService, recommendationService);
     }
 
     @Test
@@ -48,6 +59,7 @@ class PdfReportGeneratorServiceTest {
             .build();
 
         when(mongoRepository.findById("doc-100")).thenReturn(Optional.of(doc));
+        when(cacheService.getCachedAudit("https://example.com")).thenReturn(Optional.empty());
 
         byte[] pdfBytes = pdfReportGeneratorService.generatePdfReport("doc-100");
         assertNotNull(pdfBytes);
@@ -73,10 +85,98 @@ class PdfReportGeneratorServiceTest {
 
         when(mongoRepository.findById("42")).thenReturn(Optional.empty());
         when(jpaRepository.findById(42L)).thenReturn(Optional.of(entity));
+        when(cacheService.getCachedAudit("https://transient-example.com")).thenReturn(Optional.empty());
 
         byte[] pdfBytes = pdfReportGeneratorService.generatePdfReport("42");
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 100);
+
+        String pdfHeader = new String(pdfBytes, 0, 5);
+        assertEquals("%PDF-", pdfHeader);
+    }
+
+    @Test
+    void generatePdfReportFromAudit_withFullMetrics_generatesDetailedPdf() {
+        AuditResponse audit = AuditResponse.builder()
+            .id(1L)
+            .url("https://wikipedia.org")
+            .domain("wikipedia.org")
+            .httpStatus(200)
+            .responseTimeMs(2956)
+            .contentType("text/html")
+            .seoMetrics(SeoMetrics.builder()
+                .hasTitle(true)
+                .pageTitle("Wikipedia, the free encyclopedia")
+                .titleLength(32)
+                .hasMetaDescription(true)
+                .metaDescription("Wikipedia is a free online encyclopedia...")
+                .descriptionLength(44)
+                .isIndexable(true)
+                .isFollowable(true)
+                .hasViewportMeta(true)
+                .openGraphComplete(true)
+                .hasStructuredData(true)
+                .build())
+            .contentMetrics(ContentMetrics.builder()
+                .wordCount(147)
+                .headingCounts(Map.of("h1", 1))
+                .paragraphCount(4)
+                .readabilityMetrics(ReadabilityMetrics.builder()
+                    .fleschKincaidReadingEase(65.0)
+                    .fleschKincaidGradeLevel(8.0)
+                    .readingEaseLevel("Standard")
+                    .build())
+                .build())
+            .accessibilityMetrics(AccessibilityMetrics.builder()
+                .imagesMissingAltCount(0)
+                .totalImageCount(10)
+                .hasHtmlLangAttribute(true)
+                .htmlLangValue("en")
+                .hasMainLandmark(true)
+                .build())
+            .performanceMetrics(PerformanceMetrics.builder()
+                .statusCode(200)
+                .responseTimeMs(2956)
+                .hasCompression(true)
+                .contentEncoding("gzip")
+                .maxDomDepth(15)
+                .totalDomNodesCount(500)
+                .build())
+            .coreWebVitals(CoreWebVitals.builder()
+                .lcpMs(1800)
+                .fcpMs(900)
+                .ttfbMs(150)
+                .clsRatio(0.01)
+                .inpMs(80)
+                .overallGrade("GOOD")
+                .build())
+            .securityMetrics(SecurityMetrics.builder()
+                .isHttps(true)
+                .sslValid(true)
+                .tlsVersion("TLS 1.3")
+                .sslIssuer("Let's Encrypt")
+                .daysUntilSslExpiry(85)
+                .securityHeadersPresent(Map.of("HSTS", true))
+                .build())
+            .scores(AuditScoreBreakdown.builder()
+                .overallScore(73)
+                .healthGrade(HealthGrade.GOOD)
+                .seoScore(60)
+                .contentScore(75)
+                .accessibilityScore(93)
+                .performanceScore(70)
+                .build())
+            .build();
+
+        PdfBrandingConfig branding = PdfBrandingConfig.builder()
+            .companyName("PagePulse Pro")
+            .primaryColorHex("#0F172A")
+            .footerText("Confidential • Prepared for PagePulse")
+            .build();
+
+        byte[] pdfBytes = pdfReportGeneratorService.generatePdfReportFromAudit(audit, branding);
+        assertNotNull(pdfBytes);
+        assertTrue(pdfBytes.length > 500);
 
         String pdfHeader = new String(pdfBytes, 0, 5);
         assertEquals("%PDF-", pdfHeader);
@@ -91,3 +191,4 @@ class PdfReportGeneratorServiceTest {
         );
     }
 }
+

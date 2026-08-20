@@ -34,7 +34,7 @@ export const PromptBar: React.FC<PromptBarProps> = ({
   return (
     <div className="space-y-2 w-full font-mono text-xs">
       <form onSubmit={handleSubmit} className="w-full">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center rounded-lg border border-[#333A45] bg-[#12151A] p-1.5 transition-all focus-within:ring-2 focus-within:ring-[#4FD8C4] focus-within:ring-offset-2 focus-within:ring-offset-[#0A0C0F] gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center rounded-lg border border-[#333A45] bg-[#12151A] p-1.5 transition-colors focus-within:border-[#4FD8C4] gap-2">
           <div className="flex items-center gap-1.5 pl-2 pr-1 text-[#8B93A1] select-none font-mono shrink-0">
             <span className="text-[#4FD8C4] font-bold">$</span>
             <span className="text-[#8B93A1]">audit</span>

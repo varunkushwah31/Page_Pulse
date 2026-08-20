@@ -101,9 +101,10 @@ export const SitemapConsole: React.FC = () => {
   }, [result, filterQuery, sortField, sortOrder]);
 
   const presetSitemaps = [
-    { name: 'GitHub Sitemap', url: 'https://github.com/sitemap.xml' },
-    { name: 'StackOverflow', url: 'https://stackoverflow.com/sitemap.xml' },
+    { name: 'Vercel', url: 'https://vercel.com/sitemap.xml' },
+    { name: 'Shopify', url: 'https://www.shopify.com/sitemap.xml' },
     { name: 'MDN Web Docs', url: 'https://developer.mozilla.org/sitemap.xml' },
+    { name: 'Stripe', url: 'https://stripe.com/sitemap/sitemap.xml' },
   ];
 
   return (

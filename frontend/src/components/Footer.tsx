@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="pt-8 pb-6 border-t border-[#262B33] text-center font-mono text-xs text-[#8B93A1]">
+    <footer className="mt-auto pt-8 pb-6 border-t border-[#262B33] text-center font-mono text-xs text-[#8B93A1] w-full">
       <div className="flex flex-col items-center gap-6 max-w-7xl mx-auto px-4">
         
         {/* Navigation Links */}

@@ -1,30 +1,32 @@
 package com.pulse.page.web.service;
 
+import com.pulse.page.web.document.SitemapSnapshot;
 import com.pulse.page.web.dto.AuditResponse;
 import com.pulse.page.web.dto.SitemapAuditResponse;
+import com.pulse.page.web.dto.SitemapDeltaResponse;
 import com.pulse.page.web.engine.UrlValidationEngine;
 import com.pulse.page.web.exception.TargetHostUnreachableException;
+import com.pulse.page.web.repository.mongo.SitemapSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.jsoup.parser.Parser;
 import org.jsoup.select.Elements;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import com.pulse.page.web.document.SitemapSnapshot;
-import com.pulse.page.web.dto.SitemapDeltaResponse;
-import com.pulse.page.web.repository.mongo.SitemapSnapshotRepository;
-import org.springframework.data.domain.PageRequest;
-
-import java.util.HashMap;
-import java.util.Map;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
 
 @Slf4j
 @Service
@@ -32,6 +34,8 @@ import java.util.concurrent.*;
 public class SitemapCrawlerService {
 
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+    private static final int HTTP_TIMEOUT_MS = 8000;
+    private static final Pattern LOC_TAG_REGEX = Pattern.compile("<loc>\\s*(https?://[^<\\s]+)\\s*</loc>", Pattern.CASE_INSENSITIVE);
 
     private final UrlValidationEngine urlValidationEngine;
     private final AuditReportProcessorService processorService;
@@ -39,38 +43,42 @@ public class SitemapCrawlerService {
 
     public SitemapAuditResponse auditSitemap(String rawSitemapUrl, int maxUrls) throws IOException {
         String sitemapUrl = urlValidationEngine.validateAndNormalize(rawSitemapUrl);
-        log.info("Fetching sitemap XML from: {}", sitemapUrl);
+        log.info("Starting sitemap audit for: {}", sitemapUrl);
 
         List<String> candidateUrls = buildCandidateSitemapUrls(sitemapUrl);
         Document xmlDoc = null;
         String resolvedSitemapUrl = sitemapUrl;
+        List<String> targetUrls = new ArrayList<>();
         Exception lastException = null;
 
         for (String candidateUrl : candidateUrls) {
             try {
                 xmlDoc = fetchSitemapXmlDocument(candidateUrl);
-                resolvedSitemapUrl = candidateUrl;
-                break;
+                targetUrls = extractTargetUrls(xmlDoc, candidateUrl, maxUrls);
+                if (!targetUrls.isEmpty()) {
+                    resolvedSitemapUrl = candidateUrl;
+                    log.info("Successfully extracted {} URLs from candidate: {}", targetUrls.size(), candidateUrl);
+                    break;
+                }
             } catch (Exception ex) {
-                log.warn("Attempt to fetch sitemap from candidate {} failed: {}", candidateUrl, ex.getMessage());
+                log.debug("Candidate sitemap URL {} failed: {}", candidateUrl, ex.getMessage());
                 lastException = ex;
             }
         }
 
-        if (xmlDoc == null) {
+        if (targetUrls.isEmpty()) {
             if (lastException instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
-            throw new TargetHostUnreachableException("Failed to fetch sitemap XML from " + sitemapUrl + ": " + (lastException != null ? lastException.getMessage() : "Unknown connection error"));
-        }
-
-        List<String> targetUrls = extractTargetUrls(xmlDoc, maxUrls);
-        if (targetUrls.isEmpty()) {
-            throw new IllegalArgumentException("No valid URL locations found in sitemap: " + resolvedSitemapUrl);
+            throw new IllegalArgumentException("No valid web page URLs found in sitemap or index at: " + sitemapUrl + (lastException != null ? " (" + lastException.getMessage() + ")" : ""));
         }
 
         log.info("Auditing {} URLs concurrently using Java Virtual Threads", targetUrls.size());
         List<AuditResponse> childAudits = executeConcurrentAudits(targetUrls);
+
+        if (childAudits.isEmpty()) {
+            throw new TargetHostUnreachableException("Failed to audit any URLs from sitemap " + resolvedSitemapUrl + ". Target servers were unreachable or blocked the scraper.");
+        }
 
         double avgScore = childAudits.stream()
             .mapToInt(a -> a.getScores() != null ? a.getScores().getOverallScore() : 0)
@@ -126,7 +134,7 @@ public class SitemapCrawlerService {
                 .sitemapUrl(sitemapUrl)
                 .currentCrawlTimestamp(current.getCrawlTimestamp())
                 .previousCrawlTimestamp(null)
-                .newPages(new ArrayList<>(current.getUrlScores().keySet()))
+                .newPages(new ArrayList<>(current.getUrlScores() != null ? current.getUrlScores().keySet() : List.of()))
                 .removedPages(List.of())
                 .scoreRegressions(List.of())
                 .scoreImprovements(List.of())
@@ -190,25 +198,75 @@ public class SitemapCrawlerService {
     }
 
     private List<String> buildCandidateSitemapUrls(String originalUrl) {
-        List<String> candidates = new ArrayList<>();
+        LinkedHashSet<String> candidates = new LinkedHashSet<>();
         candidates.add(originalUrl);
 
-        String lower = originalUrl.toLowerCase();
-        if (!lower.endsWith(".xml")) {
-            String baseUrl = originalUrl.endsWith("/") ? originalUrl : originalUrl + "/";
-            candidates.add(baseUrl + "sitemap.xml");
-            candidates.add(baseUrl + "sitemap-index.xml");
-            candidates.add(baseUrl + "sitemap_index.xml");
+        try {
+            URI uri = URI.create(originalUrl);
+            String scheme = uri.getScheme() != null ? uri.getScheme() : "https";
+            String host = uri.getHost();
+
+            if (host != null) {
+                String domainRoot = scheme + "://" + host;
+
+                // 1. Try discovering sitemaps declared in robots.txt
+                List<String> robotsSitemaps = fetchRobotsTxtSitemaps(domainRoot);
+                candidates.addAll(robotsSitemaps);
+
+                // 2. Standard common sitemap locations
+                candidates.add(domainRoot + "/sitemap.xml");
+                candidates.add(domainRoot + "/sitemap_index.xml");
+                candidates.add(domainRoot + "/sitemap-index.xml");
+                candidates.add(domainRoot + "/sitemaps_list.xml");
+                candidates.add(domainRoot + "/sitemaps/sitemap.xml");
+                candidates.add(domainRoot + "/sitemap/sitemap.xml");
+                candidates.add(domainRoot + "/sitemap.xml.gz");
+                candidates.add(domainRoot + "/sitemap_index.xml.gz");
+            }
+        } catch (Exception e) {
+            log.debug("Error building candidate URLs for {}: {}", originalUrl, e.getMessage());
         }
-        return candidates;
+
+        return new ArrayList<>(candidates);
+    }
+
+    private List<String> fetchRobotsTxtSitemaps(String domainRoot) {
+        List<String> sitemaps = new ArrayList<>();
+        String robotsUrl = domainRoot + "/robots.txt";
+        try {
+            Connection.Response response = Jsoup.connect(robotsUrl)
+                .timeout(3000)
+                .userAgent(USER_AGENT)
+                .header("Accept", "text/plain,*/*")
+                .followRedirects(true)
+                .ignoreHttpErrors(true)
+                .ignoreContentType(true)
+                .execute();
+
+            if (response.statusCode() == 200 && response.body() != null) {
+                for (String line : response.body().split("\n")) {
+                    String trimmed = line.trim();
+                    if (trimmed.toLowerCase().startsWith("sitemap:")) {
+                        String sitemapLoc = trimmed.substring(8).trim();
+                        if (sitemapLoc.startsWith("http://") || sitemapLoc.startsWith("https://")) {
+                            sitemaps.add(sitemapLoc);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.trace("Could not read robots.txt from {}: {}", robotsUrl, e.getMessage());
+        }
+        return sitemaps;
     }
 
     private Document fetchSitemapXmlDocument(String targetUrl) throws IOException {
         Connection connection = Jsoup.connect(targetUrl)
-            .timeout(5000)
+            .timeout(HTTP_TIMEOUT_MS)
             .userAgent(USER_AGENT)
-            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+            .header("Accept", "application/xml, text/xml, application/xhtml+xml, text/html;q=0.9, */*;q=0.8")
             .header("Accept-Language", "en-US,en;q=0.9")
+            .header("Accept-Encoding", "gzip, deflate")
             .header("Sec-Ch-Ua", "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\", \"Google Chrome\";v=\"126\"")
             .header("Sec-Ch-Ua-Mobile", "?0")
             .header("Sec-Ch-Ua-Platform", "\"Windows\"")
@@ -217,41 +275,128 @@ public class SitemapCrawlerService {
             .header("Sec-Fetch-Site", "none")
             .header("Sec-Fetch-User", "?1")
             .followRedirects(true)
-            .ignoreHttpErrors(true);
+            .ignoreHttpErrors(true)
+            .ignoreContentType(true);
 
         Connection.Response response = connection.execute();
         int statusCode = response.statusCode();
 
         if (statusCode == 403) {
-            throw new TargetHostUnreachableException("Access to sitemap at '" + targetUrl + "' was blocked by the target host (HTTP 403 Forbidden). The host may be protected by anti-bot firewall rules.");
+            throw new TargetHostUnreachableException("Access to sitemap at '" + targetUrl + "' was blocked by the target host (HTTP 403 Forbidden). Anti-bot firewall rules may be active.");
         }
         if (statusCode == 404) {
             throw new IllegalArgumentException("Sitemap XML document not found at '" + targetUrl + "' (HTTP 404 Not Found).");
+        }
+        if (statusCode == 406) {
+            throw new TargetHostUnreachableException("Target host rejected XML request at '" + targetUrl + "' (HTTP 406 Not Acceptable).");
         }
         if (statusCode >= 400) {
             throw new TargetHostUnreachableException("Target host returned HTTP " + statusCode + " error for sitemap URL: " + targetUrl);
         }
 
-        String body = response.body();
-        if (body == null || body.isBlank()) {
+        byte[] rawBytes = response.bodyAsBytes();
+        if (rawBytes == null || rawBytes.length == 0) {
             throw new IllegalArgumentException("Target sitemap URL returned an empty response body: " + targetUrl);
         }
 
-        return Parser.xmlParser().parseInput(body, targetUrl);
+        String xmlContent = decodeResponseBody(rawBytes, targetUrl, response.header("Content-Encoding"));
+        return Parser.xmlParser().parseInput(xmlContent, targetUrl);
     }
 
-    private List<String> extractTargetUrls(Document xmlDoc, int maxUrls) {
-        Elements locs = xmlDoc.select("loc");
-        List<String> targetUrls = new ArrayList<>();
-        int limit = Math.min(maxUrls > 0 ? maxUrls : 15, locs.size());
+    private String decodeResponseBody(byte[] bytes, String url, String contentEncoding) {
+        boolean isGzip = (contentEncoding != null && contentEncoding.toLowerCase().contains("gzip"))
+                || url.toLowerCase().endsWith(".gz")
+                || (bytes.length >= 2 && (bytes[0] == (byte) 0x1f) && (bytes[1] == (byte) 0x8b));
 
-        for (int i = 0; i < limit; i++) {
-            String url = locs.get(i).text().trim();
-            if (!url.isBlank()) {
-                targetUrls.add(url);
+        if (isGzip) {
+            try (GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(bytes))) {
+                return new String(gis.readAllBytes(), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                log.debug("GZIP decompression fallback for {}: {}", url, e.getMessage());
             }
         }
-        return targetUrls;
+
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private List<String> extractTargetUrls(Document xmlDoc, String sitemapUrl, int maxUrls) {
+        LinkedHashSet<String> pageUrls = new LinkedHashSet<>();
+        int effectiveLimit = maxUrls > 0 ? maxUrls : 10;
+
+        // 1. Check if this is a <sitemapindex> containing child <sitemap> entries
+        Elements sitemapElements = xmlDoc.getElementsByTag("sitemap");
+        if (!sitemapElements.isEmpty()) {
+            log.info("Detected sitemap index with {} <sitemap> entries in {}", sitemapElements.size(), sitemapUrl);
+            int childCount = 0;
+
+            for (Element sitemapElem : sitemapElements) {
+                if (pageUrls.size() >= effectiveLimit || childCount >= 5) {
+                    break;
+                }
+                Element locNode = sitemapElem.getElementsByTag("loc").first();
+                if (locNode == null) continue;
+
+                String childSitemapUrl = locNode.text().trim();
+                if (childSitemapUrl.isBlank()) continue;
+
+                childCount++;
+                try {
+                    log.info("Expanding child sitemap [#{}/{}]: {}", childCount, sitemapElements.size(), childSitemapUrl);
+                    Document childDoc = fetchSitemapXmlDocument(childSitemapUrl);
+                    
+                    for (Element childLoc : childDoc.getElementsByTag("loc")) {
+                        if (pageUrls.size() >= effectiveLimit) break;
+                        String pageUrl = childLoc.text().trim();
+                        if (isValidWebPageUrl(pageUrl)) {
+                            pageUrls.add(pageUrl);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not parse child sitemap {}: {}", childSitemapUrl, e.getMessage());
+                }
+            }
+        }
+
+        // 2. Direct <loc> elements in standard <urlset>
+        if (pageUrls.isEmpty()) {
+            for (Element locElem : xmlDoc.getElementsByTag("loc")) {
+                if (pageUrls.size() >= effectiveLimit) break;
+                String pageUrl = locElem.text().trim();
+                if (isValidWebPageUrl(pageUrl)) {
+                    pageUrls.add(pageUrl);
+                }
+            }
+        }
+
+        // 3. Regex fallback to extract <loc> tags directly from raw XML string
+        if (pageUrls.isEmpty()) {
+            Matcher matcher = LOC_TAG_REGEX.matcher(xmlDoc.html());
+            while (matcher.find() && pageUrls.size() < effectiveLimit) {
+                String candidate = matcher.group(1).trim();
+                if (isValidWebPageUrl(candidate)) {
+                    pageUrls.add(candidate);
+                }
+            }
+        }
+
+        return new ArrayList<>(pageUrls);
+    }
+
+    private boolean isValidWebPageUrl(String url) {
+        if (url == null || url.isBlank()) return false;
+        String trimmed = url.trim();
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false;
+
+        String lower = trimmed.toLowerCase();
+        // Filter out child XML/GZ sitemaps or binary static media from being treated as audit HTML targets
+        if (lower.endsWith(".xml") || lower.endsWith(".xml.gz") || lower.endsWith(".gz") ||
+            lower.endsWith(".pdf") || lower.endsWith(".zip") || lower.endsWith(".tar") ||
+            lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") ||
+            lower.endsWith(".gif") || lower.endsWith(".svg") || lower.endsWith(".mp4")) {
+            return false;
+        }
+
+        return true;
     }
 
     private List<AuditResponse> executeConcurrentAudits(List<String> targetUrls) {
@@ -278,7 +423,7 @@ public class SitemapCrawlerService {
 
     private void collectFutureResult(Future<AuditResponse> future, List<AuditResponse> childAudits) {
         try {
-            AuditResponse res = future.get(10, TimeUnit.SECONDS);
+            AuditResponse res = future.get(15, TimeUnit.SECONDS);
             if (res != null) {
                 childAudits.add(res);
             }
@@ -286,7 +431,7 @@ public class SitemapCrawlerService {
             Thread.currentThread().interrupt();
             log.warn("Thread interrupted during child URL audit", e);
         } catch (ExecutionException | TimeoutException e) {
-            log.warn("Child URL audit execution failed or timed out", e);
+            log.warn("Child URL audit execution timed out or threw exception", e);
         }
     }
 }

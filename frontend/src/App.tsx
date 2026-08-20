@@ -37,7 +37,7 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <SeoHead />
-        <div className="min-h-screen bg-[#0A0C0F] text-[#E7EAEE] font-sans relative overflow-x-hidden bg-grid-pattern pb-12">
+        <div className="min-h-screen flex flex-col bg-[#0A0C0F] text-[#E7EAEE] font-sans relative overflow-x-hidden bg-grid-pattern">
           {/* 2px Scan-rail Signature Element (§8 DESIGN.md) */}
           <div className="fixed top-0 left-0 right-0 h-[2px] bg-[#12151A] z-50 overflow-hidden">
             <div className="absolute top-0 bottom-0 bg-[#4FD8C4] shadow-[0_0_8px_#4FD8C4] animate-scan-rail"></div>
@@ -53,8 +53,8 @@ export function App() {
           />
 
           {/* Main Application Container */}
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 space-y-8">
-            <main aria-live="polite">
+          <div className="flex-1 flex flex-col w-full mx-auto max-w-7xl px-4 sm:px-6">
+            <main aria-live="polite" className="flex-1 flex flex-col pb-8">
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/landing" element={<LandingPage />} />
@@ -68,6 +68,8 @@ export function App() {
                 <Route path="/telemetry" element={<PlatformStatsPage />} />
                 <Route path="/profile" element={<UserProfilePage />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/login" element={<AuthPage />} />
+                <Route path="/signup" element={<AuthPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>

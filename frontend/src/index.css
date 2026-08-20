@@ -120,16 +120,23 @@ input[type="number"] {
   }
 }
 
-/* shadcn/ui compatible focus ring */
-*:focus-visible {
-  outline: 2px solid var(--color-ring);
-  outline-offset: 2px;
+/* Clean, non-intrusive focus styling */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible {
+  outline: 1px solid var(--color-ring);
+  outline-offset: 1px;
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -138,12 +145,13 @@ input[type="number"] {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-muted-foreground);
 }
+
 /* Skeleton loading shimmer */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
@@ -161,7 +169,7 @@ input[type="number"] {
 @keyframes fade-in-up {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -170,20 +178,11 @@ input[type="number"] {
 }
 
 .animate-fade-in-up {
-  animation: fade-in-up 0.4s ease-out both;
+  animation: fade-in-up 0.25s ease-out both;
 }
 
 /* Staggered entrance delays */
-.delay-100 { animation-delay: 100ms; }
-.delay-200 { animation-delay: 200ms; }
-.delay-300 { animation-delay: 300ms; }
-.delay-400 { animation-delay: 400ms; }
-
-/* Interactive card hover */
-.card-hover {
-  transition: all 0.2s ease;
-}
-.card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px -5px rgba(79, 216, 196, 0.08);
-}
+.delay-100 { animation-delay: 50ms; }
+.delay-200 { animation-delay: 100ms; }
+.delay-300 { animation-delay: 150ms; }
+.delay-400 { animation-delay: 200ms; }

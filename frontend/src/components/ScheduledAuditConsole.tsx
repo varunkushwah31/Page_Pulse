@@ -114,7 +114,7 @@ export const ScheduledAuditConsole: React.FC = () => {
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
               disabled={loading}
-              className="w-full bg-[#191D24] border border-[#333A45] rounded px-3 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none focus:ring-1 focus:ring-[#4FD8C4]"
+              className="w-full bg-[#191D24] border border-[#333A45] rounded px-3 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none focus:border-[#4FD8C4] transition-colors"
             />
           </div>
 
@@ -126,7 +126,7 @@ export const ScheduledAuditConsole: React.FC = () => {
                 value={frequencyMinutes}
                 onChange={(e) => setFrequencyMinutes(Number.parseInt(e.target.value, 10))}
                 disabled={loading}
-                className="w-full bg-[#191D24] border border-[#333A45] rounded px-3 py-2 text-xs text-[#E7EAEE] focus:outline-none cursor-pointer"
+                className="w-full bg-[#191D24] border border-[#333A45] rounded px-3 py-2 text-xs text-[#E7EAEE] focus:outline-none focus:border-[#4FD8C4] transition-colors cursor-pointer"
               >
                 <option value={15}>Every 15 Minutes</option>
                 <option value={30}>Every 30 Minutes</option>
@@ -147,7 +147,7 @@ export const ScheduledAuditConsole: React.FC = () => {
                 value={regressionThreshold}
                 onChange={(e) => setRegressionThreshold(Number.parseInt(e.target.value, 10) || 15)}
                 disabled={loading}
-                className="w-full bg-[#191D24] border border-[#333A45] rounded px-3 py-2 text-xs text-[#E7EAEE] focus:outline-none"
+                className="w-full bg-[#191D24] border border-[#333A45] rounded px-3 py-2 text-xs text-[#E7EAEE] focus:outline-none focus:border-[#4FD8C4] transition-colors"
               />
             </div>
 
@@ -160,7 +160,7 @@ export const ScheduledAuditConsole: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
-                className="w-full bg-[#191D24] border border-[#333A45] rounded px-3 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none"
+                className="w-full bg-[#191D24] border border-[#333A45] rounded px-3 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none focus:border-[#4FD8C4] transition-colors"
               />
             </div>
           </div>
@@ -174,7 +174,7 @@ export const ScheduledAuditConsole: React.FC = () => {
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               disabled={loading}
-              className="w-full bg-[#191D24] border border-[#333A45] rounded px-3 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none"
+              className="w-full bg-[#191D24] border border-[#333A45] rounded px-3 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none focus:border-[#4FD8C4] transition-colors"
             />
           </div>
 

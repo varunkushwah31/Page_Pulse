@@ -163,7 +163,51 @@ export function getPdfDownloadUrl(reportId: string): string {
   return `${API_BASE}/api/v1/reports/${reportId}/pdf`;
 }
 
-export async function downloadPdfReport(reportId: string, customFilename?: string): Promise<void> {
+export async function exportAuditToPdf(
+  audit: AuditResponse,
+  branding?: PdfBrandingConfig,
+  customFilename?: string
+): Promise<void> {
+  const url = `${API_BASE}/api/v1/reports/pdf/export`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ audit, branding }),
+  });
+
+  if (!response.ok) {
+    // If direct export fails, fallback to ID lookup if available
+    if (audit.id) {
+      return downloadPdfReport(audit.id.toString(), customFilename);
+    }
+    const errorData = await response.json().catch(() => ({ message: 'Failed to generate comprehensive PDF audit report' }));
+    throw new Error(errorData.message || 'Failed to generate comprehensive PDF audit report');
+  }
+
+  const blob = await response.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  const domain = audit.domain ? audit.domain.replace(/[^a-zA-Z0-9.-]/g, '_') : 'web';
+  a.download = customFilename || `audit-report-${domain}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}
+
+export async function downloadPdfReport(reportId: string, customFilename?: string, audit?: AuditResponse): Promise<void> {
+  if (audit) {
+    try {
+      return await exportAuditToPdf(audit, undefined, customFilename);
+    } catch (e) {
+      console.warn('Direct PDF export failed, falling back to ID download:', e);
+    }
+  }
+
   const url = getPdfDownloadUrl(reportId);
   const response = await fetch(url, {
     headers: getAuthHeaders(),

@@ -55,6 +55,21 @@ public class ReportController {
             .body(pdfBytes);
     }
 
+    @PostMapping("/pdf/export")
+    public ResponseEntity<byte[]> exportPdfFromAudit(
+            @RequestBody com.pulse.page.web.dto.AuditPdfExportRequest request) {
+        if (request == null || request.getAudit() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        byte[] pdfBytes = pdfReportGeneratorService.generatePdfReportFromAudit(request.getAudit(), request.getBranding());
+        String domain = request.getAudit().getDomain() != null ? request.getAudit().getDomain().replaceAll("[^a-zA-Z0-9.-]", "_") : "web";
+        String filename = "audit-report-" + domain + ".pdf";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .contentType(MediaType.APPLICATION_PDF)
+            .body(pdfBytes);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSavedReport(@PathVariable String id) {
         reportSearchService.deleteSavedReport(id);

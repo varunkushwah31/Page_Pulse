@@ -38,9 +38,16 @@ class ReportControllerTest {
     @BeforeEach
     void setUp() {
         ReportController controller = new ReportController(reportSearchService, pdfReportGeneratorService);
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.pulse.page.web.config.JacksonConfig().objectMapper();
+        org.springframework.http.converter.json.MappingJackson2HttpMessageConverter jacksonConverter =
+                new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(mapper);
+        org.springframework.http.converter.ByteArrayHttpMessageConverter byteConverter =
+                new org.springframework.http.converter.ByteArrayHttpMessageConverter();
+
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
             .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
             .setControllerAdvice(new GlobalExceptionHandler())
+            .setMessageConverters(byteConverter, jacksonConverter)
             .build();
     }
 
@@ -87,6 +94,44 @@ class ReportControllerTest {
             .andExpect(status().isOk())
             .andExpect(header().string("Content-Disposition", "attachment; filename=\"audit-report-doc-1.pdf\""))
             .andExpect(content().contentType("application/pdf"));
+    }
+
+    @Test
+    void downloadCustomPdfReport_returnsPdfBytes() throws Exception {
+        byte[] pdfBytes = "%PDF-1.4 Custom Mock Content".getBytes();
+        when(pdfReportGeneratorService.generatePdfReport(eq("doc-1"), any())).thenReturn(pdfBytes);
+
+        mockMvc.perform(post("/api/v1/reports/doc-1/pdf")
+                        .contentType("application/json")
+                        .content("{\"companyName\":\"Acme\"}"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"audit-report-doc-1-custom.pdf\""))
+                .andExpect(content().contentType("application/pdf"));
+    }
+
+    @Test
+    void exportPdfFromAudit_validRequest_returnsPdfBytes() throws Exception {
+        byte[] pdfBytes = "%PDF-1.4 Direct Audit Export".getBytes();
+        when(pdfReportGeneratorService.generatePdfReportFromAudit(any(), any())).thenReturn(pdfBytes);
+
+        String jsonPayload = """
+            {
+                "audit": {
+                    "id": 1,
+                    "url": "https://wikipedia.org",
+                    "domain": "wikipedia.org",
+                    "httpStatus": 200,
+                    "overallScore": 73
+                }
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/reports/pdf/export")
+                        .contentType("application/json")
+                        .content(jsonPayload))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"audit-report-wikipedia.org.pdf\""))
+                .andExpect(content().contentType("application/pdf"));
     }
 
     @Test

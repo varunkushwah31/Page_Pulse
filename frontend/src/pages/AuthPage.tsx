@@ -2,23 +2,40 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { loginUser, registerUser } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { ShieldIcon, KeyIcon, LockIcon, UserIcon, SignOutIcon, CheckCircleIcon, EyeIcon, EyeSlashIcon, WarningCircleIcon, ArrowRightIcon } from '@phosphor-icons/react';
+import {
+  ShieldIcon,
+  KeyIcon,
+  LockIcon,
+  UserIcon,
+  SignOutIcon,
+  CheckCircleIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  WarningCircleIcon,
+  ArrowRightIcon,
+  EnvelopeIcon,
+  CheckIcon,
+  XIcon,
+  LightningIcon
+} from '@phosphor-icons/react';
 
 function calculatePasswordStrength(password: string) {
-  if (!password) return { score: 0, label: '', color: '', barClass: '' };
-  let score = 0;
-  if (password.length >= 8) score += 1;
-  if (/[A-Z]/.test(password)) score += 1;
-  if (/\d/.test(password)) score += 1;
-  if (/[^A-Za-z\d]/.test(password)) score += 1;
+  if (!password) return { score: 0, label: '', color: '', checks: { length: false, upper: false, lower: false, digit: false, special: false } };
 
-  if (score <= 1) {
-    return { score, label: 'Weak', color: 'bg-[#F87171] text-[#F87171]', barClass: 'bg-[#F87171] w-1/3' };
-  }
-  if (score <= 3) {
-    return { score, label: 'Moderate', color: 'bg-[#FBBF24] text-[#FBBF24]', barClass: 'bg-[#FBBF24] w-2/3' };
-  }
-  return { score, label: 'Strong', color: 'bg-[#4ADE80] text-[#4ADE80]', barClass: 'bg-[#4ADE80] w-full' };
+  const checks = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    digit: /\d/.test(password),
+    special: /[^A-Za-z\d]/.test(password),
+  };
+
+  const score = Object.values(checks).filter(Boolean).length;
+
+  if (score <= 2) return { score, label: 'Weak', color: 'text-[#F87171]', checks };
+  if (score <= 3) return { score, label: 'Fair', color: 'text-[#FBBF24]', checks };
+  if (score <= 4) return { score, label: 'Good', color: 'text-[#7AA2F7]', checks };
+  return { score, label: 'Strong', color: 'text-[#4ADE80]', checks };
 }
 
 export const AuthPage: React.FC = () => {
@@ -32,6 +49,7 @@ export const AuthPage: React.FC = () => {
   // Signup State
   const [signupUsername, setSignupUsername] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
+  const [signupFullName, setSignupFullName] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
 
@@ -48,8 +66,10 @@ export const AuthPage: React.FC = () => {
   const isAuditSaveRedirect = Boolean(redirectState?.from && redirectState?.auditId);
 
   const passwordStrength = useMemo(() => calculatePasswordStrength(signupPassword), [signupPassword]);
+  const passwordsMatch = signupConfirmPassword.length > 0 && signupPassword === signupConfirmPassword;
+  const passwordsMismatch = signupConfirmPassword.length > 0 && signupPassword !== signupConfirmPassword;
 
-  const handleLoginSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -62,22 +82,22 @@ export const AuthPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await loginUser(loginIdentifier.trim(), loginPassword);
-      const userProfile = { id: res.user.id, username: res.user.username, email: res.user.email, role: res.user.role || 'ROLE_USER' };
+      const userProfile = { id: res.user.id, username: res.user.username, email: res.user.email, role: res.user.role || 'USER' };
       login(res.accessToken, userProfile);
-      setSuccessMessage(`Welcome back, ${res.user.username}! JWT session verified.`);
+      setSuccessMessage(`Welcome back, ${res.user.username}! Session verified.`);
       setLoginPassword('');
 
       const targetPath = redirectState?.from || '/profile';
-      navigate(targetPath, { replace: true });
+      setTimeout(() => navigate(targetPath, { replace: true }), 400);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login failed. Please check credentials.';
+      const message = err instanceof Error ? err.message : 'Invalid credentials. Please verify your login details.';
       setErrorMessage(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSignupSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleSignupSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -92,17 +112,22 @@ export const AuthPage: React.FC = () => {
       return;
     }
 
+    if (passwordStrength.score < 4) {
+      setErrorMessage('Password must contain at least 8 chars, uppercase, lowercase, number, and special symbol.');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await registerUser(signupUsername.trim(), signupEmail.trim(), signupPassword);
-      const userProfile = { id: res.user.id, username: res.user.username, email: res.user.email, role: res.user.role || 'ROLE_USER' };
+      const userProfile = { id: res.user.id, username: res.user.username, email: res.user.email, role: res.user.role || 'USER' };
       login(res.accessToken, userProfile);
       setSuccessMessage(`Account created successfully! Welcome, ${res.user.username}.`);
       setSignupPassword('');
       setSignupConfirmPassword('');
 
       const targetPath = redirectState?.from || '/profile';
-      navigate(targetPath, { replace: true });
+      setTimeout(() => navigate(targetPath, { replace: true }), 400);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed.';
       setErrorMessage(message);
@@ -117,8 +142,14 @@ export const AuthPage: React.FC = () => {
     setErrorMessage(null);
   };
 
+  const handleDemoFill = (username: string, password: string) => {
+    setLoginIdentifier(username);
+    setLoginPassword(password);
+  };
+
   return (
-    <div className="space-y-6 font-mono text-xs max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto space-y-6 font-mono text-xs animate-fade-in-up">
+
       {/* Identity & Header Strip */}
       <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-3 shadow-xl">
         <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
@@ -157,14 +188,14 @@ export const AuthPage: React.FC = () => {
         <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-6 space-y-5 shadow-2xl">
           <div className="flex items-center justify-between border-b border-[#262B33] pb-4">
             <div className="flex items-center gap-3">
-              <div className="size-12 rounded-xl bg-[#191D24] border border-[#333A45] flex items-center justify-center font-bold text-[#4FD8C4] text-lg">
+              <div className="size-12 rounded-lg bg-[#191D24] border border-[#333A45] flex items-center justify-center font-bold text-[#4FD8C4] text-lg">
                 {authUser.username.charAt(0).toUpperCase()}
               </div>
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-[#E7EAEE] text-sm">{authUser.username}</h3>
                   <span className="rounded bg-[#4FD8C4]/20 border border-[#4FD8C4]/40 px-2 py-0.5 text-[10px] font-bold text-[#4FD8C4] uppercase">
-                    {authUser.role || 'ROLE_USER'}
+                    {authUser.role?.replace('ROLE_', '') || 'USER'}
                   </span>
                 </div>
                 <p className="text-xs text-[#8B93A1] font-sans">{authUser.email}</p>
@@ -220,7 +251,7 @@ export const AuthPage: React.FC = () => {
         </div>
       ) : (
         /* Unauthenticated Login / Register Console */
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-6 space-y-6 shadow-2xl">
+        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-6 space-y-5 shadow-2xl">
           {/* Redirect Info Banner */}
           {isAuditSaveRedirect && (
             <div className="rounded-lg border border-[#4FD8C4]/40 bg-[#4FD8C4]/10 p-3 text-xs text-[#4FD8C4] flex items-center gap-2">
@@ -269,17 +300,17 @@ export const AuthPage: React.FC = () => {
               {/* Quick Demo Credentials Auto-Fill Card */}
               <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-2">
                 <div className="flex items-center justify-between text-[11px] text-[#4FD8C4] font-bold">
-                  <span>⚡ Demo Accounts (Pre-seeded & Ready)</span>
+                  <span className="flex items-center gap-1">
+                    <LightningIcon className="size-3.5" />
+                    Demo Accounts (Pre-seeded & Ready)
+                  </span>
                   <span className="text-[#565D68] text-[10px] uppercase">1-Click Auto-Fill</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setLoginIdentifier('admin');
-                      setLoginPassword('Admin@123456');
-                    }}
-                    className="p-2 rounded border border-[#333A45] bg-[#191D24] hover:bg-[#262B33] hover:border-[#4FD8C4]/60 transition-all text-left cursor-pointer space-y-0.5"
+                    onClick={() => handleDemoFill('admin', 'Admin@123456')}
+                    className="p-2.5 rounded border border-[#333A45] bg-[#191D24] hover:bg-[#262B33] hover:border-[#4FD8C4]/60 transition-all text-left cursor-pointer space-y-0.5"
                   >
                     <div className="font-bold text-[#E7EAEE] text-[11px] flex items-center justify-between">
                       <span>Admin Demo</span>
@@ -290,11 +321,8 @@ export const AuthPage: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setLoginIdentifier('devuser');
-                      setLoginPassword('Dev@123456');
-                    }}
-                    className="p-2 rounded border border-[#333A45] bg-[#191D24] hover:bg-[#262B33] hover:border-[#4FD8C4]/60 transition-all text-left cursor-pointer space-y-0.5"
+                    onClick={() => handleDemoFill('devuser', 'Dev@123456')}
+                    className="p-2.5 rounded border border-[#333A45] bg-[#191D24] hover:bg-[#262B33] hover:border-[#4FD8C4]/60 transition-all text-left cursor-pointer space-y-0.5"
                   >
                     <div className="font-bold text-[#E7EAEE] text-[11px] flex items-center justify-between">
                       <span>Developer Demo</span>
@@ -315,7 +343,7 @@ export const AuthPage: React.FC = () => {
                   value={loginIdentifier}
                   onChange={(e) => setLoginIdentifier(e.target.value)}
                   placeholder="e.g. admin or devuser"
-                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68]"
+                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68] transition-colors"
                   required
                 />
               </div>
@@ -340,7 +368,7 @@ export const AuthPage: React.FC = () => {
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68]"
+                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68] transition-colors"
                   required
                 />
               </div>
@@ -360,31 +388,59 @@ export const AuthPage: React.FC = () => {
           {mode === 'signup' && (
             <form onSubmit={handleSignupSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label htmlFor="signup-username" className="block text-[11px] text-[#8B93A1] uppercase tracking-wider">
-                  Username
+                <label htmlFor="signup-fullname" className="block text-[11px] text-[#8B93A1] uppercase tracking-wider">
+                  Full Name (Optional)
                 </label>
+                <input
+                  id="signup-fullname"
+                  type="text"
+                  value={signupFullName}
+                  onChange={(e) => setSignupFullName(e.target.value)}
+                  placeholder="e.g. Jane Doe"
+                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68] transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="signup-username" className="block text-[11px] text-[#8B93A1] uppercase tracking-wider">
+                    Username
+                  </label>
+                  {signupUsername.length >= 3 && (
+                    <span className="text-[10px] text-[#4ADE80] flex items-center gap-0.5">
+                      <CheckIcon className="size-3" /> Valid
+                    </span>
+                  )}
+                </div>
                 <input
                   id="signup-username"
                   type="text"
                   value={signupUsername}
                   onChange={(e) => setSignupUsername(e.target.value)}
                   placeholder="e.g. dev_pulse"
-                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68]"
+                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68] transition-colors"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="signup-email" className="block text-[11px] text-[#8B93A1] uppercase tracking-wider">
-                  Email Address
-                </label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="signup-email" className="block text-[11px] text-[#8B93A1] uppercase tracking-wider">
+                    Email Address
+                  </label>
+                  {signupEmail.includes('@') && signupEmail.includes('.') && (
+                    <span className="text-[10px] text-[#4ADE80] flex items-center gap-0.5">
+                      <CheckIcon className="size-3" /> Valid
+                    </span>
+                  )}
+                </div>
                 <input
                   id="signup-email"
                   type="email"
                   value={signupEmail}
                   onChange={(e) => setSignupEmail(e.target.value)}
                   placeholder="dev@example.com"
-                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68]"
+                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68] transition-colors"
                   required
                 />
               </div>
@@ -394,11 +450,20 @@ export const AuthPage: React.FC = () => {
                   <label htmlFor="signup-password" className="block text-[11px] text-[#8B93A1] uppercase tracking-wider">
                     Password
                   </label>
-                  {passwordStrength.label && (
-                    <span className={`text-[10px] font-bold ${passwordStrength.color}`}>
-                      Strength: {passwordStrength.label}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {passwordStrength.label && (
+                      <span className={`text-[10px] font-bold ${passwordStrength.color}`}>
+                        Strength: {passwordStrength.label}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-[10px] text-[#4FD8C4] hover:underline cursor-pointer inline-flex items-center gap-1"
+                    >
+                      {showPassword ? <EyeSlashIcon className="size-3" /> : <EyeIcon className="size-3" />}
+                    </button>
+                  </div>
                 </div>
                 <input
                   id="signup-password"
@@ -406,27 +471,64 @@ export const AuthPage: React.FC = () => {
                   value={signupPassword}
                   onChange={(e) => setSignupPassword(e.target.value)}
                   placeholder="Minimum 8 characters"
-                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68]"
+                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68] transition-colors"
                   required
                 />
+
                 {signupPassword && (
-                  <div className="w-full h-1 bg-[#0A0C0F] rounded-full overflow-hidden">
-                    <div className={`h-full transition-all ${passwordStrength.barClass}`} />
+                  <div className="space-y-1.5 pt-1">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                      {[
+                        { key: 'length', label: '8+ chars' },
+                        { key: 'upper', label: 'Uppercase' },
+                        { key: 'lower', label: 'Lowercase' },
+                        { key: 'digit', label: 'Number' },
+                        { key: 'special', label: 'Special symbol' },
+                      ].map(({ key, label }) => (
+                        <div
+                          key={key}
+                          className={`flex items-center gap-1 ${
+                            passwordStrength.checks[key as keyof typeof passwordStrength.checks]
+                              ? 'text-[#4ADE80]'
+                              : 'text-[#565D68]'
+                          }`}
+                        >
+                          {passwordStrength.checks[key as keyof typeof passwordStrength.checks] ? (
+                            <CheckIcon className="size-2.5" />
+                          ) : (
+                            <XIcon className="size-2.5" />
+                          )}
+                          <span>{label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="signup-confirm-password" className="block text-[11px] text-[#8B93A1] uppercase tracking-wider">
-                  Confirm Password
-                </label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="signup-confirm-password" className="block text-[11px] text-[#8B93A1] uppercase tracking-wider">
+                    Confirm Password
+                  </label>
+                  {passwordsMatch && (
+                    <span className="text-[10px] text-[#4ADE80] flex items-center gap-0.5">
+                      <CheckIcon className="size-3" /> Match
+                    </span>
+                  )}
+                  {passwordsMismatch && (
+                    <span className="text-[10px] text-[#F87171] flex items-center gap-0.5">
+                      <XIcon className="size-3" /> Mismatch
+                    </span>
+                  )}
+                </div>
                 <input
                   id="signup-confirm-password"
                   type={showPassword ? 'text' : 'password'}
                   value={signupConfirmPassword}
                   onChange={(e) => setSignupConfirmPassword(e.target.value)}
                   placeholder="Re-enter password"
-                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68]"
+                  className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68] transition-colors"
                   required
                 />
               </div>

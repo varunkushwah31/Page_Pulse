@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { AuditResponse } from '../types';
-import { saveReportToMongo, downloadPdfReport } from '../lib/api';
+import { saveReportToMongo, downloadPdfReport, exportAuditToPdf } from '../lib/api';
 import {
   BookOpenIcon,
   CheckIcon,
@@ -126,7 +126,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const handlePdfDownload = async () => {
     setDownloadingPdf(true);
     try {
-      await downloadPdfReport(audit.id.toString());
+      await exportAuditToPdf(audit);
     } catch (err) {
       console.error('PDF download error:', err);
     } finally {

@@ -14,7 +14,6 @@ import {
   ShieldIcon,
   ArrowRightIcon,
   SparkleIcon,
-  CommandIcon,
   XIcon
 } from '@phosphor-icons/react';
 
@@ -199,74 +198,78 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in-up"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Command Palette"
-        className="w-full max-w-2xl rounded-xl border border-[#262B33] bg-[#12151A] shadow-2xl overflow-hidden font-mono text-xs text-[#E7EAEE]"
+        className="w-full max-w-xl rounded-xl border border-[#262B33] bg-[#12151A] shadow-2xl overflow-hidden font-mono text-xs text-[#E7EAEE]"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-[#262B33] bg-[#191D24]">
+        {/* Search Header Input */}
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#262B33] bg-[#191D24]">
           <div className="flex items-center gap-1.5 text-[#4FD8C4] shrink-0">
-            <CommandIcon className="size-4" />
-            <span className="font-bold text-[#4FD8C4]">$</span>
+            <span className="font-bold text-sm">$</span>
           </div>
           <input
             ref={inputRef}
             type="text"
-            placeholder="Type a command or paste any URL (e.g. $ audit, https://example.com)..."
+            placeholder="Type a command or paste a URL (e.g. audit, https://example.com)..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
             className="w-full bg-transparent text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none font-mono"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="text-[#565D68] hover:text-[#E7EAEE] cursor-pointer p-1"
+              className="text-[#565D68] hover:text-[#E7EAEE] cursor-pointer p-1 shrink-0"
               aria-label="Clear query"
             >
               <XIcon className="size-3.5" />
             </button>
           )}
-          <div className="flex items-center gap-1 text-[10px] text-[#565D68] bg-[#0A0C0F] border border-[#262B33] px-2 py-0.5 rounded shrink-0">
+          <div className="flex items-center text-[10px] text-[#565D68] bg-[#0A0C0F] border border-[#262B33] px-2 py-0.5 rounded shrink-0">
             <span>ESC</span>
           </div>
         </div>
 
-        <div className="max-h-[380px] overflow-y-auto divide-y divide-[#262B33]/50 p-1.5">
+        {/* Results List */}
+        <div className="max-h-[360px] overflow-y-auto p-2 space-y-1">
           {looksLikeUrl && (
             <button
               type="button"
               onClick={() => handleExecuteDirectAudit(query)}
-              className={`w-full text-left flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${
+              className={`w-full text-left flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
                 selectedIndex === 0
-                  ? 'bg-[#4FD8C4]/15 border border-[#4FD8C4]/50 text-[#E7EAEE]'
-                  : 'hover:bg-[#191D24] text-[#8B93A1]'
+                  ? 'bg-[#191D24] border border-[#4FD8C4]/50 text-[#E7EAEE]'
+                  : 'hover:bg-[#191D24] border border-transparent text-[#8B93A1]'
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className="flex size-8 items-center justify-center rounded bg-[#4FD8C4]/20 text-[#4FD8C4] shrink-0">
-                  <SparkleIcon className="size-4 animate-pulse" />
+                <div className="flex size-8 items-center justify-center rounded bg-[#4FD8C4]/15 text-[#4FD8C4] shrink-0 border border-[#4FD8C4]/30">
+                  <SparkleIcon className="size-4" />
                 </div>
-                <div>
+                <div className="space-y-0.5">
                   <div className="font-bold text-[#4FD8C4] flex items-center gap-1.5">
-                    <span>⚡ Run Instant Audit</span>
-                    <span className="text-[#8B93A1] font-mono text-[11px] truncate max-w-sm">
+                    <span>Run Instant Audit</span>
+                    <span className="text-[#8B93A1] font-mono text-[11px] truncate max-w-xs">
                       {query.trim()}
                     </span>
                   </div>
-                  <div className="text-[11px] text-[#8B93A1] font-sans">
-                    Execute real-time SEO, accessibility, & performance scan
+                  <div className="text-[11px] text-[#565D68] font-sans">
+                    Execute real-time SEO & performance scan
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-[10px] text-[#4FD8C4] font-bold">
-                <span>PRESS ENTER</span>
+              <div className="flex items-center gap-1 text-[10px] text-[#4FD8C4] font-bold shrink-0">
+                <span>ENTER</span>
                 <ArrowRightIcon className="size-3" />
               </div>
             </button>
@@ -280,29 +283,29 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                 type="button"
                 key={item.id}
                 onClick={() => handleSelectPath(item.path)}
-                className={`w-full text-left flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${
                   isSelected
                     ? 'bg-[#191D24] border border-[#4FD8C4]/40 text-[#E7EAEE]'
-                    : 'hover:bg-[#191D24]/70 text-[#8B93A1]'
+                    : 'hover:bg-[#191D24] border border-transparent text-[#8B93A1]'
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <div
                     className={`flex size-8 items-center justify-center rounded border transition-colors shrink-0 ${
                       isSelected
-                        ? 'bg-[#4FD8C4]/20 border-[#4FD8C4]/50 text-[#4FD8C4]'
+                        ? 'bg-[#4FD8C4]/15 border-[#4FD8C4]/40 text-[#4FD8C4]'
                         : 'bg-[#0A0C0F] border-[#262B33] text-[#8B93A1]'
                     }`}
                   >
                     <Icon className="size-4" />
                   </div>
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-[#E7EAEE] text-xs font-mono">
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-[#4FD8C4] text-xs font-mono">
                         ${' '}{item.command}
                       </span>
-                      <span className="text-xs text-[#8B93A1] font-sans">
-                        — {item.title}
+                      <span className="text-xs text-[#E7EAEE] font-semibold truncate">
+                        {item.title}
                       </span>
                       {item.badge && (
                         <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#0A0C0F] border border-[#262B33] text-[#565D68]">
@@ -310,43 +313,41 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-[#8B93A1] font-sans line-clamp-1">
+                    <p className="text-[11px] text-[#8B93A1] font-sans truncate">
                       {item.description}
                     </p>
                   </div>
                 </div>
                 {isSelected && (
-                  <ArrowRightIcon className="size-3.5 text-[#4FD8C4] shrink-0" />
+                  <ArrowRightIcon className="size-3.5 text-[#4FD8C4] shrink-0 ml-2" />
                 )}
               </button>
             );
           })}
 
           {filteredItems.length === 0 && !looksLikeUrl && (
-            <div className="py-8 text-center text-[#565D68]">
-              <MagnifyingGlassIcon className="size-6 mx-auto mb-2 opacity-50" />
-              <p>No matching commands or pages found for "{query}".</p>
-              <p className="text-[11px] text-[#8B93A1] mt-1">
-                Tip: Paste any URL to launch an immediate full audit.
-              </p>
+            <div className="py-8 text-center text-[#565D68] space-y-1">
+              <MagnifyingGlassIcon className="size-5 mx-auto text-[#565D68]" />
+              <p className="text-xs">No commands found for "{query}"</p>
+              <p className="text-[11px] text-[#565D68]">Tip: Paste any URL to launch an immediate audit</p>
             </div>
           )}
         </div>
 
+        {/* Keyboard Shortcuts Footer */}
         <div className="flex items-center justify-between px-4 py-2 border-t border-[#262B33] bg-[#0A0C0F] text-[10px] text-[#565D68]">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
-              <kbd className="bg-[#12151A] border border-[#262B33] px-1.5 py-0.5 rounded text-[#8B93A1]">↑</kbd>
-              <kbd className="bg-[#12151A] border border-[#262B33] px-1.5 py-0.5 rounded text-[#8B93A1]">↓</kbd> Navigate
+              <kbd className="bg-[#12151A] border border-[#262B33] px-1 py-0.2 rounded text-[#8B93A1]">↑</kbd>
+              <kbd className="bg-[#12151A] border border-[#262B33] px-1 py-0.2 rounded text-[#8B93A1]">↓</kbd>
+              <span>Navigate</span>
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="bg-[#12151A] border border-[#262B33] px-1.5 py-0.5 rounded text-[#8B93A1]">↵</kbd> Select
-            </span>
-            <span className="flex items-center gap-1">
-              <kbd className="bg-[#12151A] border border-[#262B33] px-1.5 py-0.5 rounded text-[#8B93A1]">ESC</kbd> Close
+              <kbd className="bg-[#12151A] border border-[#262B33] px-1.5 py-0.2 rounded text-[#8B93A1]">↵</kbd>
+              <span>Select</span>
             </span>
           </div>
-          <div className="text-[#4FD8C4] font-bold">PAGE PULSE CLI</div>
+          <span className="text-[#4FD8C4] font-semibold">PAGE PULSE</span>
         </div>
       </div>
     </div>

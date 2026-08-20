@@ -12,6 +12,7 @@ public class SpaForwardingController {
         "/sitemap",
         "/batch",
         "/schedule",
+        "/scheduled",
         "/compare",
         "/trend",
         "/reports",
@@ -19,7 +20,10 @@ public class SpaForwardingController {
         "/telemetry",
         "/dashboard",
         "/profile",
-        "/landing"
+        "/landing",
+        "/auth",
+        "/login",
+        "/signup"
     })
     public String forwardSpaRoutes() {
         return "forward:/index.html";

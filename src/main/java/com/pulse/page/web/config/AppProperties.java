@@ -16,6 +16,7 @@ public class AppProperties {
     private JwtProperties jwt = new JwtProperties();
     private CorsProperties cors = new CorsProperties();
     private SecurityProperties security = new SecurityProperties();
+    private GeminiProperties gemini = new GeminiProperties();
     
     @Getter
     @Setter
@@ -37,5 +38,12 @@ public class AppProperties {
     @Setter
     public static class SecurityProperties {
         private boolean h2ConsoleEnabled;
+    }
+
+    @Getter
+    @Setter
+    public static class GeminiProperties {
+        private String apiKey;
+        private String model = "gemini-1.5-flash";
     }
 }

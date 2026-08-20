@@ -1,6 +1,10 @@
 spring:
   application:
     name: web
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+      fail-on-null-for-primitives: false
   datasource:
     url: jdbc:h2:mem:pagepulse_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
@@ -94,6 +98,9 @@ app:
     max-age: 3600
   security:
     h2-console-enabled: ${APP_SECURITY_H2_CONSOLE_ENABLED:true}
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-1.5-flash}
 
 server:
   port: ${SERVER_PORT:8089}

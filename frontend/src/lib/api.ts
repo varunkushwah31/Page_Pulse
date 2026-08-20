@@ -320,13 +320,44 @@ export async function revokeApiKey(id: string): Promise<void> {
 }
 
 export async function fetchAiRecommendations(audit: AuditResponse): Promise<AiRecommendation[]> {
-  const response = await fetch(`${API_BASE}/api/v1/ai/recommendations`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(audit),
-  });
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/ai/recommendations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(audit),
+    });
+    if (!response.ok) {
+      // Fallback: If POST with full body fails, try GET by audit ID if present
+      if (audit.id) {
+        return await fetchAiRecommendationsById(audit.id);
+      }
+      throw new Error(`AI recommendations request returned HTTP ${response.status}`);
+    }
+    return await response.json();
+  } catch (err) {
+    if (audit.id) {
+      try {
+        return await fetchAiRecommendationsById(audit.id);
+      } catch (_) {
+        // Continue to throw outer error
+      }
+    }
+    throw err;
+  }
+}
+
+export async function fetchAiRecommendationsById(tempId: number): Promise<AiRecommendation[]> {
+  const response = await fetch(`${API_BASE}/api/v1/ai/recommendations/${tempId}`);
   if (!response.ok) {
-    throw new Error('Failed to fetch AI recommendations');
+    throw new Error(`Failed to fetch AI recommendations for ID ${tempId}`);
+  }
+  return response.json();
+}
+
+export async function fetchAiRecommendationsByUrl(url: string): Promise<AiRecommendation[]> {
+  const response = await fetch(`${API_BASE}/api/v1/ai/recommendations?url=${encodeURIComponent(url)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch AI recommendations for URL: ${url}`);
   }
   return response.json();
 }

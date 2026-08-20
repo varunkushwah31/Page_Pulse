@@ -343,6 +343,8 @@ export interface AiRecommendation {
   issue: string;
   title: string;
   codeSnippet: string;
+  diffSnippet?: string;
+  targetElementSelector?: string;
   explanation: string;
   impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
   estimatedScoreImprovement?: string;

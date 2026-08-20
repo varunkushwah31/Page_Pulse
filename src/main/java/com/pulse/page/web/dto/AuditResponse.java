@@ -1,5 +1,6 @@
 package com.pulse.page.web.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.pulse.page.web.model.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,6 +13,7 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AuditResponse {
     private Long id; // Transient H2 ID
     private String url;

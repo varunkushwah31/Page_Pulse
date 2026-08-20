@@ -1,5 +1,6 @@
 package com.pulse.page.web.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,6 +15,7 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ContentMetrics {
     @Builder.Default
     private Map<String, Integer> headingCounts = new HashMap<>(); // h1, h2, h3, h4, h5, h6

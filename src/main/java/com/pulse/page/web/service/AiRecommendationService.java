@@ -547,5 +547,6 @@ public class AiRecommendationService {
         if (text == null) return "";
         return text.length() <= max ? text : text.substring(0, max);
     }
+    
 }
 

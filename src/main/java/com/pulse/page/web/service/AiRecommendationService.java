@@ -13,7 +13,6 @@ import java.util.List;
 
 @Slf4j
 @Service
-@Autowired
 public class AiRecommendationService {
 
     private static final String CATEGORY_SEO = "SEO";

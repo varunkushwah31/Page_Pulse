@@ -12,6 +12,7 @@ import { PlatformStatsPage } from './pages/PlatformStatsPage';
 import { AuthPage } from './pages/AuthPage';
 import { LandingPage } from './pages/LandingPage';
 import { UserProfilePage } from './pages/UserProfilePage';
+import { CollectionsPage } from './pages/CollectionsPage';
 import { Footer } from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
 import { SeoHead } from './components/SeoHead';
@@ -66,6 +67,7 @@ export function App() {
                 <Route path="/trend" element={<DomainTrendsPage />} />
                 <Route path="/reports" element={<ReportsArchivePage />} />
                 <Route path="/telemetry" element={<PlatformStatsPage />} />
+                <Route path="/collections" element={<CollectionsPage />} />
                 <Route path="/profile" element={<UserProfilePage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/login" element={<AuthPage />} />

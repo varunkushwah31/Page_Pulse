@@ -14,7 +14,8 @@ import {
   ShieldIcon,
   ArrowRightIcon,
   SparkleIcon,
-  XIcon
+  XIcon,
+  FolderIcon
 } from '@phosphor-icons/react';
 
 interface CommandPaletteProps {
@@ -41,6 +42,15 @@ const COMMAND_ITEMS: CommandItem[] = [
     icon: LightningIcon,
     path: '/audit',
     badge: 'CORE',
+  },
+  {
+    id: 'collections',
+    command: 'collections',
+    title: 'Postman for SEO Collections',
+    description: 'Create, customize, manage, and run automated URL audit suites',
+    icon: FolderIcon,
+    path: '/collections',
+    badge: 'SUITE',
   },
   {
     id: 'sitemap',

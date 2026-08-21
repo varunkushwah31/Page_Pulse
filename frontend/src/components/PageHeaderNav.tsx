@@ -16,7 +16,8 @@ import {
   PulseIcon,
   ListIcon,
   XIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  FolderIcon
 } from '@phosphor-icons/react';
 
 interface PageHeaderNavProps {
@@ -49,6 +50,7 @@ export const PageHeaderNav: React.FC<PageHeaderNavProps> = ({ onOpenCommandPalet
 
   const primaryNav = [
     { path: '/audit', command: 'audit', icon: LightningIcon, label: 'Audit' },
+    { path: '/collections', command: 'collections', icon: FolderIcon, label: 'Collections' },
     { path: '/sitemap', command: 'sitemap', icon: HardDrivesIcon, label: 'Sitemap' },
     { path: '/batch', command: 'batch', icon: GitBranchIcon, label: 'Batch' },
     { path: '/scheduled', command: 'schedule', icon: ClockIcon, label: 'Monitors' },

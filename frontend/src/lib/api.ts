@@ -12,6 +12,14 @@ import type {
   AiRecommendation,
   BatchAuditResponse,
   CompetitorComparisonResponse,
+  SeoCollection,
+  CreateSeoCollectionRequest,
+  UpdateSeoCollectionRequest,
+  CreateSeoCollectionItemRequest,
+  UpdateSeoCollectionItemRequest,
+  CollectionRunRequest,
+  CollectionRunResult,
+  CollectionExportData,
 } from '../types';
 
 const API_BASE = '';
@@ -440,5 +448,172 @@ export async function compareCompetitors(urls: string[]): Promise<CompetitorComp
   }
   return response.json();
 }
+
+/* ───── SEO Collections API ("Postman for SEO") ───── */
+
+export async function fetchUserCollections(): Promise<SeoCollection[]> {
+  const response = await fetch(`${API_BASE}/api/v1/collections`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    if (response.status === 401) return [];
+    throw new Error('Failed to fetch user SEO collections');
+  }
+  return response.json();
+}
+
+export async function fetchCollectionById(id: string): Promise<SeoCollection> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/${encodeURIComponent(id)}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch collection details');
+  }
+  return response.json();
+}
+
+export async function createCollection(data: CreateSeoCollectionRequest): Promise<SeoCollection> {
+  const response = await fetch(`${API_BASE}/api/v1/collections`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'Failed to create collection' }));
+    throw new Error(err.message || 'Failed to create collection');
+  }
+  return response.json();
+}
+
+export async function updateCollection(id: string, data: UpdateSeoCollectionRequest): Promise<SeoCollection> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'Failed to update collection' }));
+    throw new Error(err.message || 'Failed to update collection');
+  }
+  return response.json();
+}
+
+export async function deleteCollection(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete collection');
+  }
+}
+
+export async function duplicateCollection(id: string): Promise<SeoCollection> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/${encodeURIComponent(id)}/duplicate`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to duplicate collection');
+  }
+  return response.json();
+}
+
+export async function addCollectionItem(collectionId: string, item: CreateSeoCollectionItemRequest): Promise<SeoCollection> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/${encodeURIComponent(collectionId)}/items`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(item),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'Failed to add item to collection' }));
+    throw new Error(err.message || 'Failed to add item to collection');
+  }
+  return response.json();
+}
+
+export async function updateCollectionItem(collectionId: string, itemId: string, item: UpdateSeoCollectionItemRequest): Promise<SeoCollection> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/${encodeURIComponent(collectionId)}/items/${encodeURIComponent(itemId)}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(item),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'Failed to update collection item' }));
+    throw new Error(err.message || 'Failed to update collection item');
+  }
+  return response.json();
+}
+
+export async function deleteCollectionItem(collectionId: string, itemId: string): Promise<SeoCollection> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/${encodeURIComponent(collectionId)}/items/${encodeURIComponent(itemId)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to remove item from collection');
+  }
+  return response.json();
+}
+
+export async function runCollectionItem(collectionId: string, itemId: string): Promise<SeoCollection> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/${encodeURIComponent(collectionId)}/items/${encodeURIComponent(itemId)}/run`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'Failed to execute audit on collection item' }));
+    throw new Error(err.message || 'Failed to execute audit on collection item');
+  }
+  return response.json();
+}
+
+export async function runFullCollection(collectionId: string, request?: CollectionRunRequest): Promise<CollectionRunResult> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/${encodeURIComponent(collectionId)}/run`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(request || {}),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'Collection runner execution failed' }));
+    throw new Error(err.message || 'Collection runner execution failed');
+  }
+  return response.json();
+}
+
+export async function exportCollectionJson(collectionId: string): Promise<CollectionExportData> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/${encodeURIComponent(collectionId)}/export`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to export collection JSON');
+  }
+  return response.json();
+}
+
+export async function importCollectionJson(data: CollectionExportData): Promise<SeoCollection> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/import`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'Failed to import collection JSON' }));
+    throw new Error(err.message || 'Failed to import collection JSON');
+  }
+  return response.json();
+}
+
+export async function createStarterCollectionTemplate(templateKey: string): Promise<SeoCollection> {
+  const response = await fetch(`${API_BASE}/api/v1/collections/starter-template/${encodeURIComponent(templateKey)}`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to create starter collection template');
+  }
+  return response.json();
+}
+
 
 

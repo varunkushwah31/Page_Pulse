@@ -58,6 +58,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/audit/save/**").authenticated()
                         .requestMatchers("/api/v1/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/", "/index.html", "/static/**", "/assets/**", "/favicon.svg", "/icons.svg", "/manifest.json", "/*.ico", "/*.png", "/*.svg", "/*.js", "/*.css").permitAll()
+                        .requestMatchers("/audit", "/sitemap", "/batch", "/schedule", "/scheduled", "/compare", "/trend", "/reports", "/stats", "/telemetry", "/dashboard", "/profile", "/landing", "/auth", "/login", "/signup", "/collections").permitAll()
                         .anyRequest().authenticated())
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.sameOrigin())
@@ -79,8 +81,8 @@ public class SecurityConfig {
         String allowedOriginsStr = appProperties.getCors() != null ? appProperties.getCors().getAllowedOrigins() : null;
         List<String> allowedOrigins = allowedOriginsStr != null && !allowedOriginsStr.isBlank()
                 ? Arrays.asList(allowedOriginsStr.split(","))
-                : List.of("http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000",
-                        "http://127.0.0.1:5173");
+                : List.of("http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175",
+                        "http://127.0.0.1:3000", "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:5175");
         config.setAllowedOrigins(allowedOrigins);
 
         String allowedMethodsStr = appProperties.getCors() != null ? appProperties.getCors().getAllowedMethods() : null;

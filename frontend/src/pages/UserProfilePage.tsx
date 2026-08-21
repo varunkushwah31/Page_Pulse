@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { createApiKey, fetchApiKeys, revokeApiKey, fetchSavedReports, fetchScheduledAudits } from '../lib/api';
+import { createApiKey, fetchApiKeys, revokeApiKey, fetchSavedReports, fetchScheduledAudits, fetchUserCollections } from '../lib/api';
 import type { ApiKeyResponse } from '../types';
 import {
   UserIcon,
@@ -15,7 +15,8 @@ import {
   PlusIcon,
   TrashIcon,
   LockIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  FolderIcon
 } from '@phosphor-icons/react';
 
 export const UserProfilePage: React.FC = () => {
@@ -30,18 +31,21 @@ export const UserProfilePage: React.FC = () => {
 
   const [savedReportsCount, setSavedReportsCount] = useState(0);
   const [scheduledMonitorsCount, setScheduledMonitorsCount] = useState(0);
+  const [collectionsCount, setCollectionsCount] = useState(0);
 
   const loadData = async () => {
     try {
-      const [keys, reports, schedules] = await Promise.all([
+      const [keys, reports, schedules, userColls] = await Promise.all([
         fetchApiKeys(),
         fetchSavedReports(),
         fetchScheduledAudits().catch(() => []),
+        fetchUserCollections().catch(() => []),
       ]);
       setApiKeys(keys);
       const count = Array.isArray(reports) ? reports.length : (reports?.totalElements ?? reports?.content?.length ?? 0);
       setSavedReportsCount(count);
       setScheduledMonitorsCount(schedules.length);
+      setCollectionsCount(userColls.length);
     } catch (err) {
       console.warn('Failed to load user profile metrics:', err);
     }
@@ -204,19 +208,36 @@ export const UserProfilePage: React.FC = () => {
       </div>
 
       {/* Stats Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div
+          onClick={() => navigate('/collections')}
+          className="rounded-xl border border-[#262B33] hover:border-[#4FD8C4]/40 bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all"
+        >
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
-            <span>Saved MongoDB Reports</span>
+            <span>SEO Collections</span>
+            <FolderIcon className="size-4 text-[#4FD8C4]" />
+          </div>
+          <div className="text-2xl font-bold text-[#4FD8C4]">{collectionsCount}</div>
+        </div>
+
+        <div
+          onClick={() => navigate('/reports')}
+          className="rounded-xl border border-[#262B33] hover:border-[#333A45] bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all"
+        >
+          <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
+            <span>Saved Reports</span>
             <DatabaseIcon className="size-4 text-[#4ADE80]" />
           </div>
           <div className="text-2xl font-bold text-[#E7EAEE]">{savedReportsCount}</div>
         </div>
 
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
+        <div
+          onClick={() => navigate('/scheduled')}
+          className="rounded-xl border border-[#262B33] hover:border-[#333A45] bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all"
+        >
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
-            <span>Active Background Monitors</span>
-            <PulseIcon className="size-4 text-[#4FD8C4]" />
+            <span>Background Monitors</span>
+            <PulseIcon className="size-4 text-[#7AA2F7]" />
           </div>
           <div className="text-2xl font-bold text-[#E7EAEE]">{scheduledMonitorsCount}</div>
         </div>
@@ -224,7 +245,7 @@ export const UserProfilePage: React.FC = () => {
         <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>API Access Tokens</span>
-            <KeyIcon className="size-4 text-[#4FD8C4]" />
+            <KeyIcon className="size-4 text-[#FBBF24]" />
           </div>
           <div className="text-2xl font-bold text-[#E7EAEE]">{apiKeys.length}</div>
         </div>

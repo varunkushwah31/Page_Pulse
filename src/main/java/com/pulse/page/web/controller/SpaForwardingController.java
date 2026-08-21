@@ -23,7 +23,8 @@ public class SpaForwardingController {
         "/landing",
         "/auth",
         "/login",
-        "/signup"
+        "/signup",
+        "/collections"
     })
     public String forwardSpaRoutes() {
         return "forward:/index.html";

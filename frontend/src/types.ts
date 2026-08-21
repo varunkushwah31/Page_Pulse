@@ -471,3 +471,152 @@ export interface PdfBrandingConfig {
   footerText?: string;
   logoBase64?: string;
 }
+
+export interface CollectionAuditSummary {
+  auditId?: number;
+  savedReportId?: string;
+  overallScore?: number;
+  healthGrade?: HealthGrade;
+  httpStatus?: number;
+  responseTimeMs?: number;
+  seoScore?: number;
+  performanceScore?: number;
+  accessibilityScore?: number;
+  contentScore?: number;
+  issuesCount?: number;
+  pageTitle?: string;
+  auditedAt?: string;
+  status?: 'PASSED' | 'WARNING' | 'FAILED';
+  errorMessage?: string;
+}
+
+export interface SeoCollectionItem {
+  id: string;
+  name: string;
+  url: string;
+  method?: string;
+  enableJsRendering?: boolean;
+  expectedMinScore?: number;
+  maxResponseTimeMs?: number;
+  customHeaders?: Record<string, string>;
+  tags?: string[];
+  lastAudit?: CollectionAuditSummary;
+}
+
+export interface SeoCollection {
+  id: string;
+  userId?: number;
+  username?: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  tags?: string[];
+  items: SeoCollectionItem[];
+  createdAt: string;
+  updatedAt: string;
+  lastRunAt?: string;
+  averageScore?: number;
+  totalItems?: number;
+  passedItems?: number;
+  failedItems?: number;
+}
+
+export interface CreateSeoCollectionRequest {
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  tags?: string[];
+  items?: CreateSeoCollectionItemRequest[];
+}
+
+export interface UpdateSeoCollectionRequest {
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  tags?: string[];
+}
+
+export interface CreateSeoCollectionItemRequest {
+  name: string;
+  url: string;
+  method?: string;
+  enableJsRendering?: boolean;
+  expectedMinScore?: number;
+  maxResponseTimeMs?: number;
+  customHeaders?: Record<string, string>;
+  tags?: string[];
+}
+
+export interface UpdateSeoCollectionItemRequest {
+  name: string;
+  url: string;
+  method?: string;
+  enableJsRendering?: boolean;
+  expectedMinScore?: number;
+  maxResponseTimeMs?: number;
+  customHeaders?: Record<string, string>;
+  tags?: string[];
+}
+
+export interface CollectionRunRequest {
+  itemIds?: string[];
+  concurrent?: boolean;
+  enableJsRenderingOverride?: boolean;
+}
+
+export interface ItemRunResult {
+  itemId: string;
+  name: string;
+  url: string;
+  status: 'PASSED' | 'WARNING' | 'FAILED';
+  overallScore?: number;
+  healthGrade?: string;
+  httpStatus?: number;
+  responseTimeMs?: number;
+  expectedMinScore?: number;
+  previousScore?: number;
+  scoreDelta?: number;
+  issuesCount?: number;
+  pageTitle?: string;
+  auditId?: number;
+  errorMessage?: string;
+}
+
+export interface CollectionRunResult {
+  collectionId: string;
+  collectionName: string;
+  totalUrls: number;
+  completedUrls: number;
+  passedUrls: number;
+  warningUrls: number;
+  failedUrls: number;
+  averageScore?: number;
+  durationMs: number;
+  ranAt: string;
+  items: ItemRunResult[];
+}
+
+export interface CollectionExportData {
+  schema?: string;
+  exporter?: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  tags?: string[];
+  exportedAt?: string;
+  items: {
+    name: string;
+    url: string;
+    method?: string;
+    enableJsRendering?: boolean;
+    expectedMinScore?: number;
+    maxResponseTimeMs?: number;
+    customHeaders?: Record<string, string>;
+    tags?: string[];
+  }[];
+}
+

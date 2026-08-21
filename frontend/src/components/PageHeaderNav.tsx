@@ -236,9 +236,10 @@ export const PageHeaderNav: React.FC<PageHeaderNavProps> = ({ onOpenCommandPalet
 
       {/* Mobile Backdrop Overlay */}
       {mobileMenuOpen && (
-        <div
-          role="presentation"
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden border-none w-full h-full cursor-default"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}

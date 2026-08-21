@@ -15,6 +15,7 @@ import {
   exportCollectionJson,
   importCollectionJson,
   createStarterCollectionTemplate,
+  runFullAudit,
 } from '../lib/api';
 import type {
   SeoCollection,
@@ -25,6 +26,7 @@ import type {
   UpdateSeoCollectionItemRequest,
   CollectionRunResult,
   CollectionExportData,
+  ItemRunResult,
 } from '../types';
 import {
   FolderIcon,
@@ -38,22 +40,17 @@ import {
   UploadSimpleIcon,
   CheckCircleIcon,
   WarningCircleIcon,
-  LightningIcon,
   ClockIcon,
   ShieldCheckIcon,
-  ArrowRightIcon,
   GlobeIcon,
   ArrowsClockwiseIcon,
   XIcon,
   SparkleIcon,
   CheckIcon,
-  CodeIcon,
-  ShoppingCartIcon,
   SlidersHorizontalIcon,
   ArrowSquareOutIcon,
   InfoIcon,
-  ListNumbersIcon,
-  TerminalWindowIcon
+  TerminalWindowIcon,
 } from '@phosphor-icons/react';
 
 interface ToastNotification {
@@ -62,6 +59,68 @@ interface ToastNotification {
   title: string;
   message: string;
 }
+
+const getAuditStatus = (score: number, minScore = 80): 'PASSED' | 'WARNING' | 'FAILED' => {
+  if (score >= minScore) return 'PASSED';
+  if (score >= 50) return 'WARNING';
+  return 'FAILED';
+};
+
+const getScoreBadgeClass = (score: number): string => {
+  if (score >= 80) return 'bg-[#4ADE80]/15 text-[#4ADE80] border border-[#4ADE80]/30';
+  if (score >= 50) return 'bg-[#FBBF24]/15 text-[#FBBF24] border border-[#FBBF24]/30';
+  return 'bg-[#F87171]/15 text-[#F87171] border border-[#F87171]/30';
+};
+
+const getToastBadgeClass = (type: ToastNotification['type']): string => {
+  if (type === 'success') return 'border-[#4FD8C4]/40 bg-[#12151A]/95 text-[#E7EAEE]';
+  if (type === 'error') return 'border-[#F87171]/40 bg-[#12151A]/95 text-[#E7EAEE]';
+  return 'border-[#333A45] bg-[#12151A]/95 text-[#E7EAEE]';
+};
+
+const updateCollectionWithRunResults = (
+  collection: SeoCollection,
+  itemResults: ItemRunResult[],
+  averageScore: number | undefined,
+  passed: number,
+  failed: number,
+  warnings: number
+): SeoCollection => {
+  const updatedItems = (collection.items || []).map((it) => {
+    const runItem = itemResults.find((r) => r.itemId === it.id);
+    if (!runItem) return it;
+    return {
+      ...it,
+      lastAudit: {
+        auditId: runItem.auditId,
+        overallScore: runItem.overallScore,
+        httpStatus: runItem.httpStatus,
+        responseTimeMs: runItem.responseTimeMs,
+        pageTitle: runItem.pageTitle,
+        auditedAt: new Date().toISOString(),
+        status: runItem.status,
+        errorMessage: runItem.errorMessage,
+      },
+    };
+  });
+
+  return {
+    ...collection,
+    items: updatedItems,
+    averageScore,
+    passedItems: passed,
+    failedItems: failed + warnings,
+    lastRunAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+const generateUniqueId = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+};
 
 const STARTER_TEMPLATES: Record<string, {
   name: string;
@@ -123,7 +182,7 @@ export const CollectionsPage: React.FC = () => {
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
 
   const addToast = useCallback((type: 'success' | 'error' | 'info', title: string, message: string) => {
-    const id = Math.random().toString(36).substring(2, 9);
+    const id = generateUniqueId();
     // Filter out ugly trace ID noise if present
     const cleanMessage = message.includes('Please refer to trace ID')
       ? 'An internal connection event occurred. Resilient fallback mode enabled.'
@@ -168,7 +227,8 @@ export const CollectionsPage: React.FC = () => {
   // Runner state
   const [runningCollection, setRunningCollection] = useState(false);
   const [runnerResult, setRunnerResult] = useState<CollectionRunResult | null>(null);
-  const [runnerConcurrent, setRunnerConcurrent] = useState(true);
+  const [runnerConcurrent] = useState(true);
+  const [runnerProgressText, setRunnerProgressText] = useState<string>('');
 
   // Running individual items indicator
   const [runningItemIds, setRunningItemIds] = useState<Record<string, boolean>>({});
@@ -219,8 +279,8 @@ export const CollectionsPage: React.FC = () => {
     return collections.filter((c) => {
       const matchesSearch =
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (c.description && c.description.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesTag = !selectedTag || (c.tags && c.tags.includes(selectedTag));
+        Boolean(c.description?.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesTag = !selectedTag || Boolean(c.tags?.includes(selectedTag));
       return matchesSearch && matchesTag;
     });
   }, [collections, searchQuery, selectedTag]);
@@ -308,7 +368,7 @@ export const CollectionsPage: React.FC = () => {
   }
 
   /* ─── Collection Handlers ─── */
-  const handleCreateCollectionSubmit = async (e: React.FormEvent) => {
+  const handleCreateCollectionSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newCollName.trim()) return;
 
@@ -358,7 +418,7 @@ export const CollectionsPage: React.FC = () => {
     }
   };
 
-  const handleUpdateCollectionSubmit = async (e: React.FormEvent) => {
+  const handleUpdateCollectionSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!activeCollection || !newCollName.trim()) return;
 
@@ -444,7 +504,7 @@ export const CollectionsPage: React.FC = () => {
       a.download = `pagepulse-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.json`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
       URL.revokeObjectURL(url);
       addToast('success', 'Export Complete', `Exported "${name}" to JSON.`);
     } catch (err: unknown) {
@@ -467,14 +527,14 @@ export const CollectionsPage: React.FC = () => {
         a.download = `pagepulse-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.json`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        a.remove();
         URL.revokeObjectURL(url);
         addToast('success', 'Export Complete', `Exported "${name}" to JSON.`);
       }
     }
   };
 
-  const handleImportCollectionSubmit = async (e: React.FormEvent) => {
+  const handleImportCollectionSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setImportError(null);
     try {
@@ -505,9 +565,9 @@ export const CollectionsPage: React.FC = () => {
           tags: parsed.tags || [],
           items: (parsed.items || []).map((it, idx) => ({
             id: `${localId}-item-${idx}`,
-            name: it.name,
+            name: it.name || it.url,
             url: it.url,
-            method: 'AUDIT',
+            method: it.method || 'AUDIT',
             enableJsRendering: it.enableJsRendering || false,
             expectedMinScore: it.expectedMinScore || 80,
             maxResponseTimeMs: it.maxResponseTimeMs || 3000,
@@ -522,70 +582,48 @@ export const CollectionsPage: React.FC = () => {
         setImportJsonText('');
         addToast('success', 'Import Successful', `Imported "${localColl.name}".`);
       } catch (parseErr: unknown) {
-        setImportError(parseErr instanceof Error ? parseErr.message : 'Invalid collection JSON payload');
+        setImportError(parseErr instanceof Error ? parseErr.message : 'Invalid JSON file format.');
       }
     }
   };
 
   const handleCreateStarterTemplate = async (templateKey: string) => {
     setTemplateLoadingKey(templateKey);
-    const template = STARTER_TEMPLATES[templateKey];
-
     try {
       const created = await createStarterCollectionTemplate(templateKey);
-      addToast('success', 'Starter Suite Loaded', `Created "${created.name}" with pre-configured endpoints.`);
+      addToast('success', 'Starter Suite Ready', `Loaded "${created.name}" template.`);
       await loadCollections(false);
       setSelectedCollectionId(created.id);
     } catch (err: unknown) {
-      console.warn('Backend starter template API failed, attempting standard create:', err);
-      if (template) {
-        try {
-          const newColl = await createCollection({
-            name: template.name,
-            description: template.description,
-            color: template.color,
-            tags: template.tags,
-            items: template.items.map((it) => ({
-              name: it.name,
-              url: it.url,
-              method: 'AUDIT',
-              enableJsRendering: it.enableJsRendering,
-              expectedMinScore: it.expectedMinScore,
-              maxResponseTimeMs: it.maxResponseTimeMs,
-            })),
-          });
-          addToast('success', 'Starter Suite Ready', `Created "${newColl.name}".`);
-          await loadCollections(false);
-          setSelectedCollectionId(newColl.id);
-        } catch (createErr: unknown) {
-          console.warn('Backend create failed, generating local suite:', createErr);
-          const localId = `coll-${Date.now()}`;
-          const localColl: SeoCollection = {
-            id: localId,
-            userId: user?.id,
-            username: user?.username || 'devuser',
-            name: template.name,
-            description: template.description,
-            color: template.color,
-            icon: template.icon,
-            tags: template.tags,
-            items: template.items.map((it, idx) => ({
-              id: `${localId}-item-${idx}`,
-              name: it.name,
-              url: it.url,
-              method: 'AUDIT',
-              enableJsRendering: it.enableJsRendering,
-              expectedMinScore: it.expectedMinScore,
-              maxResponseTimeMs: it.maxResponseTimeMs,
-              tags: [],
-            })),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          setCollections((prev) => [localColl, ...prev]);
-          setSelectedCollectionId(localId);
-          addToast('success', 'Starter Suite Ready', `Created "${localColl.name}".`);
-        }
+      console.warn('Backend template generation failed, creating locally:', err);
+      const tpl = STARTER_TEMPLATES[templateKey];
+      if (tpl) {
+        const localId = `coll-${Date.now()}`;
+        const localColl: SeoCollection = {
+          id: localId,
+          userId: user?.id,
+          username: user?.username || 'devuser',
+          name: tpl.name,
+          description: tpl.description,
+          color: tpl.color,
+          icon: tpl.icon,
+          tags: tpl.tags,
+          items: tpl.items.map((it, idx) => ({
+            id: `${localId}-item-${idx}`,
+            name: it.name,
+            url: it.url,
+            method: 'AUDIT',
+            enableJsRendering: it.enableJsRendering,
+            expectedMinScore: it.expectedMinScore,
+            maxResponseTimeMs: it.maxResponseTimeMs,
+            tags: [],
+          })),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setCollections((prev) => [localColl, ...prev]);
+        setSelectedCollectionId(localId);
+        addToast('success', 'Starter Suite Ready', `Created "${localColl.name}".`);
       }
     } finally {
       setTemplateLoadingKey(null);
@@ -593,7 +631,7 @@ export const CollectionsPage: React.FC = () => {
   };
 
   /* ─── Item Handlers ─── */
-  const handleAddItemSubmit = async (e: React.FormEvent) => {
+  const handleAddItemSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!activeCollection || !itemUrl.trim()) return;
 
@@ -645,7 +683,7 @@ export const CollectionsPage: React.FC = () => {
     addToast('success', 'Endpoint Added', `Added ${req.name} to suite.`);
   };
 
-  const handleEditItemSubmit = async (e: React.FormEvent) => {
+  const handleEditItemSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!activeCollection || !showEditItemModal || !itemUrl.trim()) return;
 
@@ -721,12 +759,59 @@ export const CollectionsPage: React.FC = () => {
   const handleRunSingleItem = async (itemId: string, itemName: string) => {
     if (!activeCollection) return;
     setRunningItemIds((prev) => ({ ...prev, [itemId]: true }));
+    const item = (activeCollection.items || []).find((i) => i.id === itemId);
+
     try {
+      // First attempt backend collection runner endpoint
       await runCollectionItem(activeCollection.id, itemId);
       addToast('success', 'Audit Complete', `Audit finished for ${itemName}.`);
       await loadCollections(true);
     } catch (err: unknown) {
-      addToast('error', 'Audit Failed', err instanceof Error ? err.message : 'Single item audit failed.');
+      console.warn('Backend runCollectionItem failed, executing direct audit fallback:', err);
+      if (item) {
+        try {
+          const audit = await runFullAudit(item.url, item.enableJsRendering);
+          const score = audit.scores?.overallScore ?? 0;
+          const status = getAuditStatus(score, item.expectedMinScore || 80);
+
+          const updatedAudit: NonNullable<SeoCollectionItem['lastAudit']> = {
+            auditId: audit.id,
+            overallScore: score,
+            httpStatus: audit.httpStatus,
+            responseTimeMs: audit.responseTimeMs,
+            pageTitle: audit.seoMetrics?.pageTitle || undefined,
+            auditedAt: new Date().toISOString(),
+            status,
+          };
+
+          setCollections((prev) =>
+            prev.map((c) => {
+              if (c.id !== activeCollection.id) return c;
+              const updatedItems = (c.items || []).map((it) =>
+                it.id === itemId ? { ...it, lastAudit: updatedAudit } : it
+              );
+              const scored = updatedItems.filter((it) => it.lastAudit?.overallScore != null);
+              const sum = scored.reduce((acc, it) => acc + (it.lastAudit?.overallScore || 0), 0);
+              const avgScore = scored.length > 0 ? Math.round((sum / scored.length) * 10) / 10 : null;
+              const passedCount = updatedItems.filter((it) => it.lastAudit?.status === 'PASSED').length;
+              const failedCount = updatedItems.filter((it) => it.lastAudit?.status === 'FAILED' || it.lastAudit?.status === 'WARNING').length;
+
+              return {
+                ...c,
+                items: updatedItems,
+                averageScore: avgScore ?? c.averageScore,
+                passedItems: passedCount,
+                failedItems: failedCount,
+                lastRunAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              };
+            })
+          );
+          addToast('success', 'Audit Complete', `Score: ${score}/100 for ${itemName}.`);
+        } catch (auditErr: unknown) {
+          addToast('error', 'Audit Failed', auditErr instanceof Error ? auditErr.message : 'Could not audit URL.');
+        }
+      }
     } finally {
       setRunningItemIds((prev) => ({ ...prev, [itemId]: false }));
     }
@@ -737,6 +822,7 @@ export const CollectionsPage: React.FC = () => {
     setRunningCollection(true);
     setRunnerResult(null);
     setShowRunnerModal(true);
+    setRunnerProgressText('Starting collection test run...');
 
     try {
       const result = await runFullCollection(activeCollection.id, {
@@ -746,9 +832,87 @@ export const CollectionsPage: React.FC = () => {
       addToast('success', 'Suite Execution Finished', `Processed ${result.completedUrls} of ${result.totalUrls} URLs.`);
       await loadCollections(true);
     } catch (err: unknown) {
-      addToast('error', 'Suite Run Failed', err instanceof Error ? err.message : 'Collection runner failed.');
+      console.warn('Backend runFullCollection failed, executing client-side parallel runner:', err);
+      const startTime = Date.now();
+      const items = activeCollection.items || [];
+      const itemResults: ItemRunResult[] = [];
+      let passed = 0;
+      let warnings = 0;
+      let failed = 0;
+      let scoreSum = 0;
+      let scoredCount = 0;
+
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        setRunnerProgressText(`Auditing URL ${i + 1} of ${items.length}: ${it.name}...`);
+        try {
+          const audit = await runFullAudit(it.url, it.enableJsRendering);
+          const score = audit.scores?.overallScore ?? 0;
+          const status = getAuditStatus(score, it.expectedMinScore || 80);
+
+          if (status === 'PASSED') passed++;
+          else if (status === 'WARNING') warnings++;
+          else failed++;
+
+          scoreSum += score;
+          scoredCount++;
+
+          itemResults.push({
+            itemId: it.id,
+            name: it.name,
+            url: it.url,
+            status,
+            overallScore: score,
+            httpStatus: audit.httpStatus,
+            responseTimeMs: audit.responseTimeMs,
+            expectedMinScore: it.expectedMinScore,
+            pageTitle: audit.seoMetrics?.pageTitle || undefined,
+            auditId: audit.id,
+          });
+        } catch (auditErr: unknown) {
+          failed++;
+          itemResults.push({
+            itemId: it.id,
+            name: it.name,
+            url: it.url,
+            status: 'FAILED',
+            overallScore: 0,
+            errorMessage: auditErr instanceof Error ? auditErr.message : 'Audit failed',
+          });
+        }
+      }
+
+      const durationMs = Date.now() - startTime;
+      const averageScore = scoredCount > 0 ? Math.round((scoreSum / scoredCount) * 10) / 10 : undefined;
+
+      const fallbackResult: CollectionRunResult = {
+        collectionId: activeCollection.id,
+        collectionName: activeCollection.name,
+        totalUrls: items.length,
+        completedUrls: itemResults.length,
+        passedUrls: passed,
+        warningUrls: warnings,
+        failedUrls: failed,
+        averageScore,
+        durationMs,
+        ranAt: new Date().toISOString(),
+        items: itemResults,
+      };
+
+      setRunnerResult(fallbackResult);
+
+      setCollections((prev) =>
+        prev.map((c) =>
+          c.id === activeCollection.id
+            ? updateCollectionWithRunResults(c, itemResults, averageScore, passed, failed, warnings)
+            : c
+        )
+      );
+
+      addToast('success', 'Suite Execution Finished', `Processed ${itemResults.length} URLs.`);
     } finally {
       setRunningCollection(false);
+      setRunnerProgressText('');
     }
   };
 
@@ -779,13 +943,7 @@ export const CollectionsPage: React.FC = () => {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`pointer-events-auto p-3.5 rounded-xl border shadow-2xl backdrop-blur-md transition-all flex items-start justify-between gap-3 ${
-              t.type === 'success'
-                ? 'border-[#4FD8C4]/40 bg-[#12151A]/95 text-[#E7EAEE]'
-                : t.type === 'error'
-                ? 'border-[#F87171]/40 bg-[#12151A]/95 text-[#E7EAEE]'
-                : 'border-[#333A45] bg-[#12151A]/95 text-[#E7EAEE]'
-            }`}
+            className={`pointer-events-auto p-3.5 rounded-xl border shadow-2xl backdrop-blur-md transition-all flex items-start justify-between gap-3 ${getToastBadgeClass(t.type)}`}
           >
             <div className="flex items-start gap-2.5">
               {t.type === 'success' && <CheckCircleIcon className="size-4.5 text-[#4FD8C4] shrink-0 mt-0.5" />}
@@ -798,7 +956,7 @@ export const CollectionsPage: React.FC = () => {
             </div>
             <button
               onClick={() => removeToast(t.id)}
-              type='button'
+              type="button"
               className="text-[#565D68] hover:text-[#E7EAEE] cursor-pointer"
             >
               <XIcon className="size-3.5" />
@@ -972,6 +1130,7 @@ export const CollectionsPage: React.FC = () => {
               />
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
                   className="absolute right-2.5 top-2.5 text-[#565D68] hover:text-[#E7EAEE]"
                 >
@@ -1002,12 +1161,13 @@ export const CollectionsPage: React.FC = () => {
 
           {/* Collections List */}
           <div className="flex-1 overflow-y-auto divide-y divide-[#262B33]/60 max-h-[600px]">
-            {loading ? (
+            {loading && (
               <div className="p-12 text-center text-[#8B93A1] space-y-3">
                 <ArrowsClockwiseIcon className="size-6 mx-auto animate-spin text-[#4FD8C4]" />
                 <p className="text-xs">Loading suites...</p>
               </div>
-            ) : filteredCollections.length === 0 ? (
+            )}
+            {!loading && filteredCollections.length === 0 && (
               <div className="p-8 text-center text-[#8B93A1] space-y-3 my-auto">
                 <div className="size-12 rounded-xl bg-[#191D24] border border-[#262B33] flex items-center justify-center mx-auto text-[#565D68]">
                   <FolderIcon className="size-6" />
@@ -1027,65 +1187,59 @@ export const CollectionsPage: React.FC = () => {
                   <span>Create Suite</span>
                 </button>
               </div>
-            ) : (
-              filteredCollections.map((coll) => {
-                const isSelected = coll.id === selectedCollectionId;
-                return (
-                  <div
-                    key={coll.id}
-                    onClick={() => setSelectedCollectionId(coll.id)}
-                    className={`p-3.5 cursor-pointer transition-all space-y-1.5 relative ${
-                      isSelected
-                        ? 'bg-[#191D24] border-l-3 border-l-[#4FD8C4]'
-                        : 'hover:bg-[#161920]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 truncate">
-                        <span
-                          className="size-2.5 rounded-full shrink-0 shadow-sm"
-                          style={{ backgroundColor: coll.color || '#4FD8C4' }}
-                        />
-                        <span className="font-bold text-[#E7EAEE] text-xs truncate">
-                          {coll.name}
-                        </span>
-                      </div>
-                      {coll.averageScore != null ? (
-                        <span
-                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded shrink-0 ${
-                            coll.averageScore >= 80
-                              ? 'bg-[#4ADE80]/15 text-[#4ADE80] border border-[#4ADE80]/30'
-                              : coll.averageScore >= 50
-                              ? 'bg-[#FBBF24]/15 text-[#FBBF24] border border-[#FBBF24]/30'
-                              : 'bg-[#F87171]/15 text-[#F87171] border border-[#F87171]/30'
-                          }`}
-                        >
-                          {Math.round(coll.averageScore)} pts
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-[#565D68] px-1.5 py-0.5 rounded border border-[#262B33] bg-[#0A0C0F]">
-                          unrun
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between text-[10px] text-[#8B93A1]">
-                      <span className="flex items-center gap-1 font-mono">
-                        <GlobeIcon className="size-3 text-[#565D68]" />
-                        {coll.items ? coll.items.length : 0} {coll.items?.length === 1 ? 'URL' : 'URLs'}
-                      </span>
-                      {coll.lastRunAt ? (
-                        <span className="text-[#565D68]">
-                          {new Date(coll.lastRunAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                        </span>
-                      ) : (
-                        <span className="text-[#565D68]">Ready</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
             )}
+            {!loading && filteredCollections.length > 0 && filteredCollections.map((coll) => {
+              const isSelected = coll.id === selectedCollectionId;
+              return (
+                <button
+                  type="button"
+                  key={coll.id}
+                  onClick={() => setSelectedCollectionId(coll.id)}
+                  className={`w-full text-left p-3.5 cursor-pointer transition-all space-y-1.5 relative border-0 ${
+                    isSelected
+                      ? 'bg-[#191D24] border-l-3 border-l-[#4FD8C4]'
+                      : 'hover:bg-[#161920]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 truncate">
+                      <span
+                        className="size-2.5 rounded-full shrink-0 shadow-sm"
+                        style={{ backgroundColor: coll.color || '#4FD8C4' }}
+                      />
+                      <span className="font-bold text-[#E7EAEE] text-xs truncate">
+                        {coll.name}
+                      </span>
+                    </div>
+                    {coll.averageScore != null ? (
+                      <span
+                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded shrink-0 ${getScoreBadgeClass(coll.averageScore)}`}
+                      >
+                        {Math.round(coll.averageScore)} pts
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-[#565D68] px-1.5 py-0.5 rounded border border-[#262B33] bg-[#0A0C0F]">
+                        unrun
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-[#8B93A1]">
+                    <span className="flex items-center gap-1 font-mono">
+                      <GlobeIcon className="size-3 text-[#565D68]" />
+                      {coll.items ? coll.items.length : 0} {coll.items?.length === 1 ? 'URL' : 'URLs'}
+                    </span>
+                    {coll.lastRunAt ? (
+                      <span className="text-[#565D68]">
+                        {new Date(coll.lastRunAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </span>
+                    ) : (
+                      <span className="text-[#565D68]">Ready</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -1107,13 +1261,7 @@ export const CollectionsPage: React.FC = () => {
                       </h1>
                       {activeCollection.averageScore != null && (
                         <span
-                          className={`text-[11px] font-bold px-2 py-0.5 rounded ${
-                            activeCollection.averageScore >= 80
-                              ? 'bg-[#4ADE80]/15 text-[#4ADE80] border border-[#4ADE80]/30'
-                              : activeCollection.averageScore >= 50
-                              ? 'bg-[#FBBF24]/15 text-[#FBBF24] border border-[#FBBF24]/30'
-                              : 'bg-[#F87171]/15 text-[#F87171] border border-[#F87171]/30'
-                          }`}
+                          className={`text-[11px] font-bold px-2 py-0.5 rounded ${getScoreBadgeClass(activeCollection.averageScore)}`}
                         >
                           Avg Score: {activeCollection.averageScore}/100
                         </span>
@@ -1451,10 +1599,11 @@ export const CollectionsPage: React.FC = () => {
 
             <form onSubmit={handleCreateCollectionSubmit} className="p-5 space-y-4">
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="create-coll-name" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Collection Name <span className="text-[#F87171]">*</span>
                 </label>
                 <input
+                  id="create-coll-name"
                   type="text"
                   required
                   placeholder="e.g. Production Core Funnel"
@@ -1465,10 +1614,11 @@ export const CollectionsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="create-coll-desc" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Description (Optional)
                 </label>
                 <textarea
+                  id="create-coll-desc"
                   rows={2}
                   placeholder="e.g. Daily critical path SEO & Core Web Vitals audit suite"
                   value={newCollDesc}
@@ -1478,9 +1628,9 @@ export const CollectionsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <span className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Color Tag
-                </label>
+                </span>
                 <div className="flex items-center gap-2.5">
                   {['#4FD8C4', '#7AA2F7', '#4ADE80', '#FBBF24', '#F87171', '#C084FC'].map((c) => (
                     <button
@@ -1491,6 +1641,7 @@ export const CollectionsPage: React.FC = () => {
                         newCollColor === c ? 'scale-125 border-white' : 'border-transparent'
                       }`}
                       style={{ backgroundColor: c }}
+                      aria-label={`Select color ${c}`}
                     >
                       {newCollColor === c && <CheckIcon className="size-3 text-black font-bold" />}
                     </button>
@@ -1499,10 +1650,11 @@ export const CollectionsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="create-coll-tags" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Tags (comma separated)
                 </label>
                 <input
+                  id="create-coll-tags"
                   type="text"
                   placeholder="production, marketing, critical"
                   value={newCollTags}
@@ -1551,10 +1703,11 @@ export const CollectionsPage: React.FC = () => {
 
             <form onSubmit={handleUpdateCollectionSubmit} className="p-5 space-y-4">
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="edit-coll-name" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Collection Name <span className="text-[#F87171]">*</span>
                 </label>
                 <input
+                  id="edit-coll-name"
                   type="text"
                   required
                   value={newCollName}
@@ -1564,10 +1717,11 @@ export const CollectionsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="edit-coll-desc" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Description
                 </label>
                 <textarea
+                  id="edit-coll-desc"
                   rows={2}
                   value={newCollDesc}
                   onChange={(e) => setNewCollDesc(e.target.value)}
@@ -1576,9 +1730,9 @@ export const CollectionsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <span className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Color Tag
-                </label>
+                </span>
                 <div className="flex items-center gap-2.5">
                   {['#4FD8C4', '#7AA2F7', '#4ADE80', '#FBBF24', '#F87171', '#C084FC'].map((c) => (
                     <button
@@ -1589,6 +1743,7 @@ export const CollectionsPage: React.FC = () => {
                         newCollColor === c ? 'scale-125 border-white' : 'border-transparent'
                       }`}
                       style={{ backgroundColor: c }}
+                      aria-label={`Select color ${c}`}
                     >
                       {newCollColor === c && <CheckIcon className="size-3 text-black font-bold" />}
                     </button>
@@ -1597,10 +1752,11 @@ export const CollectionsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="edit-coll-tags" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Tags (comma separated)
                 </label>
                 <input
+                  id="edit-coll-tags"
                   type="text"
                   value={newCollTags}
                   onChange={(e) => setNewCollTags(e.target.value)}
@@ -1648,10 +1804,11 @@ export const CollectionsPage: React.FC = () => {
 
             <form onSubmit={handleAddItemSubmit} className="p-5 space-y-4">
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="add-item-name" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Endpoint Name / Label
                 </label>
                 <input
+                  id="add-item-name"
                   type="text"
                   placeholder="e.g. Pricing Tier Matrix"
                   value={itemName}
@@ -1661,10 +1818,11 @@ export const CollectionsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="add-item-url" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Target URL <span className="text-[#F87171]">*</span>
                 </label>
                 <input
+                  id="add-item-url"
                   type="url"
                   required
                   placeholder="https://example.com/pricing"
@@ -1676,10 +1834,11 @@ export const CollectionsPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                  <label htmlFor="add-item-min-score" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                     Target Min Score
                   </label>
                   <input
+                    id="add-item-min-score"
                     type="number"
                     min={1}
                     max={100}
@@ -1690,10 +1849,11 @@ export const CollectionsPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                  <label htmlFor="add-item-max-latency" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                     Max Latency (ms)
                   </label>
                   <input
+                    id="add-item-max-latency"
                     type="number"
                     min={100}
                     max={30000}
@@ -1757,10 +1917,11 @@ export const CollectionsPage: React.FC = () => {
 
             <form onSubmit={handleEditItemSubmit} className="p-5 space-y-4">
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="edit-item-name" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Endpoint Name / Label
                 </label>
                 <input
+                  id="edit-item-name"
                   type="text"
                   value={itemName}
                   onChange={(e) => setItemName(e.target.value)}
@@ -1769,10 +1930,11 @@ export const CollectionsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="edit-item-url" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   Target URL <span className="text-[#F87171]">*</span>
                 </label>
                 <input
+                  id="edit-item-url"
                   type="url"
                   required
                   value={itemUrl}
@@ -1783,10 +1945,11 @@ export const CollectionsPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                  <label htmlFor="edit-item-min-score" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                     Target Min Score
                   </label>
                   <input
+                    id="edit-item-min-score"
                     type="number"
                     min={1}
                     max={100}
@@ -1797,10 +1960,11 @@ export const CollectionsPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                  <label htmlFor="edit-item-max-latency" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                     Max Latency (ms)
                   </label>
                   <input
+                    id="edit-item-max-latency"
                     type="number"
                     min={100}
                     max={30000}
@@ -1868,19 +2032,20 @@ export const CollectionsPage: React.FC = () => {
 
             <div className="p-6 space-y-5">
               {/* Progress and status */}
-              {runningCollection ? (
+              {runningCollection && (
                 <div className="p-8 text-center space-y-4">
                   <ArrowsClockwiseIcon className="size-8 mx-auto animate-spin text-[#4FD8C4]" />
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <p className="text-sm font-bold text-[#E7EAEE]">
                       Executing Suite Audit with Java Virtual Threads...
                     </p>
-                    <p className="text-xs text-[#8B93A1]">
-                      Auditing {activeCollection?.items.length} endpoints concurrently. Running assertions.
+                    <p className="text-xs text-[#4FD8C4] font-mono">
+                      {runnerProgressText || `Auditing ${activeCollection?.items.length || 0} endpoints concurrently. Running assertions...`}
                     </p>
                   </div>
                 </div>
-              ) : runnerResult ? (
+              )}
+              {!runningCollection && runnerResult && (
                 <div className="space-y-5">
                   {/* Results Overview Ribbons */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1949,7 +2114,28 @@ export const CollectionsPage: React.FC = () => {
                     ))}
                   </div>
                 </div>
-              ) : null}
+              )}
+              {!runningCollection && !runnerResult && (
+                <div className="p-8 text-center space-y-4">
+                  <div className="size-12 rounded-xl bg-[#191D24] border border-[#262B33] flex items-center justify-center mx-auto text-[#4FD8C4]">
+                    <PlayIcon className="size-6" weight="fill" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-[#E7EAEE]">Ready to Run Suite</p>
+                    <p className="text-xs text-[#8B93A1]">
+                      Click &quot;Run Suite Now&quot; to audit all {activeCollection?.items?.length || 0} target endpoints.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRunFullCollection}
+                    className="px-4 py-2 rounded-lg bg-[#4FD8C4] hover:bg-[#4FD8C4]/90 text-[#0A0C0F] font-bold text-xs cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <PlayIcon className="size-3.5" weight="fill" />
+                    <span>Run Suite Now</span>
+                  </button>
+                </div>
+              )}
 
               {/* Action buttons */}
               <div className="flex items-center justify-between pt-3 border-t border-[#262B33]">
@@ -2004,10 +2190,11 @@ export const CollectionsPage: React.FC = () => {
 
             <form onSubmit={handleImportCollectionSubmit} className="p-5 space-y-4">
               <div className="space-y-1">
-                <label className="block text-[11px] text-[#8B93A1] uppercase font-bold">
+                <label htmlFor="import-json-payload" className="block text-[11px] text-[#8B93A1] uppercase font-bold">
                   JSON Payload
                 </label>
                 <textarea
+                  id="import-json-payload"
                   rows={8}
                   required
                   placeholder={`{\n  "name": "Production Core Funnel",\n  "description": "Critical pages",\n  "items": [\n    { "name": "Landing", "url": "https://example.com" }\n  ]\n}`}

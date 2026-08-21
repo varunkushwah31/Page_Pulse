@@ -209,38 +209,41 @@ export const UserProfilePage: React.FC = () => {
 
       {/* Stats Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div
+        <button
+          type="button"
           onClick={() => navigate('/collections')}
-          className="rounded-xl border border-[#262B33] hover:border-[#4FD8C4]/40 bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all"
+          className="rounded-xl border border-[#262B33] hover:border-[#4FD8C4]/40 bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all text-left w-full"
         >
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>SEO Collections</span>
             <FolderIcon className="size-4 text-[#4FD8C4]" />
           </div>
           <div className="text-2xl font-bold text-[#4FD8C4]">{collectionsCount}</div>
-        </div>
+        </button>
 
-        <div
+        <button
+          type="button"
           onClick={() => navigate('/reports')}
-          className="rounded-xl border border-[#262B33] hover:border-[#333A45] bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all"
+          className="rounded-xl border border-[#262B33] hover:border-[#333A45] bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all text-left w-full"
         >
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>Saved Reports</span>
             <DatabaseIcon className="size-4 text-[#4ADE80]" />
           </div>
           <div className="text-2xl font-bold text-[#E7EAEE]">{savedReportsCount}</div>
-        </div>
+        </button>
 
-        <div
+        <button
+          type="button"
           onClick={() => navigate('/scheduled')}
-          className="rounded-xl border border-[#262B33] hover:border-[#333A45] bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all"
+          className="rounded-xl border border-[#262B33] hover:border-[#333A45] bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all text-left w-full"
         >
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>Background Monitors</span>
             <PulseIcon className="size-4 text-[#7AA2F7]" />
           </div>
           <div className="text-2xl font-bold text-[#E7EAEE]">{scheduledMonitorsCount}</div>
-        </div>
+        </button>
 
         <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">

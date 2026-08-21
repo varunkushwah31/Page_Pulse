@@ -5,7 +5,6 @@ import com.pulse.page.web.document.SeoCollectionDocument.CollectionAuditSummary;
 import com.pulse.page.web.document.SeoCollectionDocument.SeoCollectionItem;
 import com.pulse.page.web.dto.*;
 import com.pulse.page.web.enums.HealthGrade;
-import com.pulse.page.web.exception.AuditExecutionException;
 import com.pulse.page.web.exception.ReportNotFoundException;
 import com.pulse.page.web.repository.mongo.SeoCollectionMongoRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +22,13 @@ import java.util.concurrent.Executors;
 @Service
 @RequiredArgsConstructor
 public class SeoCollectionService {
+
+    private static final String GUEST_USER = "guest";
+    private static final String DEFAULT_METHOD = "AUDIT";
+    private static final String DEFAULT_COLOR = "#4FD8C4";
+    private static final String STATUS_PASSED = "PASSED";
+    private static final String STATUS_WARNING = "WARNING";
+    private static final String STATUS_FAILED = "FAILED";
 
     private final SeoCollectionMongoRepository collectionRepository;
     private final AuditReportProcessorService processorService;
@@ -56,7 +62,7 @@ public class SeoCollectionService {
         }
 
         SeoCollectionDocument memDoc = inMemoryFallbackStore.get(id);
-        if (memDoc != null && (username == null || "guest".equalsIgnoreCase(username) || username.equalsIgnoreCase(memDoc.getUsername()))) {
+        if (memDoc != null && (username == null || GUEST_USER.equalsIgnoreCase(username) || username.equalsIgnoreCase(memDoc.getUsername()))) {
             return memDoc;
         }
 
@@ -89,7 +95,7 @@ public class SeoCollectionService {
         }
 
         for (SeoCollectionDocument d : inMemoryFallbackStore.values()) {
-            if (username.equalsIgnoreCase(d.getUsername()) || ("guest".equalsIgnoreCase(username) && "guest".equalsIgnoreCase(d.getUsername()))) {
+            if (username.equalsIgnoreCase(d.getUsername()) || (GUEST_USER.equalsIgnoreCase(username) && GUEST_USER.equalsIgnoreCase(d.getUsername()))) {
                 merged.put(d.getId(), d);
             }
         }
@@ -106,30 +112,15 @@ public class SeoCollectionService {
     }
 
     public SeoCollectionDto createCollection(CreateSeoCollectionRequest request, String username, Long userId) {
-        List<SeoCollectionItem> items = new ArrayList<>();
-        if (request.getItems() != null) {
-            for (CreateSeoCollectionItemRequest itemReq : request.getItems()) {
-                items.add(SeoCollectionItem.builder()
-                        .id(UUID.randomUUID().toString())
-                        .name(itemReq.getName())
-                        .url(itemReq.getUrl())
-                        .method(itemReq.getMethod() != null ? itemReq.getMethod() : "AUDIT")
-                        .enableJsRendering(itemReq.getEnableJsRendering() != null ? itemReq.getEnableJsRendering() : false)
-                        .expectedMinScore(itemReq.getExpectedMinScore() != null ? itemReq.getExpectedMinScore() : 80)
-                        .maxResponseTimeMs(itemReq.getMaxResponseTimeMs() != null ? itemReq.getMaxResponseTimeMs() : 3000)
-                        .customHeaders(itemReq.getCustomHeaders())
-                        .tags(itemReq.getTags() != null ? new ArrayList<>(itemReq.getTags()) : new ArrayList<>())
-                        .build());
-            }
-        }
+        List<SeoCollectionItem> items = mapToCollectionItems(request.getItems());
 
         SeoCollectionDocument doc = SeoCollectionDocument.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(userId)
-                .username(username != null ? username : "guest")
+                .username(username != null ? username : GUEST_USER)
                 .name(request.getName())
                 .description(request.getDescription())
-                .color(request.getColor() != null ? request.getColor() : "#4FD8C4")
+                .color(request.getColor() != null ? request.getColor() : DEFAULT_COLOR)
                 .icon(request.getIcon() != null ? request.getIcon() : "Folder")
                 .tags(request.getTags() != null ? new ArrayList<>(request.getTags()) : new ArrayList<>())
                 .items(items)
@@ -186,7 +177,7 @@ public class SeoCollectionService {
         SeoCollectionDocument duplicate = SeoCollectionDocument.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(original.getUserId())
-                .username(username != null ? username : "guest")
+                .username(username != null ? username : GUEST_USER)
                 .name(original.getName() + " (Copy)")
                 .description(original.getDescription())
                 .color(original.getColor())
@@ -213,8 +204,8 @@ public class SeoCollectionService {
                 .id(UUID.randomUUID().toString())
                 .name(request.getName())
                 .url(request.getUrl())
-                .method(request.getMethod() != null ? request.getMethod() : "AUDIT")
-                .enableJsRendering(request.getEnableJsRendering() != null ? request.getEnableJsRendering() : false)
+                .method(request.getMethod() != null ? request.getMethod() : DEFAULT_METHOD)
+                .enableJsRendering(Boolean.TRUE.equals(request.getEnableJsRendering()))
                 .expectedMinScore(request.getExpectedMinScore() != null ? request.getExpectedMinScore() : 80)
                 .maxResponseTimeMs(request.getMaxResponseTimeMs() != null ? request.getMaxResponseTimeMs() : 3000)
                 .customHeaders(request.getCustomHeaders())
@@ -283,7 +274,7 @@ public class SeoCollectionService {
             int overallScore = audit.getScores() != null ? audit.getScores().getOverallScore() : 0;
             HealthGrade healthGrade = audit.getScores() != null ? audit.getScores().getHealthGrade() : HealthGrade.POOR;
 
-            String status = overallScore >= item.getExpectedMinScore() ? "PASSED" : (overallScore >= 50 ? "WARNING" : "FAILED");
+            String status = computeAuditStatus(overallScore, item.getExpectedMinScore());
 
             int issuesCount = 0;
             if (audit.getAccessibilityMetrics() != null) issuesCount += audit.getAccessibilityMetrics().getImagesMissingAltCount();
@@ -317,7 +308,7 @@ public class SeoCollectionService {
             CollectionAuditSummary summary = CollectionAuditSummary.builder()
                     .overallScore(0)
                     .healthGrade(HealthGrade.POOR)
-                    .status("FAILED")
+                    .status(STATUS_FAILED)
                     .errorMessage(e.getMessage())
                     .auditedAt(Instant.now())
                     .build();
@@ -344,39 +335,20 @@ public class SeoCollectionService {
         long startTime = System.currentTimeMillis();
         boolean concurrent = runRequest == null || runRequest.isConcurrent();
 
-        List<CollectionRunResultDto.ItemRunResult> itemResults = new ArrayList<>();
+        List<CollectionRunResultDto.ItemRunResult> itemResults = concurrent
+                ? runConcurrently(targets)
+                : runSequentially(targets);
+
         int passed = 0;
         int warnings = 0;
         int failed = 0;
         double scoreSum = 0;
         int scoredCount = 0;
 
-        if (concurrent) {
-            try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-                List<CompletableFuture<CollectionRunResultDto.ItemRunResult>> futures = targets.stream()
-                        .map(item -> CompletableFuture.supplyAsync(() -> executeItemAudit(item, doc), executor))
-                        .toList();
-
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
-                for (CompletableFuture<CollectionRunResultDto.ItemRunResult> future : futures) {
-                    try {
-                        itemResults.add(future.get());
-                    } catch (Exception e) {
-                        log.error("Error retrieving item audit result: {}", e.getMessage());
-                    }
-                }
-            }
-        } else {
-            for (SeoCollectionItem item : targets) {
-                itemResults.add(executeItemAudit(item, doc));
-            }
-        }
-
         for (CollectionRunResultDto.ItemRunResult res : itemResults) {
-            if ("PASSED".equalsIgnoreCase(res.getStatus())) {
+            if (STATUS_PASSED.equalsIgnoreCase(res.getStatus())) {
                 passed++;
-            } else if ("WARNING".equalsIgnoreCase(res.getStatus())) {
+            } else if (STATUS_WARNING.equalsIgnoreCase(res.getStatus())) {
                 warnings++;
             } else {
                 failed++;
@@ -413,7 +385,90 @@ public class SeoCollectionService {
                 .build();
     }
 
-    private CollectionRunResultDto.ItemRunResult executeItemAudit(SeoCollectionItem item, SeoCollectionDocument doc) {
+    private List<CollectionRunResultDto.ItemRunResult> runConcurrently(List<SeoCollectionItem> targets) {
+        List<CollectionRunResultDto.ItemRunResult> results = new ArrayList<>();
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<CompletableFuture<CollectionRunResultDto.ItemRunResult>> futures = targets.stream()
+                    .map(item -> CompletableFuture.supplyAsync(() -> executeItemAudit(item), executor))
+                    .toList();
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+            for (CompletableFuture<CollectionRunResultDto.ItemRunResult> future : futures) {
+                try {
+                    results.add(future.get());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error("Item audit execution was interrupted: {}", e.getMessage());
+                } catch (Exception e) {
+                    log.error("Error retrieving item audit result: {}", e.getMessage());
+                }
+            }
+        }
+        return results;
+    }
+
+    private List<CollectionRunResultDto.ItemRunResult> runSequentially(List<SeoCollectionItem> targets) {
+        List<CollectionRunResultDto.ItemRunResult> results = new ArrayList<>();
+        for (SeoCollectionItem item : targets) {
+            results.add(executeItemAudit(item));
+        }
+        return results;
+    }
+
+    private String computeAuditStatus(int score, int expectedMinScore) {
+        if (score >= expectedMinScore) {
+            return STATUS_PASSED;
+        } else if (score >= 50) {
+            return STATUS_WARNING;
+        } else {
+            return STATUS_FAILED;
+        }
+    }
+
+    private List<SeoCollectionItem> mapToCollectionItems(List<CreateSeoCollectionItemRequest> itemRequests) {
+        if (itemRequests == null) {
+            return new ArrayList<>();
+        }
+        List<SeoCollectionItem> items = new ArrayList<>();
+        for (CreateSeoCollectionItemRequest itemReq : itemRequests) {
+            items.add(SeoCollectionItem.builder()
+                    .id(UUID.randomUUID().toString())
+                    .name(itemReq.getName())
+                    .url(itemReq.getUrl())
+                    .method(itemReq.getMethod() != null ? itemReq.getMethod() : DEFAULT_METHOD)
+                    .enableJsRendering(Boolean.TRUE.equals(itemReq.getEnableJsRendering()))
+                    .expectedMinScore(itemReq.getExpectedMinScore() != null ? itemReq.getExpectedMinScore() : 80)
+                    .maxResponseTimeMs(itemReq.getMaxResponseTimeMs() != null ? itemReq.getMaxResponseTimeMs() : 3000)
+                    .customHeaders(itemReq.getCustomHeaders())
+                    .tags(itemReq.getTags() != null ? new ArrayList<>(itemReq.getTags()) : new ArrayList<>())
+                    .build());
+        }
+        return items;
+    }
+
+    private List<SeoCollectionItem> mapImportItems(List<CollectionExportDto.ExportItem> exportItems) {
+        if (exportItems == null) {
+            return new ArrayList<>();
+        }
+        List<SeoCollectionItem> items = new ArrayList<>();
+        for (CollectionExportDto.ExportItem item : exportItems) {
+            items.add(SeoCollectionItem.builder()
+                    .id(UUID.randomUUID().toString())
+                    .name(item.getName() != null ? item.getName() : item.getUrl())
+                    .url(item.getUrl())
+                    .method(item.getMethod() != null ? item.getMethod() : DEFAULT_METHOD)
+                    .enableJsRendering(item.isEnableJsRendering())
+                    .expectedMinScore(item.getExpectedMinScore() > 0 ? item.getExpectedMinScore() : 80)
+                    .maxResponseTimeMs(item.getMaxResponseTimeMs() > 0 ? item.getMaxResponseTimeMs() : 3000)
+                    .customHeaders(item.getCustomHeaders())
+                    .tags(item.getTags() != null ? new ArrayList<>(item.getTags()) : new ArrayList<>())
+                    .build());
+        }
+        return items;
+    }
+
+    private CollectionRunResultDto.ItemRunResult executeItemAudit(SeoCollectionItem item) {
         Integer prevScore = item.getLastAudit() != null ? item.getLastAudit().getOverallScore() : null;
 
         try {
@@ -421,7 +476,7 @@ public class SeoCollectionService {
             int overallScore = audit.getScores() != null ? audit.getScores().getOverallScore() : 0;
             HealthGrade healthGrade = audit.getScores() != null ? audit.getScores().getHealthGrade() : HealthGrade.POOR;
 
-            String status = overallScore >= item.getExpectedMinScore() ? "PASSED" : (overallScore >= 50 ? "WARNING" : "FAILED");
+            String status = computeAuditStatus(overallScore, item.getExpectedMinScore());
             Integer delta = prevScore != null ? overallScore - prevScore : null;
 
             int issuesCount = 0;
@@ -469,7 +524,7 @@ public class SeoCollectionService {
             CollectionAuditSummary summary = CollectionAuditSummary.builder()
                     .overallScore(0)
                     .healthGrade(HealthGrade.POOR)
-                    .status("FAILED")
+                    .status(STATUS_FAILED)
                     .errorMessage(e.getMessage())
                     .auditedAt(Instant.now())
                     .build();
@@ -479,7 +534,7 @@ public class SeoCollectionService {
                     .itemId(item.getId())
                     .name(item.getName())
                     .url(item.getUrl())
-                    .status("FAILED")
+                    .status(STATUS_FAILED)
                     .overallScore(0)
                     .healthGrade(HealthGrade.POOR.name())
                     .expectedMinScore(item.getExpectedMinScore())
@@ -526,30 +581,15 @@ public class SeoCollectionService {
             throw new IllegalArgumentException("Invalid collection import payload: Name is required.");
         }
 
-        List<SeoCollectionItem> items = new ArrayList<>();
-        if (exportDto.getItems() != null) {
-            for (CollectionExportDto.ExportItem item : exportDto.getItems()) {
-                items.add(SeoCollectionItem.builder()
-                        .id(UUID.randomUUID().toString())
-                        .name(item.getName() != null ? item.getName() : item.getUrl())
-                        .url(item.getUrl())
-                        .method(item.getMethod() != null ? item.getMethod() : "AUDIT")
-                        .enableJsRendering(item.isEnableJsRendering())
-                        .expectedMinScore(item.getExpectedMinScore() > 0 ? item.getExpectedMinScore() : 80)
-                        .maxResponseTimeMs(item.getMaxResponseTimeMs() > 0 ? item.getMaxResponseTimeMs() : 3000)
-                        .customHeaders(item.getCustomHeaders())
-                        .tags(item.getTags() != null ? new ArrayList<>(item.getTags()) : new ArrayList<>())
-                        .build());
-            }
-        }
+        List<SeoCollectionItem> items = mapImportItems(exportDto.getItems());
 
         SeoCollectionDocument doc = SeoCollectionDocument.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(userId)
-                .username(username != null ? username : "guest")
+                .username(username != null ? username : GUEST_USER)
                 .name(exportDto.getName())
                 .description(exportDto.getDescription())
-                .color(exportDto.getColor() != null ? exportDto.getColor() : "#4FD8C4")
+                .color(exportDto.getColor() != null ? exportDto.getColor() : DEFAULT_COLOR)
                 .icon(exportDto.getIcon() != null ? exportDto.getIcon() : "Folder")
                 .tags(exportDto.getTags() != null ? new ArrayList<>(exportDto.getTags()) : new ArrayList<>())
                 .items(items)
@@ -578,9 +618,9 @@ public class SeoCollectionService {
                         .icon("ShoppingCart")
                         .tags(new ArrayList<>(List.of("ecommerce", "conversion", "critical")))
                         .items(new ArrayList<>(List.of(
-                                CollectionExportDto.ExportItem.builder().name("Store Homepage").url("https://shopify.com").method("AUDIT").expectedMinScore(85).maxResponseTimeMs(3000).build(),
-                                CollectionExportDto.ExportItem.builder().name("Product Detail Page").url("https://amazon.com").method("AUDIT").expectedMinScore(80).maxResponseTimeMs(3500).build(),
-                                CollectionExportDto.ExportItem.builder().name("Documentation Hub").url("https://developer.mozilla.org").method("AUDIT").expectedMinScore(90).maxResponseTimeMs(2500).build()
+                                CollectionExportDto.ExportItem.builder().name("Store Homepage").url("https://shopify.com").method(DEFAULT_METHOD).expectedMinScore(85).maxResponseTimeMs(3000).build(),
+                                CollectionExportDto.ExportItem.builder().name("Product Detail Page").url("https://amazon.com").method(DEFAULT_METHOD).expectedMinScore(80).maxResponseTimeMs(3500).build(),
+                                CollectionExportDto.ExportItem.builder().name("Documentation Hub").url("https://developer.mozilla.org").method(DEFAULT_METHOD).expectedMinScore(90).maxResponseTimeMs(2500).build()
                         )))
                         .build();
             case "devhub":
@@ -591,9 +631,9 @@ public class SeoCollectionService {
                         .icon("Code")
                         .tags(new ArrayList<>(List.of("docs", "api", "developer")))
                         .items(new ArrayList<>(List.of(
-                                CollectionExportDto.ExportItem.builder().name("API Reference Root").url("https://docs.github.com").method("AUDIT").expectedMinScore(85).maxResponseTimeMs(2500).build(),
-                                CollectionExportDto.ExportItem.builder().name("Codeforces Arena").url("https://codeforces.com").method("AUDIT").expectedMinScore(80).maxResponseTimeMs(3500).build(),
-                                CollectionExportDto.ExportItem.builder().name("LeetCode Portal").url("https://leetcode.com").method("AUDIT").expectedMinScore(80).maxResponseTimeMs(3000).build()
+                                CollectionExportDto.ExportItem.builder().name("API Reference Root").url("https://docs.github.com").method(DEFAULT_METHOD).expectedMinScore(85).maxResponseTimeMs(2500).build(),
+                                CollectionExportDto.ExportItem.builder().name("Codeforces Arena").url("https://codeforces.com").method(DEFAULT_METHOD).expectedMinScore(80).maxResponseTimeMs(3500).build(),
+                                CollectionExportDto.ExportItem.builder().name("LeetCode Portal").url("https://leetcode.com").method(DEFAULT_METHOD).expectedMinScore(80).maxResponseTimeMs(3000).build()
                         )))
                         .build();
             case "saas":
@@ -601,13 +641,13 @@ public class SeoCollectionService {
                 return CollectionExportDto.builder()
                         .name("SaaS Core Product Suite")
                         .description("High-intent landing pages, pricing tier table, feature pages, and login gates.")
-                        .color("#4FD8C4")
+                        .color(DEFAULT_COLOR)
                         .icon("Lightning")
                         .tags(new ArrayList<>(List.of("saas", "production", "marketing")))
                         .items(new ArrayList<>(List.of(
-                                CollectionExportDto.ExportItem.builder().name("Product Landing").url("https://vercel.com").method("AUDIT").expectedMinScore(90).maxResponseTimeMs(2500).build(),
-                                CollectionExportDto.ExportItem.builder().name("Pricing Tier Matrix").url("https://stripe.com").method("AUDIT").expectedMinScore(85).maxResponseTimeMs(3000).build(),
-                                CollectionExportDto.ExportItem.builder().name("Knowledge Base").url("https://wikipedia.org").method("AUDIT").expectedMinScore(88).maxResponseTimeMs(2000).build()
+                                CollectionExportDto.ExportItem.builder().name("Product Landing").url("https://vercel.com").method(DEFAULT_METHOD).expectedMinScore(90).maxResponseTimeMs(2500).build(),
+                                CollectionExportDto.ExportItem.builder().name("Pricing Tier Matrix").url("https://stripe.com").method(DEFAULT_METHOD).expectedMinScore(85).maxResponseTimeMs(3000).build(),
+                                CollectionExportDto.ExportItem.builder().name("Knowledge Base").url("https://wikipedia.org").method(DEFAULT_METHOD).expectedMinScore(88).maxResponseTimeMs(2000).build()
                         )))
                         .build();
         }

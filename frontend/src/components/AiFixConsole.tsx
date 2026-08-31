@@ -1,6 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import type { AuditResponse, AiRecommendation } from '../types';
-import { fetchAiRecommendations, saveUserGeminiKey, removeUserGeminiKey, validateGeminiKey, askGeminiCustomSeo } from '../lib/api';
+import React, { useState, useEffect, useRef } from 'react';
+import type {
+  AuditResponse,
+  AiRecommendation,
+  AiTitleOption,
+  AiExecutiveSummaryResponse,
+  AiSchemaGenerationResponse,
+  AiChatMessage,
+  GeminiModelDto,
+} from '../types';
+import {
+  fetchAiRecommendations,
+  saveUserGeminiKey,
+  removeUserGeminiKey,
+  validateGeminiKey,
+  fetchAiTitleVariations,
+  fetchAiExecutiveSummary,
+  generateAiSchemaJsonLd,
+  chatWithAiAdvisor,
+  getLocalAiPreferences,
+  saveUserAiPreferences,
+  fetchAvailableGeminiModels,
+} from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import {
   SparkleIcon,
@@ -23,6 +43,13 @@ import {
   ArrowSquareOutIcon,
   GearIcon,
   WarningCircleIcon,
+  DownloadSimpleIcon,
+  ListChecksIcon,
+  RocketLaunchIcon,
+  BracketsCurlyIcon,
+  ChartBarIcon,
+  GlobeIcon,
+  TargetIcon,
 } from '@phosphor-icons/react';
 
 interface AiFixConsoleProps {
@@ -409,6 +436,12 @@ export function generateClientSideAiRecommendations(report: AuditResponse): AiRe
 
 export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
   const { user, updateUser } = useAuth();
+
+  // Active Studio Mode Tab
+  type StudioTab = 'FIXES' | 'TITLE_AB' | 'SCHEMA_STUDIO' | 'EXECUTIVE_SUMMARY' | 'AI_CHAT';
+  const [activeTab, setActiveTab] = useState<StudioTab>('FIXES');
+
+  // Fixes State
   const [recommendations, setRecommendations] = useState<AiRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -423,6 +456,28 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
   const localMasked = localKey ? (localKey.length > 8 ? `${localKey.slice(0, 6)}••••${localKey.slice(-4)}` : '••••••••') : null;
   const activeMaskedKey = user?.geminiApiKeyMasked || localMasked;
 
+  // Title A/B Testing State
+  const [titleOptions, setTitleOptions] = useState<AiTitleOption[]>([]);
+  const [titleLoading, setTitleLoading] = useState(false);
+  const [titleModel, setTitleModel] = useState<string | null>(null);
+  const [copiedTitleAngle, setCopiedTitleAngle] = useState<string | null>(null);
+
+  // Executive Summary State
+  const [execSummary, setExecSummary] = useState<AiExecutiveSummaryResponse | null>(null);
+  const [execLoading, setExecLoading] = useState(false);
+
+  // Schema Studio State
+  const [schemaType, setSchemaType] = useState<string>('AUTO');
+  const [schemaResult, setSchemaResult] = useState<AiSchemaGenerationResponse | null>(null);
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [schemaCopied, setSchemaCopied] = useState(false);
+
+  // Interactive Multi-Turn Chat State
+  const [chatMessages, setChatMessages] = useState<AiChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   // Quick Gemini Key Modal State
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [modalKeyInput, setModalKeyInput] = useState('');
@@ -431,13 +486,41 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
   const [modalValidating, setModalValidating] = useState(false);
   const [modalStatus, setModalStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Custom Interactive Gemini Prompt Console State
-  const [showCustomConsole, setShowCustomConsole] = useState(false);
-  const [customPrompt, setCustomPrompt] = useState('');
-  const [customLoading, setCustomLoading] = useState(false);
-  const [customResponse, setCustomResponse] = useState<{ response?: string; model?: string; error?: string } | null>(null);
-  const [customCopied, setCustomCopied] = useState(false);
+  const userPrefs = getLocalAiPreferences();
 
+  // Dynamic Gemini Models state & Model Switcher
+  const [availableModels, setAvailableModels] = useState<GeminiModelDto[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>(() => user?.preferredAiModel || userPrefs.preferredAiModel || 'gemini-2.0-flash');
+
+  const loadStudioModels = async (keyOverride?: string) => {
+    try {
+      const res = await fetchAvailableGeminiModels(keyOverride || localKey || undefined);
+      if (res.success && res.models && res.models.length > 0) {
+        setAvailableModels(res.models);
+        if (res.activeModel && (!selectedModel || selectedModel === 'gemini-2.0-flash')) {
+          setSelectedModel(res.activeModel);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load studio models:', e);
+    }
+  };
+
+  const handleSwitchModel = async (newModel: string) => {
+    setSelectedModel(newModel);
+    const updatedPrefs = { ...userPrefs, preferredAiModel: newModel };
+    await saveUserAiPreferences(updatedPrefs);
+    if (user) {
+      updateUser({ preferredAiModel: newModel });
+    }
+    loadRecommendations();
+  };
+
+  useEffect(() => {
+    loadStudioModels();
+  }, [hasGeminiKey, localKey, user?.hasGeminiApiKey]);
+
+  // Load Primary Recommendations
   const loadRecommendations = async () => {
     setLoading(true);
     setError(null);
@@ -446,7 +529,6 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
       if (Array.isArray(data) && data.length > 0) {
         setRecommendations(data);
       } else {
-        // Fallback to client generator if empty or missing
         const fallbackData = generateClientSideAiRecommendations(audit);
         setRecommendations(fallbackData);
       }
@@ -463,9 +545,149 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
     }
   };
 
+  // Load Title Variations
+  const handleLoadTitleVariations = async () => {
+    setTitleLoading(true);
+    try {
+      const res = await fetchAiTitleVariations(audit);
+      if (res.success && res.variations) {
+        setTitleOptions(res.variations);
+        setTitleModel(res.model || 'gemini-2.0-flash');
+      }
+    } catch (err) {
+      console.warn('Failed to load title variations:', err);
+    } finally {
+      setTitleLoading(false);
+    }
+  };
+
+  // Load Executive Summary
+  const handleLoadExecutiveSummary = async () => {
+    setExecLoading(true);
+    try {
+      const res = await fetchAiExecutiveSummary(audit);
+      if (res.success) {
+        setExecSummary(res);
+      }
+    } catch (err) {
+      console.warn('Failed to load executive summary:', err);
+    } finally {
+      setExecLoading(false);
+    }
+  };
+
+  // Generate Schema
+  const handleGenerateSchema = async (typeToGenerate?: string) => {
+    const targetType = typeToGenerate || schemaType;
+    setSchemaLoading(true);
+    try {
+      const res = await generateAiSchemaJsonLd(audit, targetType);
+      if (res.success) {
+        setSchemaResult(res);
+      }
+    } catch (err) {
+      console.warn('Failed to generate schema:', err);
+    } finally {
+      setSchemaLoading(false);
+    }
+  };
+
+  // Send Chat Message
+  const handleSendChatMessage = async (presetPrompt?: string) => {
+    const text = (presetPrompt || chatInput).trim();
+    if (!text || chatLoading) return;
+
+    const newHistory: AiChatMessage[] = [...chatMessages, { role: 'user', text }];
+    setChatMessages(newHistory);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const res = await chatWithAiAdvisor(audit, chatMessages, text);
+      if (res.success && res.reply) {
+        setChatMessages([...newHistory, { role: 'model', text: res.reply }]);
+      } else {
+        setChatMessages([
+          ...newHistory,
+          { role: 'model', text: `⚠️ ${res.error || 'Could not contact Gemini AI advisor. Please check your API key.'}` },
+        ]);
+      }
+    } catch (err: any) {
+      setChatMessages([
+        ...newHistory,
+        { role: 'model', text: `⚠️ Network error: ${err?.message || 'Failed to reach AI service'}` },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
   useEffect(() => {
     loadRecommendations();
   }, [audit.id, audit.url, user?.hasGeminiApiKey, localKey]);
+
+  // Export full AI Action Plan as Markdown file
+  const handleExportFullActionPlan = () => {
+    const domain = audit.domain || 'example.com';
+    let md = `# Page Pulse AI Action Plan: ${domain}\n`;
+    md += `**Target URL:** ${audit.url}\n`;
+    md += `**Audited At:** ${new Date().toLocaleString()}\n`;
+    md += `**Health Grade:** ${audit.scores?.healthGrade || 'GOOD'} (${audit.scores?.overallScore || 0}/100)\n`;
+    md += `**Personalization Profile:** ${userPrefs.targetNiche || 'General'} | ${userPrefs.brandTone || 'Professional'} | ${userPrefs.primaryObjective || 'SEO'}\n\n`;
+
+    if (execSummary?.executiveHeadline) {
+      md += `## Executive Strategy Summary\n`;
+      md += `> ${execSummary.executiveHeadline}\n\n`;
+      if (execSummary.topQuickWins?.length) {
+        md += `### Top Quick Wins:\n`;
+        execSummary.topQuickWins.forEach((w: string) => (md += `- ${w}\n`));
+        md += `\n`;
+      }
+      if (execSummary.criticalRedFlags?.length) {
+        md += `### Critical Red Flags:\n`;
+        execSummary.criticalRedFlags.forEach((r: string) => (md += `- ${r}\n`));
+        md += `\n`;
+      }
+    }
+
+    if (titleOptions.length > 0) {
+      md += `## Optimized Title & Meta Description A/B Variations\n\n`;
+      titleOptions.forEach((t: AiTitleOption) => {
+        md += `### [${t.angle}] (Est. Lift: ${t.estimatedCtrLift || 'High'})\n`;
+        md += `- **Title (${t.titleLength} chars):** \`${t.title}\`\n`;
+        md += `- **Meta Description (${t.descriptionLength} chars):** \`${t.metaDescription}\`\n`;
+        md += `- **Rationale:** ${t.rationale}\n\n`;
+      });
+    }
+
+    if (schemaResult?.jsonLdScript) {
+      md += `## Schema.org JSON-LD Structured Data\n\n`;
+      md += `\`\`\`html\n${schemaResult.jsonLdScript}\n\`\`\`\n\n`;
+    }
+
+    md += `## Prioritized Technical Code Fixes (${recommendations.length} items)\n\n`;
+    recommendations.forEach((r, idx) => {
+      md += `### ${idx + 1}. ${r.title} [${r.category} - ${r.priority || 'P1'}]\n`;
+      md += `- **Issue:** ${r.issue}\n`;
+      md += `- **Explanation:** ${r.explanation}\n`;
+      if (r.estimatedScoreImprovement) md += `- **Estimated Impact:** ${r.estimatedScoreImprovement}\n`;
+      if (r.guidelineReference) md += `- **Guideline:** ${r.guidelineReference}\n`;
+      md += `\n\`\`\`html\n${r.codeSnippet}\n\`\`\`\n\n`;
+    });
+
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pagepulse-ai-action-plan-${domain.replace(/[^a-z0-9]/gi, '_')}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
 
   const handleCopy = (code: string, idx: number) => {
     navigator.clipboard.writeText(code);
@@ -492,6 +714,12 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
     try {
       const res = await validateGeminiKey(key);
       if (res.valid) {
+        if (res.availableModels && res.availableModels.length > 0) {
+          setAvailableModels(res.availableModels);
+        }
+        if (res.model) {
+          setSelectedModel(res.model);
+        }
         setModalStatus({ type: 'success', message: res.message || 'Key is valid & verified with Google Gemini!' });
       } else {
         setModalStatus({ type: 'error', message: res.message || 'Invalid Gemini key. Please verify in Google AI Studio.' });
@@ -503,7 +731,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
     }
   };
 
-  const handleModalSave = async (e: React.FormEvent) => {
+  const handleModalSave = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     const key = modalKeyInput.trim();
     if (!key) return;
@@ -558,50 +786,6 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
     }
   };
 
-  // Interactive Custom SEO Prompt Handler
-  const handleAskGemini = async (promptToSend?: string) => {
-    const query = (promptToSend || customPrompt).trim();
-    if (!query || customLoading) return;
-
-    setCustomLoading(true);
-    setCustomResponse(null);
-    setCustomPrompt(query);
-    try {
-      const res = await askGeminiCustomSeo(audit, query);
-      if (res.success && res.response) {
-        setCustomResponse({
-          response: res.response,
-          model: res.model || 'gemini-3.1-flash',
-        });
-      } else {
-        setCustomResponse({
-          error: res.error || 'Gemini could not generate a response. Please check your API key or prompt.',
-        });
-      }
-    } catch (err) {
-      setCustomResponse({
-        error: err instanceof Error ? err.message : 'Network error communicating with Gemini API.',
-      });
-    } finally {
-      setCustomLoading(false);
-    }
-  };
-
-  const handleCopyCustomResponse = () => {
-    if (customResponse?.response) {
-      navigator.clipboard.writeText(customResponse.response);
-      setCustomCopied(true);
-      setTimeout(() => setCustomCopied(false), 2000);
-    }
-  };
-
-  const quickPrompts = [
-    'Suggest 5 high-converting meta descriptions under 160 chars',
-    'Generate complete Schema.org JSON-LD structured data for this page',
-    'How should I structure the H1, H2, and H3 headings for maximum SEO?',
-    'Give 5 semantic LSI keywords and search intent improvements',
-  ];
-
   const filteredRecs = recommendations.filter((r) => {
     const matchesCategory = selectedCategory === 'ALL' || r.category === selectedCategory;
     const matchesSearch =
@@ -618,62 +802,34 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
   const getPriorityBadge = (priority?: string) => {
     switch (priority) {
       case 'P0_CRITICAL':
-        return (
-          <span className="rounded bg-rose-500/15 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-400">
-            P0 CRITICAL
-          </span>
-        );
+        return <span className="rounded bg-rose-500/15 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-400">P0 CRITICAL</span>;
       case 'P1_MAJOR':
-        return (
-          <span className="rounded bg-amber-500/15 border border-amber-500/40 px-2 py-0.5 text-[10px] font-bold text-amber-400">
-            P1 MAJOR
-          </span>
-        );
+        return <span className="rounded bg-amber-500/15 border border-amber-500/40 px-2 py-0.5 text-[10px] font-bold text-amber-400">P1 MAJOR</span>;
       case 'P2_MODERATE':
-        return (
-          <span className="rounded bg-sky-500/15 border border-sky-500/40 px-2 py-0.5 text-[10px] font-bold text-sky-400">
-            P2 MODERATE
-          </span>
-        );
+        return <span className="rounded bg-sky-500/15 border border-sky-500/40 px-2 py-0.5 text-[10px] font-bold text-sky-400">P2 MODERATE</span>;
       default:
-        return (
-          <span className="rounded bg-blue-500/10 border border-blue-500/30 px-2 py-0.5 text-[10px] font-bold text-blue-400">
-            P3 LOW
-          </span>
-        );
+        return <span className="rounded bg-blue-500/10 border border-blue-500/30 px-2 py-0.5 text-[10px] font-bold text-blue-400">P3 LOW</span>;
     }
   };
 
   const getImpactBadge = (level: string) => {
     switch (level) {
       case 'HIGH':
-        return (
-          <span className="rounded bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 text-[10px] font-bold text-rose-400">
-            HIGH IMPACT
-          </span>
-        );
+        return <span className="rounded bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 text-[10px] font-bold text-rose-400">HIGH IMPACT</span>;
       case 'MEDIUM':
-        return (
-          <span className="rounded bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-400">
-            MEDIUM IMPACT
-          </span>
-        );
+        return <span className="rounded bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-400">MEDIUM IMPACT</span>;
       default:
-        return (
-          <span className="rounded bg-blue-500/10 border border-blue-500/30 px-2 py-0.5 text-[10px] font-bold text-blue-400">
-            LOW IMPACT
-          </span>
-        );
+        return <span className="rounded bg-blue-500/10 border border-blue-500/30 px-2 py-0.5 text-[10px] font-bold text-blue-400">LOW IMPACT</span>;
     }
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-[#262B33] bg-[#12151A] p-5 shadow-2xl font-mono text-xs relative">
+    <div className="space-y-4 rounded-xl border border-border bg-[#12151A] p-5 shadow-2xl font-mono text-xs relative">
       {/* Quick Configure Gemini Modal Dialog */}
       {showKeyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="w-full max-w-lg rounded-xl border border-[#333A45] bg-[#12151A] p-6 shadow-2xl space-y-4 font-mono">
-            <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+          <div className="w-full max-w-lg rounded-xl border border-input bg-[#12151A] p-6 shadow-2xl space-y-4 font-mono">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2 text-[#4FD8C4]">
                 <SparkleIcon className="size-4 animate-pulse" />
                 <h4 className="font-bold text-sm text-[#E7EAEE]">Configure Google Gemini API Key</h4>
@@ -696,18 +852,17 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
 
             <form onSubmit={handleModalSave} className="space-y-3">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-[#8B93A1] uppercase block">
-                  Gemini API Key
-                </label>
+                <label htmlFor="modal-gemini-key-input" className="text-[11px] font-semibold text-[#8B93A1] uppercase block">Gemini API Key</label>
                 <div className="relative">
                   <input
+                    id="modal-gemini-key-input"
                     type={modalShowKey ? 'text' : 'password'}
                     required
                     placeholder="AIzaSy..."
                     value={modalKeyInput}
                     onChange={(e) => setModalKeyInput(e.target.value)}
                     disabled={modalSaving}
-                    className="w-full bg-[#0A0C0F] border border-[#333A45] rounded-lg pl-3 pr-10 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:border-[#4FD8C4] focus:outline-none font-mono"
+                    className="w-full bg-[#0A0C0F] border border-input rounded-lg pl-3 pr-10 py-2 text-xs text-[#E7EAEE] focus:outline-none font-mono"
                   />
                   <button
                     type="button"
@@ -727,11 +882,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
                       : 'border border-[#F87171]/30 bg-[#F87171]/10 text-[#F87171]'
                   }`}
                 >
-                  {modalStatus.type === 'success' ? (
-                    <CheckCircleIcon className="size-4 shrink-0" />
-                  ) : (
-                    <WarningCircleIcon className="size-4 shrink-0" />
-                  )}
+                  {modalStatus.type === 'success' ? <CheckCircleIcon className="size-4 shrink-0" /> : <WarningCircleIcon className="size-4 shrink-0" />}
                   <span>{modalStatus.message}</span>
                 </div>
               )}
@@ -762,7 +913,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
                     type="button"
                     onClick={handleModalValidate}
                     disabled={modalValidating || !modalKeyInput.trim()}
-                    className="px-3 py-1.5 rounded bg-[#191D24] border border-[#333A45] hover:bg-[#262B33] text-xs text-[#8B93A1] hover:text-[#E7EAEE] font-semibold cursor-pointer disabled:opacity-40"
+                    className="px-3 py-1.5 rounded bg-[#191D24] border border-input hover:bg-border text-xs text-[#8B93A1] hover:text-[#E7EAEE] font-semibold cursor-pointer disabled:opacity-40"
                   >
                     {modalValidating ? 'Testing...' : 'Test Key'}
                   </button>
@@ -781,11 +932,11 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
       )}
 
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#262B33] pb-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-border pb-4">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <SparkleIcon className="size-4 text-[#4FD8C4] animate-pulse" />
-            <h3 className="font-bold text-[#E7EAEE] text-sm">AI Actionable Fix Suggestions</h3>
+            <h3 className="font-bold text-[#E7EAEE] text-sm">AI SEO & Web Quality Studio</h3>
             {hasGeminiKey ? (
               <span className="rounded bg-[#4ADE80]/15 border border-[#4ADE80]/30 px-2 py-0.5 text-[10px] text-[#4ADE80] font-semibold flex items-center gap-1">
                 <CheckCircleIcon className="size-3" />
@@ -797,59 +948,68 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
                 Heuristic Mode
               </span>
             )}
+            <span className="px-2 py-0.5 rounded text-[10px] bg-[#7AA2F7]/10 text-[#7AA2F7] border border-[#7AA2F7]/30">
+              {userPrefs.targetNiche || 'SaaS & B2B Tech'} • {userPrefs.brandTone || 'Authoritative'}
+            </span>
           </div>
           <p className="text-[11px] text-[#8B93A1] font-sans">
-            Ready-to-copy code fixes and DOM markup optimizations tailored for {audit.domain || audit.url}.
+            Personalized code fixes, CTR-boosting title variations, Schema.org JSON-LD generation, and interactive consultation for {audit.domain || audit.url}.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Dynamic Model Switcher */}
+          <div className="flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-2.5 py-1 text-xs text-[#E7EAEE] shadow hover:border-[#4FD8C4]/50 transition-colors">
+            <SparkleIcon className="size-3.5 text-[#4FD8C4]" />
+            <span className="text-[10px] text-[#8B93A1] uppercase font-bold hidden sm:inline">Model:</span>
+            <select
+              value={selectedModel}
+              onChange={(e) => handleSwitchModel(e.target.value)}
+              className="bg-transparent text-xs text-[#4FD8C4] font-bold focus:outline-none cursor-pointer pr-1"
+              title="Switch active Google Gemini model tier"
+            >
+              {availableModels.length > 0 ? (
+                availableModels.map((m) => (
+                  <option key={m.id} value={m.id} className="bg-[#12151A] text-[#E7EAEE]">
+                    {m.displayName || m.id} {m.isRecommended ? '★' : ''}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="gemini-2.0-flash" className="bg-[#12151A] text-[#E7EAEE]">gemini-2.0-flash ★</option>
+                  <option value="gemini-2.5-flash" className="bg-[#12151A] text-[#E7EAEE]">gemini-2.5-flash</option>
+                  <option value="gemini-1.5-pro" className="bg-[#12151A] text-[#E7EAEE]">gemini-1.5-pro</option>
+                  <option value="gemini-1.5-flash" className="bg-[#12151A] text-[#E7EAEE]">gemini-1.5-flash</option>
+                </>
+              )}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportFullActionPlan}
+            className="inline-flex items-center gap-1.5 rounded border border-[#4FD8C4]/40 bg-[#4FD8C4]/10 hover:bg-[#4FD8C4]/20 px-2.5 py-1.5 text-xs text-[#4FD8C4] font-bold transition-all cursor-pointer shadow"
+            title="Download full customized AI Action Plan as Markdown"
+          >
+            <DownloadSimpleIcon className="size-3.5" />
+            <span>Export Action Plan</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setShowKeyModal(true)}
-            className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-2.5 py-1.5 text-xs text-[#8B93A1] hover:text-[#4FD8C4] hover:border-[#4FD8C4]/40 transition-all cursor-pointer shadow"
+            className="inline-flex items-center gap-1.5 rounded border border-input bg-[#191D24] px-2.5 py-1.5 text-xs text-[#8B93A1] hover:text-[#4FD8C4] hover:border-[#4FD8C4]/40 transition-all cursor-pointer shadow"
             title="Configure Google Gemini API key"
           >
             <GearIcon className="size-3.5" />
-            <span>{hasGeminiKey ? 'Update Gemini Key' : 'Configure Gemini Key'}</span>
+            <span>{hasGeminiKey ? 'Gemini Key' : 'Configure Key'}</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => setShowCustomConsole(!showCustomConsole)}
-            className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer shadow ${
-              showCustomConsole
-                ? 'border-[#4FD8C4] bg-[#4FD8C4]/15 text-[#4FD8C4]'
-                : 'border-[#333A45] bg-[#191D24] text-[#E7EAEE] hover:bg-[#262B33]'
-            }`}
-          >
-            <ChatCircleDotsIcon className="size-3.5 text-[#4FD8C4]" />
-            <span>{showCustomConsole ? 'Close AI Prompt' : 'Ask Gemini AI'}</span>
-          </button>
-
-          {filteredRecs.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                const allCode = filteredRecs
-                  .map((r) => `// ${r.title} (${r.category} - ${r.impactLevel} IMPACT)\n// Issue: ${r.issue}\n${r.codeSnippet}\n`)
-                  .join('\n\n');
-                navigator.clipboard.writeText(allCode);
-                setCopiedIndex(-1);
-                setTimeout(() => setCopiedIndex(null), 2000);
-              }}
-              className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-3 py-1.5 text-xs text-[#4FD8C4] hover:bg-[#262B33] transition-all cursor-pointer shadow"
-            >
-              {copiedIndex === -1 ? <CheckIcon className="size-3.5 text-emerald-400" /> : <CopyIcon className="size-3.5" />}
-              <span>{copiedIndex === -1 ? 'All Copied!' : 'Copy All Fixes'}</span>
-            </button>
-          )}
 
           <button
             type="button"
             onClick={loadRecommendations}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-3 py-1.5 text-xs text-[#E7EAEE] hover:bg-[#262B33] transition-all cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded border border-input bg-[#191D24] px-3 py-1.5 text-xs text-[#E7EAEE] hover:bg-border transition-all cursor-pointer disabled:opacity-50"
           >
             <ArrowsClockwiseIcon className={`size-3.5 ${loading ? 'animate-spin text-[#4FD8C4]' : 'text-[#8B93A1]'}`} />
             <span>Regenerate</span>
@@ -857,92 +1017,594 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
         </div>
       </div>
 
-      {/* Interactive Ask Gemini AI Consultation Section */}
-      {showCustomConsole && (
-        <div className="rounded-xl border border-[#4FD8C4]/40 bg-[#0A0C0F] p-4 space-y-3 shadow-xl animate-fade-in">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[#4FD8C4] font-bold text-xs">
-              <SparkleIcon className="size-4 animate-pulse" />
-              <span>Ask Gemini AI: Real-Time SEO Consultation</span>
-            </div>
-            <span className="text-[10px] text-[#8B93A1] font-sans">
-              Context: Audited DOM of {audit.url}
-            </span>
-          </div>
+      {/* Studio Navigation Tabs */}
+      <div className="flex flex-wrap items-center gap-1 border-b border-border pb-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('FIXES')}
+          className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+            activeTab === 'FIXES'
+              ? 'bg-[#4FD8C4]/15 text-[#4FD8C4] border border-[#4FD8C4]/40 shadow'
+              : 'text-[#8B93A1] hover:text-[#E7EAEE] hover:bg-[#191D24]'
+          }`}
+        >
+          <ListChecksIcon className="size-3.5" />
+          <span>Actionable Fixes ({recommendations.length})</span>
+        </button>
 
-          {/* Quick Prompt Recommendation Chips */}
-          <div className="flex flex-wrap gap-1.5">
-            {quickPrompts.map((p, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleAskGemini(p)}
-                disabled={customLoading}
-                className="text-[10px] font-sans px-2.5 py-1 rounded-full bg-[#191D24] border border-[#262B33] hover:border-[#4FD8C4]/40 hover:text-[#4FD8C4] text-[#8B93A1] transition-colors cursor-pointer text-left disabled:opacity-50"
-              >
-                + {p}
-              </button>
-            ))}
-          </div>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('TITLE_AB');
+            if (titleOptions.length === 0) handleLoadTitleVariations();
+          }}
+          className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+            activeTab === 'TITLE_AB'
+              ? 'bg-[#4FD8C4]/15 text-[#4FD8C4] border border-[#4FD8C4]/40 shadow'
+              : 'text-[#8B93A1] hover:text-[#E7EAEE] hover:bg-[#191D24]'
+          }`}
+        >
+          <RocketLaunchIcon className="size-3.5" />
+          <span>A/B Title & Meta Studio</span>
+        </button>
 
-          {/* Prompt Form */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleAskGemini();
-            }}
-            className="flex gap-2"
-          >
-            <input
-              type="text"
-              placeholder="Ask Gemini any question about this webpage (e.g., 'Rewrite the hero text for higher conversion', 'Create schema for this shop')..."
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-              disabled={customLoading}
-              className="flex-1 bg-[#12151A] border border-[#333A45] rounded-lg px-3 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:border-[#4FD8C4] focus:outline-none font-sans"
-            />
-            <button
-              type="submit"
-              disabled={customLoading || !customPrompt.trim()}
-              className="px-4 py-2 rounded-lg bg-[#4FD8C4]/15 border border-[#4FD8C4]/40 hover:bg-[#4FD8C4]/25 text-[#4FD8C4] font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-40 shrink-0"
-            >
-              {customLoading ? (
-                <ArrowsClockwiseIcon className="size-3.5 animate-spin" />
-              ) : (
-                <PaperPlaneRightIcon className="size-3.5" />
-              )}
-              <span>{customLoading ? 'Thinking...' : 'Ask Gemini'}</span>
-            </button>
-          </form>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('SCHEMA_STUDIO');
+            if (!schemaResult) handleGenerateSchema('AUTO');
+          }}
+          className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+            activeTab === 'SCHEMA_STUDIO'
+              ? 'bg-[#4FD8C4]/15 text-[#4FD8C4] border border-[#4FD8C4]/40 shadow'
+              : 'text-[#8B93A1] hover:text-[#E7EAEE] hover:bg-[#191D24]'
+          }`}
+        >
+          <BracketsCurlyIcon className="size-3.5" />
+          <span>Schema.org JSON-LD</span>
+        </button>
 
-          {/* Custom Response Output */}
-          {customResponse && (
-            <div className="mt-3 rounded-lg border border-[#262B33] bg-[#12151A] p-3.5 space-y-2 animate-fade-in">
-              <div className="flex items-center justify-between text-[11px] border-b border-[#191D24] pb-2">
-                <div className="flex items-center gap-1.5 text-[#4ADE80] font-bold">
-                  <CheckCircleIcon className="size-3.5" />
-                  <span>Gemini SEO Response ({customResponse.model || 'gemini-1.5-flash'})</span>
-                </div>
-                {customResponse.response && (
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('EXECUTIVE_SUMMARY');
+            if (!execSummary) handleLoadExecutiveSummary();
+          }}
+          className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+            activeTab === 'EXECUTIVE_SUMMARY'
+              ? 'bg-[#4FD8C4]/15 text-[#4FD8C4] border border-[#4FD8C4]/40 shadow'
+              : 'text-[#8B93A1] hover:text-[#E7EAEE] hover:bg-[#191D24]'
+          }`}
+        >
+          <ChartBarIcon className="size-3.5" />
+          <span>Executive Strategy</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('AI_CHAT')}
+          className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+            activeTab === 'AI_CHAT'
+              ? 'bg-[#4FD8C4]/15 text-[#4FD8C4] border border-[#4FD8C4]/40 shadow'
+              : 'text-[#8B93A1] hover:text-[#E7EAEE] hover:bg-[#191D24]'
+          }`}
+        >
+          <ChatCircleDotsIcon className="size-3.5" />
+          <span>Interactive AI Chat</span>
+        </button>
+      </div>
+
+      {/* ────────────────── TAB 1: ACTIONABLE CODE FIXES ────────────────── */}
+      {activeTab === 'FIXES' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Filter and Search Controls Strip */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-text-faint text-[11px] mr-1">Category:</span>
+              {categories.map((cat) => {
+                const count = cat === 'ALL' ? recommendations.length : recommendations.filter((r) => r.category === cat).length;
+                return (
                   <button
                     type="button"
-                    onClick={handleCopyCustomResponse}
-                    className="text-[10px] text-[#4FD8C4] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer inline-flex items-center gap-1 ${
+                      selectedCategory === cat
+                        ? 'bg-[#191D24] text-[#4FD8C4] border border-[#4FD8C4]/40 shadow'
+                        : 'text-[#8B93A1] hover:text-[#E7EAEE] hover:bg-[#191D24]'
+                    }`}
                   >
-                    {customCopied ? <CheckIcon className="size-3 text-[#4ADE80]" /> : <CopyIcon className="size-3" />}
-                    <span>{customCopied ? 'Copied!' : 'Copy Answer'}</span>
+                    <span>{cat}</span>
+                    <span className="text-[9px] opacity-70">({count})</span>
                   </button>
+                );
+              })}
+            </div>
+
+            <div className="relative w-full md:w-64">
+              <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-text-faint" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search code fixes..."
+                className="w-full rounded border border-border bg-[#0A0C0F] pl-8 pr-3 py-1 text-[11px] text-[#E7EAEE] focus:outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {loading && (
+            <div className="p-8 text-center space-y-2 rounded-lg border border-border bg-[#0A0C0F]">
+              <CpuIcon className="size-6 text-[#4FD8C4] animate-spin mx-auto" />
+              <p className="text-[#E7EAEE] font-semibold text-xs">Analyzing DOM audit findings with Gemini AI engine...</p>
+              <p className="text-[11px] text-[#8B93A1]">Synthesizing tailored HTML meta tags, alt attributes, and JSON-LD schemas.</p>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="p-4 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs flex items-center gap-2">
+              <ShieldWarningIcon className="size-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {!loading && !error && filteredRecs.length === 0 && (
+            <div className="p-8 text-center space-y-2 rounded-lg border border-border bg-[#0A0C0F] text-[#8B93A1]">
+              <CheckCircleIcon className="size-6 text-[#4ADE80] mx-auto" />
+              <p className="text-[#E7EAEE] font-semibold text-xs">No AI code fixes needed for this category!</p>
+              <p className="text-[11px]">The audited page already adheres to standards for selected metrics.</p>
+            </div>
+          )}
+
+          {!loading && !error && filteredRecs.length > 0 && (
+            <div className="space-y-4 pt-1">
+              {filteredRecs.map((rec, idx) => {
+                const isCopied = copiedIndex === idx;
+                const viewMode = viewModeMap[idx] || 'code';
+                const hasDiff = !!rec.diffSnippet;
+
+                return (
+                  <div
+                    key={`${rec.title}-${idx}`}
+                    className="rounded-lg border border-border bg-[#0A0C0F] p-4 space-y-3 hover:border-input transition-all"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <CodeIcon className="size-4 text-[#4FD8C4] shrink-0" />
+                        <span className="font-bold text-[#E7EAEE] text-xs">{rec.title}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {rec.engineSource === 'GEMINI_AI' ? (
+                          <span className="rounded bg-[#4FD8C4]/15 border border-[#4FD8C4]/30 px-2 py-0.5 text-[10px] font-bold text-[#4FD8C4] inline-flex items-center gap-1">
+                            <SparkleIcon className="size-3 text-[#4FD8C4]" />
+                            Gemini AI ({rec.model || 'gemini-2.0-flash'})
+                          </span>
+                        ) : (
+                          <span className="rounded bg-[#8B93A1]/15 border border-[#8B93A1]/30 px-2 py-0.5 text-[10px] font-bold text-[#8B93A1] inline-flex items-center gap-1">
+                            <CpuIcon className="size-3 text-[#8B93A1]" />
+                            Heuristic
+                          </span>
+                        )}
+                        {getPriorityBadge(rec.priority)}
+                        <span className="rounded bg-[#191D24] border border-border px-2 py-0.5 text-[10px] font-bold text-[#8B93A1]">
+                          {rec.category}
+                        </span>
+                        {getImpactBadge(rec.impactLevel)}
+                        {rec.estimatedScoreImprovement && (
+                          <span className="rounded bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                            {rec.estimatedScoreImprovement}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-[#8B93A1] text-[11px] font-sans leading-relaxed flex items-start gap-1.5">
+                      <strong className="text-amber-400 font-mono shrink-0">Issue: </strong>
+                      <span>{rec.issue}</span>
+                    </div>
+
+                    {rec.targetElementSelector && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-text-faint">
+                        <TagIcon className="size-3 text-[#4FD8C4]" />
+                        <span>Target DOM Selector:</span>
+                        <code className="bg-[#12151A] px-1.5 py-0.5 rounded text-[#4FD8C4] border border-border">
+                          {rec.targetElementSelector}
+                        </code>
+                      </div>
+                    )}
+
+                    <div className="relative rounded-md border border-border bg-[#12151A] p-3 overflow-x-auto group">
+                      <div className="flex justify-between items-center pb-2 mb-2 border-b border-[#191D24] text-[10px] text-text-faint">
+                        <div className="flex items-center gap-2">
+                          <span>{viewMode === 'diff' ? 'Unified Code Diff' : 'Suggested Code Snippet'}</span>
+                          {hasDiff && (
+                            <button
+                              type="button"
+                              onClick={() => toggleViewMode(idx)}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#191D24] border border-border text-[#8B93A1] hover:text-[#4FD8C4] transition-all cursor-pointer text-[9px]"
+                            >
+                              <GitDiffIcon className="size-3" />
+                              <span>{viewMode === 'diff' ? 'Show Snippet' : 'Show Diff'}</span>
+                            </button>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(viewMode === 'diff' && rec.diffSnippet ? rec.diffSnippet : rec.codeSnippet, idx)}
+                          className="inline-flex items-center gap-1 rounded bg-[#191D24] border border-input px-2.5 py-1 text-[11px] font-semibold text-[#4FD8C4] hover:bg-border transition-all cursor-pointer shadow"
+                        >
+                          {isCopied ? (
+                            <>
+                              <CheckIcon className="size-3 text-emerald-400" />
+                              <span className="text-emerald-400">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <CopyIcon className="size-3" />
+                              <span>Copy Code</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <pre
+                        className={`font-mono text-[11px] whitespace-pre-wrap break-all leading-relaxed ${
+                          viewMode === 'diff' ? 'text-info' : 'text-[#4ADE80]'
+                        }`}
+                      >
+                        {viewMode === 'diff' && rec.diffSnippet ? rec.diffSnippet : rec.codeSnippet}
+                      </pre>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] font-sans bg-[#12151A]/60 p-2.5 rounded border border-[#191D24]">
+                      <p className="text-[#8B93A1] leading-relaxed">
+                        <strong className="text-[#4FD8C4] font-mono">Guidance: </strong> {rec.explanation}
+                      </p>
+                      {rec.guidelineReference && (
+                        <span className="text-[10px] font-mono text-text-faint shrink-0 inline-flex items-center gap-1 bg-[#191D24] px-2 py-1 rounded border border-border">
+                          <BookOpenIcon className="size-3 text-[#4FD8C4]" />
+                          {rec.guidelineReference}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ────────────────── TAB 2: A/B TITLE & META STUDIO ────────────────── */}
+      {activeTab === 'TITLE_AB' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between bg-[#0A0C0F] p-4 rounded-lg border border-border">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <RocketLaunchIcon className="size-4 text-[#4FD8C4]" />
+                <h4 className="font-bold text-xs text-[#E7EAEE] uppercase tracking-wider">A/B Title & Meta Description Generator</h4>
+                {titleModel && (
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-[#4ADE80]/15 text-[#4ADE80] border border-[#4ADE80]/30 font-bold">
+                    ✦ {titleModel}
+                  </span>
                 )}
               </div>
+              <p className="text-[11px] text-[#8B93A1] font-sans">
+                Generates 3 search-optimized angles grounded in your brand voice ({userPrefs.brandTone || 'Professional'}) to maximize click-through rate.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleLoadTitleVariations}
+              disabled={titleLoading}
+              className="px-3.5 py-1.5 rounded-lg bg-[#4FD8C4]/15 border border-[#4FD8C4]/40 hover:bg-[#4FD8C4]/25 text-[#4FD8C4] font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-40"
+            >
+              <ArrowsClockwiseIcon className={`size-3.5 ${titleLoading ? 'animate-spin' : ''}`} />
+              <span>{titleLoading ? 'Synthesizing...' : 'Generate Variations'}</span>
+            </button>
+          </div>
 
-              {customResponse.error ? (
-                <div className="text-rose-400 text-xs flex items-center gap-2">
-                  <WarningCircleIcon className="size-4 shrink-0" />
-                  <span>{customResponse.error}</span>
+          {titleLoading && (
+            <div className="p-8 text-center space-y-2 rounded-lg border border-border bg-[#0A0C0F]">
+              <CpuIcon className="size-6 text-[#4FD8C4] animate-spin mx-auto" />
+              <p className="text-[#E7EAEE] font-semibold text-xs">Crafting high-converting Title & Meta variations...</p>
+            </div>
+          )}
+
+          {!titleLoading && titleOptions.length === 0 && (
+            <div className="p-8 text-center space-y-3 rounded-lg border border-border bg-[#0A0C0F] text-[#8B93A1]">
+              <RocketLaunchIcon className="size-6 text-[#4FD8C4] mx-auto" />
+              <p className="text-xs text-[#E7EAEE]">Click &quot;Generate Variations&quot; to synthesize 3 distinct high-CTR Title and Meta description options.</p>
+              <button
+                type="button"
+                onClick={handleLoadTitleVariations}
+                className="px-4 py-2 rounded-lg bg-[#4FD8C4]/15 border border-[#4FD8C4]/40 text-[#4FD8C4] font-bold text-xs cursor-pointer"
+              >
+                Synthesize A/B Variations Now
+              </button>
+            </div>
+          )}
+
+          {!titleLoading && titleOptions.length > 0 && (
+            <div className="grid grid-cols-1 gap-4">
+              {titleOptions.map((opt, idx) => {
+                const isCopied = copiedTitleAngle === opt.angle;
+                return (
+                  <div key={`${opt.angle}-${opt.title}`} className="rounded-lg border border-border bg-[#0A0C0F] p-4 space-y-3 hover:border-[#4FD8C4]/40 transition-all">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#191D24] pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-[#4FD8C4]/15 text-[#4FD8C4] border border-[#4FD8C4]/30">
+                          Angle #{idx + 1}: {opt.angle}
+                        </span>
+                        {opt.estimatedCtrLift && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#4ADE80]/15 text-[#4ADE80] border border-[#4ADE80]/30">
+                            Est. Lift: {opt.estimatedCtrLift}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`<title>${opt.title}</title>\n<meta name="description" content="${opt.metaDescription}">`);
+                          setCopiedTitleAngle(opt.angle);
+                          setTimeout(() => setCopiedTitleAngle(null), 2000);
+                        }}
+                        className="px-2.5 py-1 rounded bg-[#191D24] border border-input text-xs text-[#4FD8C4] hover:bg-border cursor-pointer inline-flex items-center gap-1 shrink-0"
+                      >
+                        {isCopied ? <CheckIcon className="size-3 text-[#4ADE80]" /> : <CopyIcon className="size-3" />}
+                        <span>{isCopied ? 'Copied Tags!' : 'Copy Title & Meta'}</span>
+                      </button>
+                    </div>
+
+                    {/* Google SERP Simulated Preview */}
+                    <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-3 space-y-1 font-sans">
+                      <div className="text-[11px] text-[#8B93A1] truncate flex items-center gap-1">
+                        <GlobeIcon className="size-3 text-[#4FD8C4]" />
+                        <span>https://{audit.domain || 'example.com'}</span>
+                      </div>
+                      <div className="text-sm font-semibold text-[#7AA2F7] hover:underline cursor-pointer leading-tight">
+                        {opt.title}
+                      </div>
+                      <p className="text-xs text-[#8B93A1] leading-relaxed">
+                        {opt.metaDescription}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                      <div className="p-2 rounded bg-[#12151A] border border-[#191D24] space-y-0.5">
+                        <div className="flex justify-between text-text-faint">
+                          <span>Title Length</span>
+                          <span className={opt.titleLength <= 60 ? 'text-[#4ADE80]' : 'text-[#F87171]'}>{opt.titleLength} / 60 chars</span>
+                        </div>
+                        <code className="text-[#E7EAEE] text-[11px] block truncate">{opt.title}</code>
+                      </div>
+                      <div className="p-2 rounded bg-[#12151A] border border-[#191D24] space-y-0.5">
+                        <div className="flex justify-between text-text-faint">
+                          <span>Description Length</span>
+                          <span className={opt.descriptionLength <= 160 ? 'text-[#4ADE80]' : 'text-[#F87171]'}>{opt.descriptionLength} / 160 chars</span>
+                        </div>
+                        <code className="text-[#E7EAEE] text-[11px] block truncate">{opt.metaDescription}</code>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-[#8B93A1] font-sans">
+                      <strong className="text-[#4FD8C4] font-mono">Strategy: </strong>
+                      {opt.rationale}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ────────────────── TAB 3: SCHEMA.ORG JSON-LD STUDIO ────────────────── */}
+      {activeTab === 'SCHEMA_STUDIO' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0A0C0F] p-4 rounded-lg border border-border">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <BracketsCurlyIcon className="size-4 text-[#4FD8C4]" />
+                <h4 className="font-bold text-xs text-[#E7EAEE] uppercase tracking-wider">Schema.org Rich Snippet Studio</h4>
+                {schemaResult?.detectedType && (
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-[#4ADE80]/15 text-[#4ADE80] border border-[#4ADE80]/30 font-bold">
+                    Type: {schemaResult.detectedType}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-[#8B93A1] font-sans">
+                Generates valid, copy-ready JSON-LD schemas tailored for your industry ({userPrefs.targetNiche || 'SaaS'}) to qualify for Google rich snippet search badges.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={schemaType}
+                onChange={(e) => {
+                  setSchemaType(e.target.value);
+                  handleGenerateSchema(e.target.value);
+                }}
+                className="bg-[#12151A] border border-input rounded-lg px-2.5 py-1.5 text-xs text-[#E7EAEE] focus:outline-none cursor-pointer"
+              >
+                <option value="AUTO">Auto-Detect Schema</option>
+                <option value="SoftwareApplication">SoftwareApplication (SaaS)</option>
+                <option value="Product">Product (E-Commerce)</option>
+                <option value="Article">Article / BlogPost</option>
+                <option value="Organization">Organization / Corporate</option>
+                <option value="LocalBusiness">LocalBusiness</option>
+                <option value="FAQPage">FAQPage</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={() => handleGenerateSchema()}
+                disabled={schemaLoading}
+                className="px-3 py-1.5 rounded-lg bg-[#4FD8C4]/15 border border-[#4FD8C4]/40 hover:bg-[#4FD8C4]/25 text-[#4FD8C4] font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-40 shrink-0"
+              >
+                <ArrowsClockwiseIcon className={`size-3.5 ${schemaLoading ? 'animate-spin' : ''}`} />
+                <span>{schemaLoading ? 'Generating...' : 'Regenerate'}</span>
+              </button>
+            </div>
+          </div>
+
+          {schemaLoading && (
+            <div className="p-8 text-center space-y-2 rounded-lg border border-border bg-[#0A0C0F]">
+              <CpuIcon className="size-6 text-[#4FD8C4] animate-spin mx-auto" />
+              <p className="text-[#E7EAEE] font-semibold text-xs">Synthesizing Schema.org JSON-LD structured data...</p>
+            </div>
+          )}
+
+          {!schemaLoading && schemaResult && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border bg-[#0A0C0F] p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-[#191D24] pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-[#E7EAEE]">Generated JSON-LD Structured Data</span>
+                    {schemaResult.model && (
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-[#4FD8C4]/15 text-[#4FD8C4] border border-[#4FD8C4]/30 font-bold">
+                        ✦ {schemaResult.model}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (schemaResult.jsonLdScript) {
+                        navigator.clipboard.writeText(schemaResult.jsonLdScript);
+                        setSchemaCopied(true);
+                        setTimeout(() => setSchemaCopied(false), 2000);
+                      }
+                    }}
+                    className="px-3 py-1 rounded bg-[#191D24] border border-input text-xs text-[#4FD8C4] hover:bg-border cursor-pointer inline-flex items-center gap-1"
+                  >
+                    {schemaCopied ? <CheckIcon className="size-3 text-[#4ADE80]" /> : <CopyIcon className="size-3" />}
+                    <span>{schemaCopied ? 'Copied Script!' : 'Copy Script Tag'}</span>
+                  </button>
                 </div>
-              ) : (
-                <div className="text-xs text-[#E7EAEE] font-sans whitespace-pre-wrap leading-relaxed">
-                  {customResponse.response}
+
+                <pre className="font-mono text-xs text-[#4ADE80] bg-[#12151A] p-3 rounded-lg border border-[#262B33] overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                  {schemaResult.jsonLdScript}
+                </pre>
+
+                {schemaResult.explanation && (
+                  <p className="text-[11px] text-[#8B93A1] font-sans">
+                    <strong className="text-[#4FD8C4] font-mono">Why this works: </strong>
+                    {schemaResult.explanation}
+                  </p>
+                )}
+
+                {schemaResult.validationNotes && (
+                  <div className="p-2.5 rounded bg-[#12151A] border border-[#191D24] text-[11px] text-[#8B93A1] flex items-center gap-2">
+                    <CheckCircleIcon className="size-4 text-[#4ADE80] shrink-0" />
+                    <span>{schemaResult.validationNotes}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ────────────────── TAB 4: EXECUTIVE STRATEGY SUMMARY ────────────────── */}
+      {activeTab === 'EXECUTIVE_SUMMARY' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between bg-[#0A0C0F] p-4 rounded-lg border border-border">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <ChartBarIcon className="size-4 text-[#4FD8C4]" />
+                <h4 className="font-bold text-xs text-[#E7EAEE] uppercase tracking-wider">Executive AI SEO Strategy</h4>
+                {execSummary?.overallHealthStatus && (
+                  <span
+                    className={`px-2.5 py-0.5 rounded text-[10px] font-bold border ${
+                      execSummary.overallHealthStatus === 'EXCELLENT'
+                        ? 'bg-[#4ADE80]/15 text-[#4ADE80] border-[#4ADE80]/30'
+                        : execSummary.overallHealthStatus === 'HEALTHY'
+                        ? 'bg-[#7AA2F7]/15 text-[#7AA2F7] border-[#7AA2F7]/30'
+                        : 'bg-[#F87171]/15 text-[#F87171] border-[#F87171]/30'
+                    }`}
+                  >
+                    Status: {execSummary.overallHealthStatus}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-[#8B93A1] font-sans">
+                High-level tactical summary highlighting top quick wins, critical red flags, and competitive ranking angles.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleLoadExecutiveSummary}
+              disabled={execLoading}
+              className="px-3.5 py-1.5 rounded-lg bg-[#4FD8C4]/15 border border-[#4FD8C4]/40 hover:bg-[#4FD8C4]/25 text-[#4FD8C4] font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-40"
+            >
+              <ArrowsClockwiseIcon className={`size-3.5 ${execLoading ? 'animate-spin' : ''}`} />
+              <span>{execLoading ? 'Analyzing...' : 'Refresh Strategy'}</span>
+            </button>
+          </div>
+
+          {execLoading && (
+            <div className="p-8 text-center space-y-2 rounded-lg border border-border bg-[#0A0C0F]">
+              <CpuIcon className="size-6 text-[#4FD8C4] animate-spin mx-auto" />
+              <p className="text-[#E7EAEE] font-semibold text-xs">Synthesizing executive technical insights...</p>
+            </div>
+          )}
+
+          {!execLoading && execSummary && (
+            <div className="space-y-4">
+              {/* Executive Headline */}
+              {execSummary.executiveHeadline && (
+                <div className="p-4 rounded-lg border border-[#4FD8C4]/30 bg-[#4FD8C4]/5 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-[#4FD8C4] tracking-wider block">Executive Summary Headline</span>
+                  <div className="text-sm font-semibold text-[#E7EAEE] font-sans leading-relaxed">
+                    &quot;{execSummary.executiveHeadline}&quot;
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Top Quick Wins */}
+                <div className="rounded-lg border border-border bg-[#0A0C0F] p-4 space-y-2.5">
+                  <div className="flex items-center gap-2 text-[#4ADE80] font-bold text-xs">
+                    <RocketLaunchIcon className="size-4" />
+                    <span>Top 3 Highest-ROI Quick Wins</span>
+                  </div>
+                  <ul className="space-y-2 text-xs font-sans text-[#E7EAEE]">
+                    {execSummary.topQuickWins?.map((win: string) => (
+                      <li key={win} className="flex items-start gap-2">
+                        <span className="text-[#4ADE80] font-bold font-mono">✓</span>
+                        <span>{win}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Critical Red Flags */}
+                <div className="rounded-lg border border-border bg-[#0A0C0F] p-4 space-y-2.5">
+                  <div className="flex items-center gap-2 text-[#F87171] font-bold text-xs">
+                    <WarningCircleIcon className="size-4" />
+                    <span>Critical Red Flags Hurting Indexing / CTR</span>
+                  </div>
+                  <ul className="space-y-2 text-xs font-sans text-[#E7EAEE]">
+                    {execSummary.criticalRedFlags?.map((flag: string) => (
+                      <li key={flag} className="flex items-start gap-2">
+                        <span className="text-[#F87171] font-bold font-mono">!</span>
+                        <span>{flag}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Competitor Ranking Angle */}
+              {execSummary.competitorRankingAngle && (
+                <div className="p-4 rounded-lg border border-border bg-[#0A0C0F] space-y-1.5">
+                  <div className="flex items-center gap-2 text-[#7AA2F7] font-bold text-xs">
+                    <TargetIcon className="size-4" />
+                    <span>Competitive Ranking & Authority Strategy</span>
+                  </div>
+                  <p className="text-xs text-[#8B93A1] font-sans leading-relaxed">
+                    {execSummary.competitorRankingAngle}
+                  </p>
                 </div>
               )}
             </div>
@@ -950,192 +1612,109 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
         </div>
       )}
 
-      {/* Filter and Search Controls Strip */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pt-1">
-        {/* Category Filters */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[#565D68] text-[11px] mr-1">Category:</span>
-          {categories.map((cat) => {
-            const count = cat === 'ALL' ? recommendations.length : recommendations.filter((r) => r.category === cat).length;
-            return (
-              <button
-                type="button"
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer inline-flex items-center gap-1 ${
-                  selectedCategory === cat
-                    ? 'bg-[#191D24] text-[#4FD8C4] border border-[#4FD8C4]/40 shadow'
-                    : 'text-[#8B93A1] hover:text-[#E7EAEE] hover:bg-[#191D24]'
-                }`}
-              >
-                <span>{cat}</span>
-                <span className="text-[9px] opacity-70">({count})</span>
-              </button>
-            );
-          })}
-        </div>
+      {/* ────────────────── TAB 5: INTERACTIVE MULTI-TURN AI CHAT ────────────────── */}
+      {activeTab === 'AI_CHAT' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="bg-[#0A0C0F] p-4 rounded-lg border border-border space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[#4FD8C4] font-bold text-xs">
+                <ChatCircleDotsIcon className="size-4 animate-pulse" />
+                <span>Interactive Page Pulse AI Assistant</span>
+              </div>
+              <span className="text-[10px] text-[#8B93A1] font-sans">
+                Context: {audit.domain} • Niche: {userPrefs.targetNiche || 'SaaS'}
+              </span>
+            </div>
 
-        {/* Search Filter */}
-        <div className="relative w-full md:w-64">
-          <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#565D68]" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search code fixes..."
-            className="w-full rounded border border-[#262B33] bg-[#0A0C0F] pl-8 pr-3 py-1 text-[11px] text-[#E7EAEE] placeholder-[#565D68] focus:border-[#4FD8C4] focus:outline-none transition-all"
-          />
-        </div>
-      </div>
+            {/* Quick Prompt Chips */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[
+                'Audit heading hierarchy (H1, H2, H3)',
+                'Write an FAQ section with Schema markup',
+                'How can I improve Core Web Vitals for this page?',
+                'Give 5 high-converting meta description A/B ideas',
+              ].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => handleSendChatMessage(p)}
+                  disabled={chatLoading}
+                  className="text-[10px] font-sans px-2.5 py-1 rounded-full bg-[#191D24] border border-border hover:border-[#4FD8C4]/40 hover:text-[#4FD8C4] text-[#8B93A1] transition-colors cursor-pointer text-left disabled:opacity-50"
+                >
+                  + {p}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Loading State */}
-      {loading && (
-        <div className="p-8 text-center space-y-2 rounded-lg border border-[#262B33] bg-[#0A0C0F]">
-          <CpuIcon className="size-6 text-[#4FD8C4] animate-spin mx-auto" />
-          <p className="text-[#E7EAEE] font-semibold text-xs">Analyzing DOM audit findings with Gemini AI engine...</p>
-          <p className="text-[11px] text-[#8B93A1]">Synthesizing tailored HTML meta tags, alt attributes, and JSON-LD schemas.</p>
-        </div>
-      )}
-
-      {/* Error State */}
-      {error && !loading && (
-        <div className="p-4 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs flex items-center gap-2">
-          <ShieldWarningIcon className="size-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!loading && !error && filteredRecs.length === 0 && (
-        <div className="p-8 text-center space-y-2 rounded-lg border border-[#262B33] bg-[#0A0C0F] text-[#8B93A1]">
-          <CheckCircleIcon className="size-6 text-[#4ADE80] mx-auto" />
-          <p className="text-[#E7EAEE] font-semibold text-xs">No AI code fixes needed for this category!</p>
-          <p className="text-[11px]">The audited page already adheres to standards for selected metrics.</p>
-        </div>
-      )}
-
-      {/* Recommendations List */}
-      {!loading && !error && filteredRecs.length > 0 && (
-        <div className="space-y-4 pt-2">
-          {filteredRecs.map((rec, idx) => {
-            const isCopied = copiedIndex === idx;
-            const viewMode = viewModeMap[idx] || 'code';
-            const hasDiff = !!rec.diffSnippet;
-
-            return (
-              <div
-                key={`${rec.title}-${idx}`}
-                className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-4 space-y-3 hover:border-[#333A45] transition-all"
-              >
-                {/* Header info */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <CodeIcon className="size-4 text-[#4FD8C4] shrink-0" />
-                    <span className="font-bold text-[#E7EAEE] text-xs">{rec.title}</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    {rec.engineSource === 'GEMINI_AI' ? (
-                      <span className="rounded bg-[#4FD8C4]/15 border border-[#4FD8C4]/30 px-2 py-0.5 text-[10px] font-bold text-[#4FD8C4] inline-flex items-center gap-1">
-                        <SparkleIcon className="size-3 text-[#4FD8C4]" />
-                        Gemini AI ({rec.model || 'gemini-3.1-flash'})
-                      </span>
-                    ) : (
-                      <span className="rounded bg-[#8B93A1]/15 border border-[#8B93A1]/30 px-2 py-0.5 text-[10px] font-bold text-[#8B93A1] inline-flex items-center gap-1">
-                        <CpuIcon className="size-3 text-[#8B93A1]" />
-                        Heuristic
-                      </span>
-                    )}
-                    {getPriorityBadge(rec.priority)}
-                    <span className="rounded bg-[#191D24] border border-[#262B33] px-2 py-0.5 text-[10px] font-bold text-[#8B93A1]">
-                      {rec.category}
-                    </span>
-                    {getImpactBadge(rec.impactLevel)}
-                    {rec.estimatedScoreImprovement && (
-                      <span className="rounded bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                        {rec.estimatedScoreImprovement}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Problem Issue Description */}
-                <div className="text-[#8B93A1] text-[11px] font-sans leading-relaxed flex items-start gap-1.5">
-                  <strong className="text-amber-400 font-mono shrink-0">Issue: </strong>
-                  <span>{rec.issue}</span>
-                </div>
-
-                {/* Target Element Selector badge if available */}
-                {rec.targetElementSelector && (
-                  <div className="flex items-center gap-1.5 text-[10px] text-[#565D68]">
-                    <TagIcon className="size-3 text-[#4FD8C4]" />
-                    <span>Target DOM Selector:</span>
-                    <code className="bg-[#12151A] px-1.5 py-0.5 rounded text-[#4FD8C4] border border-[#262B33]">
-                      {rec.targetElementSelector}
-                    </code>
-                  </div>
-                )}
-
-                {/* Code Snippet Box */}
-                <div className="relative rounded-md border border-[#262B33] bg-[#12151A] p-3 overflow-x-auto group">
-                  <div className="flex justify-between items-center pb-2 mb-2 border-b border-[#191D24] text-[10px] text-[#565D68]">
-                    <div className="flex items-center gap-2">
-                      <span>{viewMode === 'diff' ? 'Unified Code Diff' : 'Suggested Code Snippet'}</span>
-                      {hasDiff && (
-                        <button
-                          type="button"
-                          onClick={() => toggleViewMode(idx)}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#191D24] border border-[#262B33] text-[#8B93A1] hover:text-[#4FD8C4] transition-all cursor-pointer text-[9px]"
-                        >
-                          <GitDiffIcon className="size-3" />
-                          <span>{viewMode === 'diff' ? 'Show Snippet' : 'Show Diff'}</span>
-                        </button>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(viewMode === 'diff' && rec.diffSnippet ? rec.diffSnippet : rec.codeSnippet, idx)}
-                      className="inline-flex items-center gap-1 rounded bg-[#191D24] border border-[#333A45] px-2.5 py-1 text-[11px] font-semibold text-[#4FD8C4] hover:bg-[#262B33] transition-all cursor-pointer shadow"
+          {/* Chat Messages Log */}
+          <div className="rounded-lg border border-border bg-[#0A0C0F] p-4 min-h-[260px] max-h-[440px] overflow-y-auto space-y-3 font-sans text-xs">
+            {chatMessages.length === 0 ? (
+              <div className="text-center py-12 text-[#565D68] space-y-2 font-mono">
+                <SparkleIcon className="size-8 mx-auto text-[#4FD8C4]/40" />
+                <p className="text-xs text-[#8B93A1]">Ask anything about {audit.domain} SEO, code fixes, or conversion architecture.</p>
+              </div>
+            ) : (
+              chatMessages.map((msg, idx) => {
+                const isUser = msg.role === 'user';
+                return (
+                  <div key={`${msg.role}-${msg.text.slice(0, 15)}-${idx}`} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[85%] p-3.5 rounded-xl leading-relaxed ${
+                        isUser
+                          ? 'bg-[#4FD8C4]/15 border border-[#4FD8C4]/30 text-[#E7EAEE]'
+                          : 'bg-[#12151A] border border-[#262B33] text-[#E7EAEE]'
+                      }`}
                     >
-                      {isCopied ? (
-                        <>
-                          <CheckIcon className="size-3 text-emerald-400" />
-                          <span className="text-emerald-400">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <CopyIcon className="size-3" />
-                          <span>Copy Code</span>
-                        </>
-                      )}
-                    </button>
+                      <div className="text-[10px] font-mono font-bold mb-1 opacity-70">
+                        {isUser ? 'You' : '✦ Page Pulse AI (Gemini)'}
+                      </div>
+                      <div className="whitespace-pre-wrap">{msg.text}</div>
+                    </div>
                   </div>
-                  <pre
-                    className={`font-mono text-[11px] whitespace-pre-wrap break-all leading-relaxed ${
-                      viewMode === 'diff' ? 'text-[#7AA2F7]' : 'text-[#4ADE80]'
-                    }`}
-                  >
-                    {viewMode === 'diff' && rec.diffSnippet ? rec.diffSnippet : rec.codeSnippet}
-                  </pre>
-                </div>
-
-                {/* Explanation & Guideline Reference */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] font-sans bg-[#12151A]/60 p-2.5 rounded border border-[#191D24]">
-                  <p className="text-[#8B93A1] leading-relaxed">
-                    <strong className="text-[#4FD8C4] font-mono">Guidance: </strong> {rec.explanation}
-                  </p>
-                  {rec.guidelineReference && (
-                    <span className="text-[10px] font-mono text-[#565D68] shrink-0 inline-flex items-center gap-1 bg-[#191D24] px-2 py-1 rounded border border-[#262B33]">
-                      <BookOpenIcon className="size-3 text-[#4FD8C4]" />
-                      {rec.guidelineReference}
-                    </span>
-                  )}
+                );
+              })
+            )}
+            {chatLoading && (
+              <div className="flex justify-start">
+                <div className="p-3 rounded-xl bg-[#12151A] border border-[#262B33] text-[#4FD8C4] flex items-center gap-2 text-xs">
+                  <CpuIcon className="size-4 animate-spin" />
+                  <span>Page Pulse AI is thinking...</span>
                 </div>
               </div>
-            );
-          })}
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Chat Input Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendChatMessage();
+            }}
+            className="flex gap-2"
+          >
+            <input
+              type="text"
+              placeholder="Ask any SEO or web quality question about this page..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              disabled={chatLoading}
+              className="flex-1 bg-[#0A0C0F] border border-input rounded-lg px-3 py-2 text-xs text-[#E7EAEE] focus:outline-none font-sans"
+            />
+            <button
+              type="submit"
+              disabled={chatLoading || !chatInput.trim()}
+              className="px-4 py-2 rounded-lg bg-[#4FD8C4]/15 border border-[#4FD8C4]/40 hover:bg-[#4FD8C4]/25 text-[#4FD8C4] font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-40 shrink-0"
+            >
+              <PaperPlaneRightIcon className="size-3.5" />
+              <span>Send</span>
+            </button>
+          </form>
         </div>
       )}
     </div>
   );
 };
+
 

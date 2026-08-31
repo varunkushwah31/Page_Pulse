@@ -11,9 +11,11 @@ import {
   saveUserGeminiKey,
   removeUserGeminiKey,
   validateGeminiKey,
-  fetchUserProfile,
+  saveUserAiPreferences,
+  getLocalAiPreferences,
+  fetchAvailableGeminiModels,
 } from '../lib/api';
-import type { ApiKeyResponse } from '../types';
+import type { ApiKeyResponse, UserAiPreferences, GeminiModelDto } from '../types';
 import {
   UserIcon,
   KeyIcon,
@@ -34,7 +36,11 @@ import {
   CheckCircleIcon,
   ArrowSquareOutIcon,
   WarningCircleIcon,
-  ArrowsClockwiseIcon
+  ArrowsClockwiseIcon,
+  TargetIcon,
+  GlobeIcon,
+  SlidersHorizontalIcon,
+  ChatCircleTextIcon,
 } from '@phosphor-icons/react';
 
 export const UserProfilePage: React.FC = () => {
@@ -54,9 +60,41 @@ export const UserProfilePage: React.FC = () => {
   const [geminiValidating, setGeminiValidating] = useState(false);
   const [geminiStatus, setGeminiStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
+  // AI Brand Personalization Profile State
+  const initialPrefs = getLocalAiPreferences();
+  const [targetNiche, setTargetNiche] = useState(user?.targetNiche || initialPrefs.targetNiche || 'SaaS & B2B Tech');
+  const [brandTone, setBrandTone] = useState(user?.brandTone || initialPrefs.brandTone || 'Authoritative & Professional');
+  const [targetCountry, setTargetCountry] = useState(user?.targetCountry || initialPrefs.targetCountry || 'Global / International');
+  const [primaryObjective, setPrimaryObjective] = useState(user?.primaryObjective || initialPrefs.primaryObjective || 'Maximize Organic CTR & Rankings');
+  const [aiCreativityLevel, setAiCreativityLevel] = useState(user?.aiCreativityLevel || initialPrefs.aiCreativityLevel || 'BALANCED');
+  const [preferredAiModel, setPreferredAiModel] = useState(user?.preferredAiModel || initialPrefs.preferredAiModel || 'gemini-2.0-flash');
+  const [aiPrefsSaving, setAiPrefsSaving] = useState(false);
+  const [aiPrefsStatus, setAiPrefsStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   const [savedReportsCount, setSavedReportsCount] = useState(0);
   const [scheduledMonitorsCount, setScheduledMonitorsCount] = useState(0);
   const [collectionsCount, setCollectionsCount] = useState(0);
+
+  // Dynamic Gemini Models state
+  const [availableModels, setAvailableModels] = useState<GeminiModelDto[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  const loadAvailableModels = async (overrideKey?: string) => {
+    setLoadingModels(true);
+    try {
+      const res = await fetchAvailableGeminiModels(overrideKey);
+      if (res.success && res.models && res.models.length > 0) {
+        setAvailableModels(res.models);
+        if (res.activeModel && (!preferredAiModel || preferredAiModel === 'gemini-2.0-flash')) {
+          setPreferredAiModel(res.activeModel);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to discover Gemini models:', e);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -79,6 +117,7 @@ export const UserProfilePage: React.FC = () => {
   useEffect(() => {
     if (user) {
       loadData();
+      loadAvailableModels();
     }
   }, [user]);
 
@@ -86,8 +125,8 @@ export const UserProfilePage: React.FC = () => {
   if (!user) {
     return (
       <div className="max-w-xl mx-auto py-12 font-mono text-xs animate-fade-in-up">
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-8 text-center space-y-6 shadow-xl">
-          <div className="size-12 rounded-lg bg-[#191D24] border border-[#333A45] flex items-center justify-center mx-auto text-[#4FD8C4]">
+        <div className="rounded-xl border border-border bg-[#12151A] p-8 text-center space-y-6 shadow-xl">
+          <div className="size-12 rounded-lg bg-[#191D24] border border-input flex items-center justify-center mx-auto text-[#4FD8C4]">
             <LockIcon className="size-6" />
           </div>
 
@@ -99,26 +138,26 @@ export const UserProfilePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-w-md mx-auto text-left text-[11px]">
-            <div className="p-2.5 rounded-lg border border-[#262B33] bg-[#0A0C0F] space-y-1">
+            <div className="p-2.5 rounded-lg border border-border bg-[#0A0C0F] space-y-1">
               <div className="flex items-center gap-1.5 text-[#4ADE80] font-bold">
                 <DatabaseIcon className="size-3.5" />
                 <span>Cloud Storage</span>
               </div>
-              <p className="text-[#565D68] text-[10px]">Save full audit reports to MongoDB Atlas</p>
+              <p className="text-text-faint text-[10px]">Save full audit reports to MongoDB Atlas</p>
             </div>
-            <div className="p-2.5 rounded-lg border border-[#262B33] bg-[#0A0C0F] space-y-1">
+            <div className="p-2.5 rounded-lg border border-border bg-[#0A0C0F] space-y-1">
               <div className="flex items-center gap-1.5 text-[#4FD8C4] font-bold">
                 <KeyIcon className="size-3.5" />
                 <span>API Keys</span>
               </div>
-              <p className="text-[#565D68] text-[10px]">Generate tokens for CI/CD pipelines</p>
+              <p className="text-text-faint text-[10px]">Generate tokens for CI/CD pipelines</p>
             </div>
-            <div className="p-2.5 rounded-lg border border-[#262B33] bg-[#0A0C0F] space-y-1">
-              <div className="flex items-center gap-1.5 text-[#7AA2F7] font-bold">
+            <div className="p-2.5 rounded-lg border border-border bg-[#0A0C0F] space-y-1">
+              <div className="flex items-center gap-1.5 text-info font-bold">
                 <PulseIcon className="size-3.5" />
                 <span>Monitors</span>
               </div>
-              <p className="text-[#565D68] text-[10px]">Configure automated background audits</p>
+              <p className="text-text-faint text-[10px]">Configure automated background audits</p>
             </div>
           </div>
 
@@ -134,7 +173,7 @@ export const UserProfilePage: React.FC = () => {
             <button
               onClick={() => navigate('/auth', { state: { mode: 'signup' } })}
               type="button"
-              className="px-4 py-2 rounded-lg border border-[#333A45] bg-[#191D24] hover:bg-[#262B33] text-[#E7EAEE] font-bold cursor-pointer transition-all inline-flex items-center gap-1.5"
+              className="px-4 py-2 rounded-lg border border-input bg-[#191D24] hover:bg-border text-[#E7EAEE] font-bold cursor-pointer transition-all inline-flex items-center gap-1.5"
             >
               <UserIcon className="size-3.5" />
               <span>Register Account</span>
@@ -194,9 +233,15 @@ export const UserProfilePage: React.FC = () => {
     try {
       const res = await validateGeminiKey(keyToTest);
       if (res.valid) {
+        if (res.availableModels && res.availableModels.length > 0) {
+          setAvailableModels(res.availableModels);
+        }
+        if (res.model) {
+          setPreferredAiModel(res.model);
+        }
         setGeminiStatus({
           type: 'success',
-          message: res.message || `Gemini API key is verified and active (Model: ${res.model || 'gemini-3.1-flash'})!`,
+          message: res.message || `Gemini API key is verified and active! Access granted to ${res.availableModels?.length || 1} models.`,
         });
       } else {
         setGeminiStatus({
@@ -214,7 +259,7 @@ export const UserProfilePage: React.FC = () => {
     }
   };
 
-  const handleSaveGeminiKey = async (e: React.FormEvent) => {
+  const handleSaveGeminiKey = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     const keyToSave = geminiKeyInput.trim();
     if (!keyToSave) return;
@@ -228,9 +273,10 @@ export const UserProfilePage: React.FC = () => {
         geminiApiKeyMasked: updatedProfile.geminiApiKeyMasked,
       });
       setGeminiKeyInput('');
+      await loadAvailableModels(keyToSave);
       setGeminiStatus({
         type: 'success',
-        message: 'Personal Gemini API Key saved successfully! AI-powered SEO analysis is now active for all audits.',
+        message: 'Personal Gemini API Key saved successfully! AI models dynamically discovered and active.',
       });
     } catch (err) {
       setGeminiStatus({
@@ -250,7 +296,7 @@ export const UserProfilePage: React.FC = () => {
     setGeminiSaving(true);
     setGeminiStatus(null);
     try {
-      const updatedProfile = await removeUserGeminiKey();
+      await removeUserGeminiKey();
       updateUser({
         hasGeminiApiKey: false,
         geminiApiKeyMasked: null,
@@ -269,6 +315,42 @@ export const UserProfilePage: React.FC = () => {
     }
   };
 
+  const handleSaveAiPreferences = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAiPrefsSaving(true);
+    setAiPrefsStatus(null);
+    try {
+      const prefs: UserAiPreferences = {
+        targetNiche,
+        brandTone,
+        targetCountry,
+        primaryObjective,
+        aiCreativityLevel,
+        preferredAiModel,
+      };
+      const updatedProfile = await saveUserAiPreferences(prefs);
+      updateUser({
+        targetNiche: updatedProfile.targetNiche,
+        brandTone: updatedProfile.brandTone,
+        targetCountry: updatedProfile.targetCountry,
+        primaryObjective: updatedProfile.primaryObjective,
+        aiCreativityLevel: updatedProfile.aiCreativityLevel,
+        preferredAiModel: updatedProfile.preferredAiModel,
+      });
+      setAiPrefsStatus({
+        type: 'success',
+        message: 'Brand voice & AI personalization profile updated successfully!',
+      });
+    } catch (err) {
+      setAiPrefsStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save AI preferences.',
+      });
+    } finally {
+      setAiPrefsSaving(false);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -279,7 +361,7 @@ export const UserProfilePage: React.FC = () => {
     <div className="space-y-6 font-mono text-xs max-w-4xl mx-auto animate-fade-in-up">
 
       {/* Terminal Header */}
-      <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+      <div className="flex items-center justify-between border-b border-border pb-3">
         <div className="flex items-center gap-2 text-[#4FD8C4]">
           <ShieldIcon className="size-4" />
           <span className="font-bold">$ profile --user</span>
@@ -291,9 +373,9 @@ export const UserProfilePage: React.FC = () => {
       </div>
 
       {/* Profile Header Card */}
-      <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="rounded-xl border border-border bg-[#12151A] p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="size-12 rounded-lg bg-[#191D24] border border-[#333A45] flex items-center justify-center text-[#4FD8C4] font-bold text-lg shrink-0">
+          <div className="size-12 rounded-lg bg-[#191D24] border border-input flex items-center justify-center text-[#4FD8C4] font-bold text-lg shrink-0">
             {user.username.charAt(0).toUpperCase()}
           </div>
           <div className="space-y-1">
@@ -304,7 +386,7 @@ export const UserProfilePage: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-[#8B93A1] font-sans flex items-center gap-1.5">
-              <EnvelopeIcon className="size-3 text-[#565D68]" />
+              <EnvelopeIcon className="size-3 text-text-faint" />
               {user.email}
             </p>
           </div>
@@ -325,7 +407,7 @@ export const UserProfilePage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate('/collections')}
-          className="rounded-xl border border-[#262B33] hover:border-[#4FD8C4]/40 bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all text-left w-full"
+          className="rounded-xl border border-border hover:border-[#4FD8C4]/40 bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all text-left w-full"
         >
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>SEO Collections</span>
@@ -337,7 +419,7 @@ export const UserProfilePage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate('/reports')}
-          className="rounded-xl border border-[#262B33] hover:border-[#333A45] bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all text-left w-full"
+          className="rounded-xl border border-border hover:border-input bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all text-left w-full"
         >
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>Saved Reports</span>
@@ -349,16 +431,16 @@ export const UserProfilePage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate('/scheduled')}
-          className="rounded-xl border border-[#262B33] hover:border-[#333A45] bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all text-left w-full"
+          className="rounded-xl border border-border hover:border-input bg-[#12151A] hover:bg-[#191D24] p-4 space-y-1 cursor-pointer transition-all text-left w-full"
         >
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>Background Monitors</span>
-            <PulseIcon className="size-4 text-[#7AA2F7]" />
+            <PulseIcon className="size-4 text-info" />
           </div>
           <div className="text-2xl font-bold text-[#E7EAEE]">{scheduledMonitorsCount}</div>
         </button>
 
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
+        <div className="rounded-xl border border-border bg-[#12151A] p-4 space-y-1">
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>Gemini AI Engine</span>
             <SparkleIcon className={`size-4 ${user.hasGeminiApiKey ? 'text-[#4FD8C4] animate-pulse' : 'text-[#8B93A1]'}`} />
@@ -374,7 +456,7 @@ export const UserProfilePage: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
+        <div className="rounded-xl border border-border bg-[#12151A] p-4 space-y-1">
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>API Access Tokens</span>
             <KeyIcon className="size-4 text-[#FBBF24]" />
@@ -384,7 +466,7 @@ export const UserProfilePage: React.FC = () => {
       </div>
 
       {/* Google Gemini AI Integration Card */}
-      <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden space-y-0 shadow-xl">
+      <div className="rounded-xl border border-border bg-[#12151A] overflow-hidden space-y-0 shadow-xl">
         <div className="bg-[#191D24] p-4 border-b border-[#262B33] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="size-7 rounded-lg bg-[#4FD8C4]/10 border border-[#4FD8C4]/30 flex items-center justify-center text-[#4FD8C4]">
@@ -413,7 +495,7 @@ export const UserProfilePage: React.FC = () => {
             href="https://aistudio.google.com/app/apikey"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] text-[#4FD8C4] hover:underline inline-flex items-center gap-1 bg-[#12151A] px-2.5 py-1.5 rounded border border-[#262B33] hover:border-[#4FD8C4]/40 transition-colors"
+            className="text-[11px] text-[#4FD8C4] hover:underline inline-flex items-center gap-1 bg-[#12151A] px-2.5 py-1.5 rounded border border-border hover:border-[#4FD8C4]/40 transition-colors"
           >
             <span>Get Free Gemini Key</span>
             <ArrowSquareOutIcon className="size-3.5" />
@@ -451,11 +533,12 @@ export const UserProfilePage: React.FC = () => {
           {/* Key Configuration Form */}
           <form onSubmit={handleSaveGeminiKey} className="space-y-3">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-[#8B93A1] uppercase tracking-wider block">
+              <label htmlFor="gemini-key-input" className="text-[11px] font-semibold text-[#8B93A1] uppercase tracking-wider block">
                 {user.hasGeminiApiKey ? 'Update Personal Gemini API Key' : 'Add Personal Google Gemini API Key'}
               </label>
               <div className="relative">
                 <input
+                  id="gemini-key-input"
                   type={showGeminiKey ? 'text' : 'password'}
                   required
                   placeholder="Paste your Gemini API Key here (starts with AIzaSy...)"
@@ -482,7 +565,7 @@ export const UserProfilePage: React.FC = () => {
                 className="px-4 py-2 rounded-lg bg-[#4FD8C4]/10 border border-[#4FD8C4]/40 hover:bg-[#4FD8C4]/20 disabled:opacity-40 text-[#4FD8C4] font-bold transition-all cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5"
               >
                 <SparkleIcon className="size-3.5" />
-                <span>{geminiSaving ? 'Saving...' : user.hasGeminiApiKey ? 'Update Key' : 'Save Gemini Key'}</span>
+                <span>{geminiSaving ? 'Saving...' : (user.hasGeminiApiKey ? 'Update Key' : 'Save Gemini Key')}</span>
               </button>
 
               <button
@@ -531,6 +614,215 @@ export const UserProfilePage: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* AI Brand Personalization & Voice Profile Card */}
+      <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden space-y-0 shadow-xl">
+        <div className="bg-[#191D24] p-4 border-b border-[#262B33] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="size-7 rounded-lg bg-[#7AA2F7]/10 border border-[#7AA2F7]/30 flex items-center justify-center text-[#7AA2F7]">
+              <SlidersHorizontalIcon className="size-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-[#E7EAEE] text-sm uppercase tracking-wider">AI Brand Personalization & Voice Profile</h3>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#7AA2F7]/15 text-[#7AA2F7] border border-[#7AA2F7]/30">
+                  Custom Grounding
+                </span>
+              </div>
+              <p className="text-[11px] text-[#8B93A1] font-sans">
+                Tailor all generated titles, meta descriptions, Schema.org types, and code fixes specifically to your industry, voice, and conversion objectives.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveAiPreferences} className="p-5 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Target Business Niche */}
+            <div className="space-y-1.5">
+              <label htmlFor="target-niche" className="text-[11px] font-semibold text-[#8B93A1] uppercase tracking-wider flex items-center gap-1.5">
+                <TargetIcon className="size-3.5 text-[#4FD8C4]" />
+                <span>Target Business Niche / Industry</span>
+              </label>
+              <select
+                id="target-niche"
+                value={targetNiche}
+                onChange={(e) => setTargetNiche(e.target.value)}
+                className="w-full bg-[#0A0C0F] border border-[#333A45] rounded-lg px-3 py-2 text-xs text-[#E7EAEE] focus:outline-none focus:border-[#4FD8C4] transition-colors cursor-pointer"
+              >
+                <option value="SaaS & B2B Tech">SaaS & B2B Tech</option>
+                <option value="E-Commerce & Online Store">E-Commerce & Online Store</option>
+                <option value="Digital Publisher & Blog">Digital Publisher & Content Blog</option>
+                <option value="Local Services & SMB">Local Services & Small Business</option>
+                <option value="Agency & Portfolio">Design / Dev Agency & Portfolio</option>
+                <option value="Healthcare & Medical">Healthcare & Medical Practice</option>
+                <option value="Finance & Fintech">Finance & Fintech Solutions</option>
+                <option value="General / Broad Consumer">General / Broad Consumer Audience</option>
+              </select>
+            </div>
+
+            {/* Brand Voice & Tone */}
+            <div className="space-y-1.5">
+              <label htmlFor="brand-tone" className="text-[11px] font-semibold text-[#8B93A1] uppercase tracking-wider flex items-center gap-1.5">
+                <ChatCircleTextIcon className="size-3.5 text-[#4ADE80]" />
+                <span>Brand Voice & Tone</span>
+              </label>
+              <select
+                id="brand-tone"
+                value={brandTone}
+                onChange={(e) => setBrandTone(e.target.value)}
+                className="w-full bg-[#0A0C0F] border border-[#333A45] rounded-lg px-3 py-2 text-xs text-[#E7EAEE] focus:outline-none focus:border-[#4FD8C4] transition-colors cursor-pointer"
+              >
+                <option value="Authoritative & Professional">Authoritative & Professional (High Trust & Expertise)</option>
+                <option value="Friendly & Conversational">Friendly & Conversational (Approachable & Clear)</option>
+                <option value="Bold, High-Energy & Urgent">Bold, High-Energy & Urgent (High-Conversion CTR)</option>
+                <option value="Technical, Precise & Analytical">Technical, Precise & Analytical (Developer & Engineering Focus)</option>
+                <option value="Creative, Inspiring & Playful">Creative, Inspiring & Playful (Lifestyle & Design)</option>
+              </select>
+            </div>
+
+            {/* Target Search Region / Geography */}
+            <div className="space-y-1.5">
+              <label htmlFor="target-country" className="text-[11px] font-semibold text-[#8B93A1] uppercase tracking-wider flex items-center gap-1.5">
+                <GlobeIcon className="size-3.5 text-[#FBBF24]" />
+                <span>Target Search Market & Region</span>
+              </label>
+              <select
+                id="target-country"
+                value={targetCountry}
+                onChange={(e) => setTargetCountry(e.target.value)}
+                className="w-full bg-[#0A0C0F] border border-[#333A45] rounded-lg px-3 py-2 text-xs text-[#E7EAEE] focus:outline-none focus:border-[#4FD8C4] transition-colors cursor-pointer"
+              >
+                <option value="Global / International">Global / International Market</option>
+                <option value="United States (US - English)">United States (US - English)</option>
+                <option value="United Kingdom (UK - English)">United Kingdom (UK - English)</option>
+                <option value="Canada (CA - English/French)">Canada (CA - English/French)</option>
+                <option value="Australia (AU - English)">Australia (AU - English)</option>
+                <option value="Germany (DE - German)">Germany (DE - German)</option>
+                <option value="India (IN - English/Hindi)">India (IN - English/Hindi)</option>
+                <option value="France (FR - French)">France (FR - French)</option>
+                <option value="Japan (JP - Japanese)">Japan (JP - Japanese)</option>
+              </select>
+            </div>
+
+            {/* Primary Optimization Objective */}
+            <div className="space-y-1.5">
+              <label htmlFor="primary-objective" className="text-[11px] font-semibold text-[#8B93A1] uppercase tracking-wider flex items-center gap-1.5">
+                <SparkleIcon className="size-3.5 text-[#7AA2F7]" />
+                <span>Primary SEO Objective</span>
+              </label>
+              <select
+                id="primary-objective"
+                value={primaryObjective}
+                onChange={(e) => setPrimaryObjective(e.target.value)}
+                className="w-full bg-[#0A0C0F] border border-[#333A45] rounded-lg px-3 py-2 text-xs text-[#E7EAEE] focus:outline-none focus:border-[#4FD8C4] transition-colors cursor-pointer"
+              >
+                <option value="Maximize Organic CTR & Rankings">Maximize Organic Search CTR & Top 3 Rankings</option>
+                <option value="Fix Technical SEO & Speed (Core Web Vitals)">Fix Technical SEO & Speed (Core Web Vitals)</option>
+                <option value="Synthesize Schema.org & Rich Snippets">Synthesize Schema.org & Rich Snippet Badges</option>
+                <option value="Enhance WCAG Accessibility Compliance">Enhance WCAG Accessibility Compliance</option>
+                <option value="Comprehensive 360° Quality Audit">Comprehensive 360° Quality & Technical Excellence</option>
+              </select>
+            </div>
+          </div>
+
+          {/* AI Creativity & Model Configuration */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 rounded-lg border border-[#262B33] bg-[#0A0C0F]">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-[#8B93A1] uppercase tracking-wider block">
+                AI Creativity Level (Temperature)
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['PRECISE', 'BALANCED', 'CREATIVE'] as const).map((lvl) => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setAiCreativityLevel(lvl)}
+                    className={`py-1.5 px-2 rounded text-center text-xs font-bold transition-all border cursor-pointer ${
+                      aiCreativityLevel === lvl
+                        ? 'bg-[#4FD8C4]/15 border-[#4FD8C4] text-[#4FD8C4]'
+                        : 'bg-[#12151A] border-[#333A45] text-[#8B93A1] hover:text-[#E7EAEE]'
+                    }`}
+                  >
+                    {lvl === 'PRECISE' ? 'Precise (0.1)' : lvl === 'BALANCED' ? 'Balanced (0.4)' : 'Creative (0.7)'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="preferred-ai-model" className="text-[11px] font-semibold text-[#8B93A1] uppercase tracking-wider block">
+                  Active Gemini Model Tier
+                </label>
+                <button
+                  type="button"
+                  onClick={() => loadAvailableModels()}
+                  disabled={loadingModels}
+                  className="text-[10px] text-[#4FD8C4] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <ArrowsClockwiseIcon className={`size-3 ${loadingModels ? 'animate-spin' : ''}`} />
+                  <span>{loadingModels ? 'Discovering...' : 'Discover Models'}</span>
+                </button>
+              </div>
+              <select
+                id="preferred-ai-model"
+                value={preferredAiModel}
+                onChange={(e) => setPreferredAiModel(e.target.value)}
+                className="w-full bg-[#12151A] border border-[#333A45] rounded-lg px-3 py-2 text-xs text-[#E7EAEE] focus:outline-none focus:border-[#4FD8C4] transition-colors cursor-pointer"
+              >
+                {availableModels.length > 0 ? (
+                  availableModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.displayName || m.id} {m.isRecommended ? '★ Recommended' : ''} {m.inputTokenLimit ? `(${Math.round(m.inputTokenLimit / 1000)}k tokens)` : ''}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="gemini-2.0-flash">gemini-2.0-flash (Fast & High Accuracy - Recommended)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash (Next-Gen Hybrid)</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Reasoning & Large Context)</option>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (High Throughput)</option>
+                  </>
+                )}
+              </select>
+              {availableModels.length > 0 ? (
+                <p className="text-[10px] text-[#565D68]">
+                  {availableModels.length} models unlocked for your API key. Active model executes all audits and AI studio tools.
+                </p>
+              ) : (
+                <p className="text-[10px] text-[#565D68]">
+                  Click Discover Models to fetch all models unlocked for your API key.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={aiPrefsSaving}
+              className="px-4 py-2 rounded-lg bg-[#7AA2F7]/10 border border-[#7AA2F7]/40 hover:bg-[#7AA2F7]/20 disabled:opacity-40 text-[#7AA2F7] font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <CheckCircleIcon className="size-3.5" />
+              <span>{aiPrefsSaving ? 'Saving Profile...' : 'Save AI Personalization'}</span>
+            </button>
+          </div>
+
+          {aiPrefsStatus && (
+            <div
+              className={`p-3 rounded-lg border text-xs flex items-center gap-2 animate-fade-in ${
+                aiPrefsStatus.type === 'success'
+                  ? 'border-[#4ADE80]/30 bg-[#4ADE80]/10 text-[#4ADE80]'
+                  : 'border-[#F87171]/30 bg-[#F87171]/10 text-[#F87171]'
+              }`}
+            >
+              {aiPrefsStatus.type === 'success' ? <CheckCircleIcon className="size-4 shrink-0" /> : <WarningCircleIcon className="size-4 shrink-0" />}
+              <span>{aiPrefsStatus.message}</span>
+            </div>
+          )}
+        </form>
       </div>
 
       {/* REST API Access Keys Management */}

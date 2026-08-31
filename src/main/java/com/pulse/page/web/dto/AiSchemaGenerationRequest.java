@@ -5,15 +5,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class GeminiValidationResponse {
-    private boolean valid;
-    private String message;
-    private String model;
-    private List<GeminiModelDto> availableModels;
+public class AiSchemaGenerationRequest {
+    private AuditResponse audit;
+    private String schemaType;
+    private UserAiPreferencesRequest preferences;
 }

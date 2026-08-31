@@ -1,19 +1,19 @@
 package com.pulse.page.web.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class GeminiValidationResponse {
-    private boolean valid;
-    private String message;
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class AiChatResponse {
+    private boolean success;
     private String model;
-    private List<GeminiModelDto> availableModels;
+    private String reply;
+    private String error;
 }

@@ -21,13 +21,20 @@ import type {
   CollectionRunResult,
   CollectionExportData,
   UserProfile,
+  GeminiModelsResponse,
   GeminiValidationResponse,
   GeminiCustomPromptResponse,
+  UserAiPreferences,
+  AiTitleVariationsResponse,
+  AiExecutiveSummaryResponse,
+  AiSchemaGenerationResponse,
+  AiChatMessage,
+  AiChatResponse,
 } from '../types';
 
 const API_BASE = '';
 
-function getAuthHeaders(): HeadersInit {
+function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('pagepulse_token');
   const customGeminiKey = localStorage.getItem('pagepulse_gemini_key');
   return {
@@ -458,6 +465,168 @@ export async function validateGeminiKey(apiKey: string): Promise<GeminiValidatio
     throw new Error(err.message || 'Validation request failed');
   }
   return response.json();
+}
+
+export async function fetchAvailableGeminiModels(apiKey?: string): Promise<GeminiModelsResponse> {
+  const localKey = apiKey || localStorage.getItem('pagepulse_gemini_key') || '';
+  try {
+    if (apiKey) {
+      const response = await fetch(`${API_BASE}/api/v1/ai/models/discover`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ apiKey }),
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    }
+
+    const headers = getAuthHeaders();
+    if (localKey) {
+      headers['X-Gemini-Api-Key'] = localKey;
+    }
+    const response = await fetch(`${API_BASE}/api/v1/ai/models`, {
+      method: 'GET',
+      headers,
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+    const err = await response.json().catch(() => ({ error: 'Failed to retrieve available models' }));
+    return { success: false, models: [], error: err.error || err.message };
+  } catch (e: any) {
+    return { success: false, models: [], error: e?.message || 'Network error fetching models' };
+  }
+}
+
+export async function saveUserAiPreferences(preferences: UserAiPreferences): Promise<UserProfile> {
+  localStorage.setItem('pagepulse_ai_preferences', JSON.stringify(preferences));
+
+  const token = localStorage.getItem('pagepulse_token');
+  if (token) {
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/user/ai-preferences`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(preferences),
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      console.warn('Could not sync AI preferences to server profile:', err);
+    }
+  }
+
+  const existingProfile = await fetchUserProfile().catch(() => ({
+    id: 0,
+    username: 'Guest',
+    email: '',
+    role: 'GUEST',
+  }));
+
+  return {
+    ...existingProfile,
+    ...preferences,
+  };
+}
+
+export function getLocalAiPreferences(): UserAiPreferences {
+  try {
+    const raw = localStorage.getItem('pagepulse_ai_preferences');
+    if (raw) return JSON.parse(raw);
+  } catch (err) {
+    console.warn('Could not parse local AI preferences, using defaults:', err);
+  }
+  return {
+    targetNiche: 'SaaS & B2B Tech',
+    brandTone: 'Authoritative & Professional',
+    targetCountry: 'Global / International',
+    primaryObjective: 'Maximize Organic CTR & Rankings',
+    aiCreativityLevel: 'BALANCED',
+    preferredAiModel: 'gemini-2.0-flash',
+  };
+}
+
+export async function fetchAiTitleVariations(audit: AuditResponse): Promise<AiTitleVariationsResponse> {
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/ai/title-variations`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(audit),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Failed to generate title variations' }));
+      return { success: false, error: err.error || err.message || 'Generation failed' };
+    }
+    return await response.json();
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Network error while generating variations' };
+  }
+}
+
+export async function fetchAiExecutiveSummary(audit: AuditResponse): Promise<AiExecutiveSummaryResponse> {
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/ai/executive-summary`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(audit),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Failed to generate executive summary' }));
+      return { success: false, error: err.error || err.message || 'Generation failed' };
+    }
+    return await response.json();
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Network error while generating summary' };
+  }
+}
+
+export async function generateAiSchemaJsonLd(audit: AuditResponse, schemaType: string = 'AUTO'): Promise<AiSchemaGenerationResponse> {
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/ai/schema-generator`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        audit,
+        schemaType,
+        preferences: getLocalAiPreferences(),
+      }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Failed to generate Schema.org JSON-LD' }));
+      return { success: false, error: err.error || err.message || 'Generation failed' };
+    }
+    return await response.json();
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Network error while generating schema' };
+  }
+}
+
+export async function chatWithAiAdvisor(
+  audit: AuditResponse,
+  conversationHistory: AiChatMessage[],
+  userMessage: string
+): Promise<AiChatResponse> {
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/ai/chat`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        audit,
+        conversationHistory,
+        userMessage,
+        preferences: getLocalAiPreferences(),
+      }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Failed to chat with AI assistant' }));
+      return { success: false, error: err.error || err.message || 'Chat request failed' };
+    }
+    return await response.json();
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Network error while contacting AI assistant' };
+  }
 }
 
 export async function askGeminiCustomSeo(audit: AuditResponse, prompt: string): Promise<GeminiCustomPromptResponse> {

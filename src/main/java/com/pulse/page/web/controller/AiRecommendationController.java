@@ -114,6 +114,82 @@ public class AiRecommendationController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/title-variations")
+    public ResponseEntity<AiTitleVariationsDto> getTitleVariations(
+            @RequestBody AuditResponse audit,
+            @RequestHeader(value = "X-Gemini-Api-Key", required = false) String headerApiKey,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String effectiveKey = resolveGeminiKey(headerApiKey, userDetails);
+        UserAiPreferencesRequest preferences = resolveUserPreferences(null, userDetails);
+        AiTitleVariationsDto response = geminiService.generateTitleAndMetaVariations(audit, effectiveKey, preferences);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/executive-summary")
+    public ResponseEntity<AiExecutiveSummaryDto> getExecutiveSummary(
+            @RequestBody AuditResponse audit,
+            @RequestHeader(value = "X-Gemini-Api-Key", required = false) String headerApiKey,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String effectiveKey = resolveGeminiKey(headerApiKey, userDetails);
+        UserAiPreferencesRequest preferences = resolveUserPreferences(null, userDetails);
+        AiExecutiveSummaryDto response = geminiService.generateExecutiveSummary(audit, effectiveKey, preferences);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/schema-generator")
+    public ResponseEntity<AiSchemaGenerationResponse> generateSchema(
+            @RequestBody AiSchemaGenerationRequest request,
+            @RequestHeader(value = "X-Gemini-Api-Key", required = false) String headerApiKey,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String effectiveKey = resolveGeminiKey(headerApiKey, userDetails);
+        UserAiPreferencesRequest preferences = resolveUserPreferences(request.getPreferences(), userDetails);
+        AiSchemaGenerationResponse response = geminiService.generateRichSchemaJsonLd(
+                request.getAudit(),
+                effectiveKey,
+                request.getSchemaType(),
+                preferences
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/chat")
+    public ResponseEntity<AiChatResponse> chatWithAssistant(
+            @RequestBody AiChatRequest request,
+            @RequestHeader(value = "X-Gemini-Api-Key", required = false) String headerApiKey,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String effectiveKey = resolveGeminiKey(headerApiKey, userDetails);
+        UserAiPreferencesRequest preferences = resolveUserPreferences(request.getPreferences(), userDetails);
+        AiChatResponse response = geminiService.chatWithAiAssistant(
+                request.getAudit(),
+                request.getConversationHistory(),
+                request.getUserMessage(),
+                effectiveKey,
+                preferences
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    private UserAiPreferencesRequest resolveUserPreferences(UserAiPreferencesRequest passed, UserDetails userDetails) {
+        if (passed != null) {
+            return passed;
+        }
+        if (userDetails != null) {
+            Optional<UserEntity> userOpt = userRepository.findByUsername(userDetails.getUsername());
+            if (userOpt.isPresent()) {
+                UserEntity u = userOpt.get();
+                return UserAiPreferencesRequest.builder()
+                        .targetNiche(u.getTargetNiche())
+                        .brandTone(u.getBrandTone())
+                        .targetCountry(u.getTargetCountry())
+                        .primaryObjective(u.getPrimaryObjective())
+                        .aiCreativityLevel(u.getAiCreativityLevel())
+                        .preferredAiModel(u.getPreferredAiModel())
+                        .build();
+            }
+        }
+        return null;
+    }
+
     private String resolveGeminiKey(String headerKey, UserDetails userDetails) {
         if (headerKey != null && !headerKey.isBlank()) {
             return headerKey.trim();
@@ -175,6 +251,55 @@ public class AiRecommendationController {
                 .performanceMetrics(perf)
                 .scores(scores)
                 .build();
+    }
+
+    @GetMapping("/models")
+    public ResponseEntity<GeminiModelsResponse> getAvailableModels(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestHeader(value = "X-Gemini-Api-Key", required = false) String headerApiKey) {
+        String geminiKey = resolveGeminiKey(headerApiKey, userDetails);
+        if (geminiKey == null || geminiKey.isBlank()) {
+            return ResponseEntity.ok(GeminiModelsResponse.builder()
+                    .success(false)
+                    .activeModel(geminiService.resolveActiveModel())
+                    .models(List.of())
+                    .error("No Gemini API key configured.")
+                    .build());
+        }
+
+        List<GeminiModelDto> models = geminiService.fetchAvailableModelsDetailed(geminiKey);
+        String activeModel = geminiService.resolveOptimalModel(models.stream().map(GeminiModelDto::getId).toList());
+        return ResponseEntity.ok(GeminiModelsResponse.builder()
+                .success(true)
+                .activeModel(activeModel)
+                .models(models)
+                .build());
+    }
+
+    @PostMapping("/models/discover")
+    public ResponseEntity<GeminiModelsResponse> discoverModelsWithKey(@RequestBody Map<String, String> request) {
+        String apiKey = request != null ? request.get("apiKey") : null;
+        if (apiKey == null || apiKey.trim().isBlank()) {
+            return ResponseEntity.badRequest().body(GeminiModelsResponse.builder()
+                    .success(false)
+                    .error("Gemini API key is required.")
+                    .build());
+        }
+
+        List<GeminiModelDto> models = geminiService.fetchAvailableModelsDetailed(apiKey);
+        if (models.isEmpty()) {
+            return ResponseEntity.ok(GeminiModelsResponse.builder()
+                    .success(false)
+                    .error("No generateContent models found for this Gemini API key.")
+                    .build());
+        }
+
+        String activeModel = geminiService.resolveOptimalModel(models.stream().map(GeminiModelDto::getId).toList());
+        return ResponseEntity.ok(GeminiModelsResponse.builder()
+                .success(true)
+                .activeModel(activeModel)
+                .models(models)
+                .build());
     }
 }
 

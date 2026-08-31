@@ -349,7 +349,7 @@ export interface AiRecommendation {
   impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
   estimatedScoreImprovement?: string;
   guidelineReference?: string;
-  engineSource?: 'GEMINI_AI' | 'RULE_ENGINE' | string;
+  engineSource?: 'GEMINI_AI' | 'RULE_ENGINE';
   model?: string;
 }
 
@@ -630,6 +630,39 @@ export interface UserProfile {
   role: string;
   hasGeminiApiKey?: boolean;
   geminiApiKeyMasked?: string | null;
+  targetNiche?: string;
+  brandTone?: string;
+  targetCountry?: string;
+  primaryObjective?: string;
+  aiCreativityLevel?: string;
+  preferredAiModel?: string;
+}
+
+export interface UserAiPreferences {
+  targetNiche?: string;
+  brandTone?: string;
+  targetCountry?: string;
+  primaryObjective?: string;
+  aiCreativityLevel?: string;
+  preferredAiModel?: string;
+}
+
+export interface GeminiModelDto {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  inputTokenLimit: number;
+  outputTokenLimit: number;
+  supportsGenerateContent: boolean;
+  isRecommended: boolean;
+}
+
+export interface GeminiModelsResponse {
+  success: boolean;
+  activeModel?: string;
+  models: GeminiModelDto[];
+  error?: string;
 }
 
 export interface GeminiKeyRequest {
@@ -640,6 +673,7 @@ export interface GeminiValidationResponse {
   valid: boolean;
   message: string;
   model?: string;
+  availableModels?: GeminiModelDto[];
 }
 
 export interface GeminiCustomPromptRequest {
@@ -653,4 +687,69 @@ export interface GeminiCustomPromptResponse {
   success: boolean;
   error?: string;
 }
+
+export interface AiTitleOption {
+  angle: string;
+  title: string;
+  titleLength: number;
+  metaDescription: string;
+  descriptionLength: number;
+  rationale: string;
+  estimatedCtrLift?: string;
+}
+
+export interface AiTitleVariationsResponse {
+  success: boolean;
+  model?: string;
+  variations?: AiTitleOption[];
+  error?: string;
+}
+
+export interface AiExecutiveSummaryResponse {
+  success: boolean;
+  model?: string;
+  overallHealthStatus?: 'EXCELLENT' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'CRITICAL';
+  executiveHeadline?: string;
+  topStrengths?: string[];
+  topQuickWins?: string[];
+  criticalRedFlags?: string[];
+  competitorRankingAngle?: string;
+  error?: string;
+}
+
+export interface AiSchemaGenerationRequest {
+  audit: AuditResponse;
+  schemaType?: string;
+  preferences?: UserAiPreferences;
+}
+
+export interface AiSchemaGenerationResponse {
+  success: boolean;
+  model?: string;
+  detectedType?: string;
+  jsonLdScript?: string;
+  explanation?: string;
+  validationNotes?: string;
+  error?: string;
+}
+
+export interface AiChatMessage {
+  role: 'user' | 'model' | 'assistant';
+  text: string;
+}
+
+export interface AiChatRequest {
+  audit: AuditResponse;
+  conversationHistory: AiChatMessage[];
+  userMessage: string;
+  preferences?: UserAiPreferences;
+}
+
+export interface AiChatResponse {
+  success: boolean;
+  model?: string;
+  reply?: string;
+  error?: string;
+}
+
 

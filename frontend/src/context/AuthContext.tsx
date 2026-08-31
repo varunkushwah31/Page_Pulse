@@ -8,6 +8,12 @@ export interface User {
   role: string;
   hasGeminiApiKey?: boolean;
   geminiApiKeyMasked?: string | null;
+  targetNiche?: string;
+  brandTone?: string;
+  targetCountry?: string;
+  primaryObjective?: string;
+  aiCreativityLevel?: string;
+  preferredAiModel?: string;
 }
 
 interface AuthContextType {
@@ -39,7 +45,7 @@ const getInitialAuth = (): { token: string | null; user: User | null } => {
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [auth, setAuth] = useState<{ token: string | null; user: User | null }>(() => getInitialAuth());
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
 
   useEffect(() => {
     if (auth.token) {
@@ -61,37 +67,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [auth.token]);
 
-  const login = (newToken: string, newUser: User) => {
+  const login = React.useCallback((newToken: string, newUser: User) => {
     localStorage.setItem('pagepulse_token', newToken);
     localStorage.setItem('pagepulse_user', JSON.stringify(newUser));
     setAuth({ token: newToken, user: newUser });
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = React.useCallback(() => {
     localStorage.removeItem('pagepulse_token');
     localStorage.removeItem('pagepulse_user');
     setAuth({ token: null, user: null });
-  };
+  }, []);
 
-  const updateUser = (updatedFields: Partial<User>) => {
+  const updateUser = React.useCallback((updatedFields: Partial<User>) => {
     setAuth((prev) => {
       if (!prev.user) return prev;
       const updated = { ...prev.user, ...updatedFields };
       localStorage.setItem('pagepulse_user', JSON.stringify(updated));
       return { ...prev, user: updated };
     });
-  };
+  }, []);
+
+  const contextValue = React.useMemo<AuthContextType>(() => ({
+    user: auth.user,
+    token: auth.token,
+    login,
+    logout,
+    updateUser,
+    isAuthenticated: !!auth.token,
+    isLoading,
+  }), [auth.user, auth.token, login, logout, updateUser, isLoading]);
 
   return (
-    <AuthContext.Provider value={{ 
-      user: auth.user, 
-      token: auth.token, 
-      login, 
-      logout, 
-      updateUser,
-      isAuthenticated: !!auth.token, 
-      isLoading 
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

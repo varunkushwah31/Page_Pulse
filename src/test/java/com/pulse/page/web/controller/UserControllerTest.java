@@ -1,7 +1,6 @@
 package com.pulse.page.web.controller;
 
 import com.pulse.page.web.dto.GeminiKeyRequest;
-import com.pulse.page.web.dto.GeminiValidationResponse;
 import com.pulse.page.web.entity.UserEntity;
 import com.pulse.page.web.repository.jpa.UserRepository;
 import com.pulse.page.web.service.GeminiService;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -93,20 +91,46 @@ class UserControllerTest {
     }
 
     @Test
-    void validateGeminiApiKey_delegatesToGeminiService() {
-        when(geminiService.validateApiKey("AIzaSyValidKey")).thenReturn(
-                GeminiValidationResponse.builder()
-                        .valid(true)
-                        .message("Verified")
-                        .model("gemini-3.1-flash")
-                        .build()
-        );
+    void updateAiPreferences_savesAndReturnsUpdatedProfile() {
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(userEntity));
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(i -> i.getArgument(0));
 
-        var response = userController.validateGeminiApiKey(new GeminiKeyRequest("AIzaSyValidKey"));
+        com.pulse.page.web.dto.UserAiPreferencesRequest request = com.pulse.page.web.dto.UserAiPreferencesRequest.builder()
+                .targetNiche("SaaS & B2B Tech")
+                .brandTone("Authoritative & Professional")
+                .targetCountry("Global / International")
+                .primaryObjective("Maximize Organic CTR & Rankings")
+                .aiCreativityLevel("BALANCED")
+                .preferredAiModel("gemini-2.0-flash")
+                .build();
+
+        var response = userController.updateAiPreferences(userDetails, request);
 
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().isValid());
-        assertEquals("gemini-3.1-flash", response.getBody().getModel());
+        assertEquals("SaaS & B2B Tech", response.getBody().getTargetNiche());
+        assertEquals("Authoritative & Professional", response.getBody().getBrandTone());
+        verify(userRepository).save(userEntity);
+    }
+
+    @Test
+    void getUserGeminiModels_returnsModelsList() {
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(userEntity));
+        when(geminiService.fetchAvailableModelsDetailed("AIzaSyTest1234567890")).thenReturn(java.util.List.of(
+                com.pulse.page.web.dto.GeminiModelDto.builder()
+                        .id("gemini-2.0-flash")
+                        .displayName("Gemini 2.0 Flash")
+                        .isRecommended(true)
+                        .build()
+        ));
+        when(geminiService.resolveOptimalModel(any())).thenReturn("gemini-2.0-flash");
+
+        var response = userController.getUserGeminiModels(userDetails);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().isSuccess());
+        assertEquals("gemini-2.0-flash", response.getBody().getActiveModel());
+        assertEquals(1, response.getBody().getModels().size());
     }
 }

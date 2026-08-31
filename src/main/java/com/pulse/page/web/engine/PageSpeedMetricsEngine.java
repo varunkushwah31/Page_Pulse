@@ -19,8 +19,10 @@ public class PageSpeedMetricsEngine {
     private String pageSpeedApiKey;
 
     private final RestClient restClient;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
-    public PageSpeedMetricsEngine() {
+    public PageSpeedMetricsEngine(com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
         this.restClient = RestClient.builder()
                 .baseUrl("https://www.googleapis.com")
                 .build();
@@ -50,7 +52,7 @@ public class PageSpeedMetricsEngine {
             URI origin = URI.create(targetUrl);
             String originBase = origin.getScheme() + "://" + origin.getHost();
 
-            JsonNode response = restClient.get()
+            String rawJson = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/pagespeedonline/v5/runPagespeed")
                             .queryParam("url", targetUrl)
@@ -59,8 +61,13 @@ public class PageSpeedMetricsEngine {
                             .queryParam("strategy", "MOBILE")
                             .build())
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(String.class);
 
+            if (rawJson == null || rawJson.isBlank()) {
+                return null;
+            }
+
+            JsonNode response = objectMapper.readTree(rawJson);
             if (response == null) {
                 return null;
             }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { AuditResponse, AiRecommendation } from '../types';
-import { fetchAiRecommendations } from '../lib/api';
+import { fetchAiRecommendations, saveUserGeminiKey, removeUserGeminiKey, validateGeminiKey, askGeminiCustomSeo } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import {
   SparkleIcon,
   CopyIcon,
@@ -14,6 +15,14 @@ import {
   GitDiffIcon,
   BookOpenIcon,
   TagIcon,
+  ChatCircleDotsIcon,
+  PaperPlaneRightIcon,
+  XIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  ArrowSquareOutIcon,
+  GearIcon,
+  WarningCircleIcon,
 } from '@phosphor-icons/react';
 
 interface AiFixConsoleProps {
@@ -399,6 +408,7 @@ export function generateClientSideAiRecommendations(report: AuditResponse): AiRe
 }
 
 export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
+  const { user, updateUser } = useAuth();
   const [recommendations, setRecommendations] = useState<AiRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -406,6 +416,27 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewModeMap, setViewModeMap] = useState<Record<number, 'code' | 'diff'>>({});
+
+  // Local / Auth Gemini Key resolution
+  const [localKey, setLocalKey] = useState<string | null>(() => localStorage.getItem('pagepulse_gemini_key'));
+  const hasGeminiKey = Boolean(user?.hasGeminiApiKey || localKey);
+  const localMasked = localKey ? (localKey.length > 8 ? `${localKey.slice(0, 6)}••••${localKey.slice(-4)}` : '••••••••') : null;
+  const activeMaskedKey = user?.geminiApiKeyMasked || localMasked;
+
+  // Quick Gemini Key Modal State
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [modalKeyInput, setModalKeyInput] = useState('');
+  const [modalShowKey, setModalShowKey] = useState(false);
+  const [modalSaving, setModalSaving] = useState(false);
+  const [modalValidating, setModalValidating] = useState(false);
+  const [modalStatus, setModalStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Custom Interactive Gemini Prompt Console State
+  const [showCustomConsole, setShowCustomConsole] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [customLoading, setCustomLoading] = useState(false);
+  const [customResponse, setCustomResponse] = useState<{ response?: string; model?: string; error?: string } | null>(null);
+  const [customCopied, setCustomCopied] = useState(false);
 
   const loadRecommendations = async () => {
     setLoading(true);
@@ -434,7 +465,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
 
   useEffect(() => {
     loadRecommendations();
-  }, [audit.id, audit.url]);
+  }, [audit.id, audit.url, user?.hasGeminiApiKey, localKey]);
 
   const handleCopy = (code: string, idx: number) => {
     navigator.clipboard.writeText(code);
@@ -448,6 +479,128 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
       [idx]: prev[idx] === 'diff' ? 'code' : 'diff',
     }));
   };
+
+  // Modal Gemini Key Handlers
+  const handleModalValidate = async () => {
+    const key = modalKeyInput.trim();
+    if (!key) {
+      setModalStatus({ type: 'error', message: 'Please enter a Gemini API key to test.' });
+      return;
+    }
+    setModalValidating(true);
+    setModalStatus(null);
+    try {
+      const res = await validateGeminiKey(key);
+      if (res.valid) {
+        setModalStatus({ type: 'success', message: res.message || 'Key is valid & verified with Google Gemini!' });
+      } else {
+        setModalStatus({ type: 'error', message: res.message || 'Invalid Gemini key. Please verify in Google AI Studio.' });
+      }
+    } catch (err) {
+      setModalStatus({ type: 'error', message: err instanceof Error ? err.message : 'Validation failed' });
+    } finally {
+      setModalValidating(false);
+    }
+  };
+
+  const handleModalSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const key = modalKeyInput.trim();
+    if (!key) return;
+    setModalSaving(true);
+    setModalStatus(null);
+    try {
+      const updatedProfile = await saveUserGeminiKey(key);
+      setLocalKey(key);
+      if (user) {
+        updateUser({
+          hasGeminiApiKey: updatedProfile.hasGeminiApiKey,
+          geminiApiKeyMasked: updatedProfile.geminiApiKeyMasked,
+        });
+      }
+      setModalStatus({ type: 'success', message: 'Gemini Key saved & active! Generating live AI recommendations...' });
+      setTimeout(() => {
+        setShowKeyModal(false);
+        setModalKeyInput('');
+        setModalStatus(null);
+        loadRecommendations();
+      }, 1000);
+    } catch (err) {
+      setModalStatus({ type: 'error', message: err instanceof Error ? err.message : 'Failed to save key' });
+    } finally {
+      setModalSaving(false);
+    }
+  };
+
+  const handleModalRemove = async () => {
+    setModalSaving(true);
+    setModalStatus(null);
+    try {
+      await removeUserGeminiKey();
+      setLocalKey(null);
+      if (user) {
+        updateUser({
+          hasGeminiApiKey: false,
+          geminiApiKeyMasked: null,
+        });
+      }
+      setModalStatus({ type: 'success', message: 'Gemini Key removed. Reverted to heuristic rules.' });
+      setTimeout(() => {
+        setShowKeyModal(false);
+        setModalKeyInput('');
+        setModalStatus(null);
+        loadRecommendations();
+      }, 1000);
+    } catch (err) {
+      setModalStatus({ type: 'error', message: err instanceof Error ? err.message : 'Failed to remove key' });
+    } finally {
+      setModalSaving(false);
+    }
+  };
+
+  // Interactive Custom SEO Prompt Handler
+  const handleAskGemini = async (promptToSend?: string) => {
+    const query = (promptToSend || customPrompt).trim();
+    if (!query || customLoading) return;
+
+    setCustomLoading(true);
+    setCustomResponse(null);
+    setCustomPrompt(query);
+    try {
+      const res = await askGeminiCustomSeo(audit, query);
+      if (res.success && res.response) {
+        setCustomResponse({
+          response: res.response,
+          model: res.model || 'gemini-3.1-flash',
+        });
+      } else {
+        setCustomResponse({
+          error: res.error || 'Gemini could not generate a response. Please check your API key or prompt.',
+        });
+      }
+    } catch (err) {
+      setCustomResponse({
+        error: err instanceof Error ? err.message : 'Network error communicating with Gemini API.',
+      });
+    } finally {
+      setCustomLoading(false);
+    }
+  };
+
+  const handleCopyCustomResponse = () => {
+    if (customResponse?.response) {
+      navigator.clipboard.writeText(customResponse.response);
+      setCustomCopied(true);
+      setTimeout(() => setCustomCopied(false), 2000);
+    }
+  };
+
+  const quickPrompts = [
+    'Suggest 5 high-converting meta descriptions under 160 chars',
+    'Generate complete Schema.org JSON-LD structured data for this page',
+    'How should I structure the H1, H2, and H3 headings for maximum SEO?',
+    'Give 5 semantic LSI keywords and search intent improvements',
+  ];
 
   const filteredRecs = recommendations.filter((r) => {
     const matchesCategory = selectedCategory === 'ALL' || r.category === selectedCategory;
@@ -515,24 +668,165 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-[#262B33] bg-[#12151A] p-5 shadow-2xl font-mono text-xs">
+    <div className="space-y-4 rounded-xl border border-[#262B33] bg-[#12151A] p-5 shadow-2xl font-mono text-xs relative">
+      {/* Quick Configure Gemini Modal Dialog */}
+      {showKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="w-full max-w-lg rounded-xl border border-[#333A45] bg-[#12151A] p-6 shadow-2xl space-y-4 font-mono">
+            <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+              <div className="flex items-center gap-2 text-[#4FD8C4]">
+                <SparkleIcon className="size-4 animate-pulse" />
+                <h4 className="font-bold text-sm text-[#E7EAEE]">Configure Google Gemini API Key</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowKeyModal(false);
+                  setModalStatus(null);
+                }}
+                className="text-[#8B93A1] hover:text-[#E7EAEE] p-1 cursor-pointer"
+              >
+                <XIcon className="size-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#8B93A1] font-sans leading-relaxed">
+              Adding your personal Gemini API Key enables real-time, tailored SEO improvements, JSON-LD Schema generation, and custom prompt consultations.
+            </p>
+
+            <form onSubmit={handleModalSave} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-[#8B93A1] uppercase block">
+                  Gemini API Key
+                </label>
+                <div className="relative">
+                  <input
+                    type={modalShowKey ? 'text' : 'password'}
+                    required
+                    placeholder="AIzaSy..."
+                    value={modalKeyInput}
+                    onChange={(e) => setModalKeyInput(e.target.value)}
+                    disabled={modalSaving}
+                    className="w-full bg-[#0A0C0F] border border-[#333A45] rounded-lg pl-3 pr-10 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:border-[#4FD8C4] focus:outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setModalShowKey(!modalShowKey)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8B93A1] hover:text-[#E7EAEE] p-1 cursor-pointer"
+                  >
+                    {modalShowKey ? <EyeSlashIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {modalStatus && (
+                <div
+                  className={`p-2.5 rounded text-xs flex items-center gap-2 ${
+                    modalStatus.type === 'success'
+                      ? 'border border-[#4ADE80]/30 bg-[#4ADE80]/10 text-[#4ADE80]'
+                      : 'border border-[#F87171]/30 bg-[#F87171]/10 text-[#F87171]'
+                  }`}
+                >
+                  {modalStatus.type === 'success' ? (
+                    <CheckCircleIcon className="size-4 shrink-0" />
+                  ) : (
+                    <WarningCircleIcon className="size-4 shrink-0" />
+                  )}
+                  <span>{modalStatus.message}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-2">
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-[#4FD8C4] hover:underline inline-flex items-center gap-1"
+                >
+                  <span>Get Free Key</span>
+                  <ArrowSquareOutIcon className="size-3.5" />
+                </a>
+
+                <div className="flex items-center gap-2">
+                  {hasGeminiKey && (
+                    <button
+                      type="button"
+                      onClick={handleModalRemove}
+                      disabled={modalSaving}
+                      className="px-3 py-1.5 rounded bg-[#F87171]/10 border border-[#F87171]/30 hover:bg-[#F87171]/20 text-xs text-[#F87171] font-semibold cursor-pointer disabled:opacity-40"
+                    >
+                      Remove Key
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleModalValidate}
+                    disabled={modalValidating || !modalKeyInput.trim()}
+                    className="px-3 py-1.5 rounded bg-[#191D24] border border-[#333A45] hover:bg-[#262B33] text-xs text-[#8B93A1] hover:text-[#E7EAEE] font-semibold cursor-pointer disabled:opacity-40"
+                  >
+                    {modalValidating ? 'Testing...' : 'Test Key'}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={modalSaving || !modalKeyInput.trim()}
+                    className="px-4 py-1.5 rounded bg-[#4FD8C4]/15 border border-[#4FD8C4]/40 hover:bg-[#4FD8C4]/25 text-xs text-[#4FD8C4] font-bold cursor-pointer disabled:opacity-40"
+                  >
+                    {modalSaving ? 'Saving...' : 'Save & Apply'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#262B33] pb-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <SparkleIcon className="size-4 text-[#4FD8C4] animate-pulse" />
             <h3 className="font-bold text-[#E7EAEE] text-sm">AI Actionable Fix Suggestions</h3>
-            <span className="rounded bg-[#4FD8C4]/10 border border-[#4FD8C4]/30 px-2 py-0.5 text-[10px] text-[#4FD8C4] font-semibold flex items-center gap-1">
-              <SparkleIcon className="size-3" />
-              Gemini Engine Enabled
-            </span>
+            {hasGeminiKey ? (
+              <span className="rounded bg-[#4ADE80]/15 border border-[#4ADE80]/30 px-2 py-0.5 text-[10px] text-[#4ADE80] font-semibold flex items-center gap-1">
+                <CheckCircleIcon className="size-3" />
+                Gemini AI Active {activeMaskedKey ? `(${activeMaskedKey})` : ''}
+              </span>
+            ) : (
+              <span className="rounded bg-[#FBBF24]/15 border border-[#FBBF24]/30 px-2 py-0.5 text-[10px] text-[#FBBF24] font-semibold flex items-center gap-1">
+                <SparkleIcon className="size-3" />
+                Heuristic Mode
+              </span>
+            )}
           </div>
           <p className="text-[11px] text-[#8B93A1] font-sans">
             Ready-to-copy code fixes and DOM markup optimizations tailored for {audit.domain || audit.url}.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowKeyModal(true)}
+            className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-2.5 py-1.5 text-xs text-[#8B93A1] hover:text-[#4FD8C4] hover:border-[#4FD8C4]/40 transition-all cursor-pointer shadow"
+            title="Configure Google Gemini API key"
+          >
+            <GearIcon className="size-3.5" />
+            <span>{hasGeminiKey ? 'Update Gemini Key' : 'Configure Gemini Key'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowCustomConsole(!showCustomConsole)}
+            className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer shadow ${
+              showCustomConsole
+                ? 'border-[#4FD8C4] bg-[#4FD8C4]/15 text-[#4FD8C4]'
+                : 'border-[#333A45] bg-[#191D24] text-[#E7EAEE] hover:bg-[#262B33]'
+            }`}
+          >
+            <ChatCircleDotsIcon className="size-3.5 text-[#4FD8C4]" />
+            <span>{showCustomConsole ? 'Close AI Prompt' : 'Ask Gemini AI'}</span>
+          </button>
+
           {filteredRecs.length > 0 && (
             <button
               type="button"
@@ -558,10 +852,103 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
             className="inline-flex items-center gap-1.5 rounded border border-[#333A45] bg-[#191D24] px-3 py-1.5 text-xs text-[#E7EAEE] hover:bg-[#262B33] transition-all cursor-pointer disabled:opacity-50"
           >
             <ArrowsClockwiseIcon className={`size-3.5 ${loading ? 'animate-spin text-[#4FD8C4]' : 'text-[#8B93A1]'}`} />
-            <span>Regenerate Fixes</span>
+            <span>Regenerate</span>
           </button>
         </div>
       </div>
+
+      {/* Interactive Ask Gemini AI Consultation Section */}
+      {showCustomConsole && (
+        <div className="rounded-xl border border-[#4FD8C4]/40 bg-[#0A0C0F] p-4 space-y-3 shadow-xl animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[#4FD8C4] font-bold text-xs">
+              <SparkleIcon className="size-4 animate-pulse" />
+              <span>Ask Gemini AI: Real-Time SEO Consultation</span>
+            </div>
+            <span className="text-[10px] text-[#8B93A1] font-sans">
+              Context: Audited DOM of {audit.url}
+            </span>
+          </div>
+
+          {/* Quick Prompt Recommendation Chips */}
+          <div className="flex flex-wrap gap-1.5">
+            {quickPrompts.map((p, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleAskGemini(p)}
+                disabled={customLoading}
+                className="text-[10px] font-sans px-2.5 py-1 rounded-full bg-[#191D24] border border-[#262B33] hover:border-[#4FD8C4]/40 hover:text-[#4FD8C4] text-[#8B93A1] transition-colors cursor-pointer text-left disabled:opacity-50"
+              >
+                + {p}
+              </button>
+            ))}
+          </div>
+
+          {/* Prompt Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAskGemini();
+            }}
+            className="flex gap-2"
+          >
+            <input
+              type="text"
+              placeholder="Ask Gemini any question about this webpage (e.g., 'Rewrite the hero text for higher conversion', 'Create schema for this shop')..."
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              disabled={customLoading}
+              className="flex-1 bg-[#12151A] border border-[#333A45] rounded-lg px-3 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:border-[#4FD8C4] focus:outline-none font-sans"
+            />
+            <button
+              type="submit"
+              disabled={customLoading || !customPrompt.trim()}
+              className="px-4 py-2 rounded-lg bg-[#4FD8C4]/15 border border-[#4FD8C4]/40 hover:bg-[#4FD8C4]/25 text-[#4FD8C4] font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-40 shrink-0"
+            >
+              {customLoading ? (
+                <ArrowsClockwiseIcon className="size-3.5 animate-spin" />
+              ) : (
+                <PaperPlaneRightIcon className="size-3.5" />
+              )}
+              <span>{customLoading ? 'Thinking...' : 'Ask Gemini'}</span>
+            </button>
+          </form>
+
+          {/* Custom Response Output */}
+          {customResponse && (
+            <div className="mt-3 rounded-lg border border-[#262B33] bg-[#12151A] p-3.5 space-y-2 animate-fade-in">
+              <div className="flex items-center justify-between text-[11px] border-b border-[#191D24] pb-2">
+                <div className="flex items-center gap-1.5 text-[#4ADE80] font-bold">
+                  <CheckCircleIcon className="size-3.5" />
+                  <span>Gemini SEO Response ({customResponse.model || 'gemini-1.5-flash'})</span>
+                </div>
+                {customResponse.response && (
+                  <button
+                    type="button"
+                    onClick={handleCopyCustomResponse}
+                    className="text-[10px] text-[#4FD8C4] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    {customCopied ? <CheckIcon className="size-3 text-[#4ADE80]" /> : <CopyIcon className="size-3" />}
+                    <span>{customCopied ? 'Copied!' : 'Copy Answer'}</span>
+                  </button>
+                )}
+              </div>
+
+              {customResponse.error ? (
+                <div className="text-rose-400 text-xs flex items-center gap-2">
+                  <WarningCircleIcon className="size-4 shrink-0" />
+                  <span>{customResponse.error}</span>
+                </div>
+              ) : (
+                <div className="text-xs text-[#E7EAEE] font-sans whitespace-pre-wrap leading-relaxed">
+                  {customResponse.response}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filter and Search Controls Strip */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pt-1">
@@ -647,6 +1034,17 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
                     <span className="font-bold text-[#E7EAEE] text-xs">{rec.title}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {rec.engineSource === 'GEMINI_AI' ? (
+                      <span className="rounded bg-[#4FD8C4]/15 border border-[#4FD8C4]/30 px-2 py-0.5 text-[10px] font-bold text-[#4FD8C4] inline-flex items-center gap-1">
+                        <SparkleIcon className="size-3 text-[#4FD8C4]" />
+                        Gemini AI ({rec.model || 'gemini-3.1-flash'})
+                      </span>
+                    ) : (
+                      <span className="rounded bg-[#8B93A1]/15 border border-[#8B93A1]/30 px-2 py-0.5 text-[10px] font-bold text-[#8B93A1] inline-flex items-center gap-1">
+                        <CpuIcon className="size-3 text-[#8B93A1]" />
+                        Heuristic
+                      </span>
+                    )}
                     {getPriorityBadge(rec.priority)}
                     <span className="rounded bg-[#191D24] border border-[#262B33] px-2 py-0.5 text-[10px] font-bold text-[#8B93A1]">
                       {rec.category}

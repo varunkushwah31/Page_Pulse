@@ -42,6 +42,27 @@ public class UserEntity implements UserDetails {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    @Column(name = "gemini_api_key", length = 255)
+    private String geminiApiKey;
+
+    @Column(name = "target_niche", length = 50)
+    private String targetNiche;
+
+    @Column(name = "brand_tone", length = 50)
+    private String brandTone;
+
+    @Column(name = "target_country", length = 50)
+    private String targetCountry;
+
+    @Column(name = "primary_objective", length = 50)
+    private String primaryObjective;
+
+    @Column(name = "ai_creativity_level", length = 20)
+    private String aiCreativityLevel;
+
+    @Column(name = "preferred_ai_model", length = 50)
+    private String preferredAiModel;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

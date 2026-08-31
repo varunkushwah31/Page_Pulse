@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { createApiKey, fetchApiKeys, revokeApiKey, fetchSavedReports, fetchScheduledAudits, fetchUserCollections } from '../lib/api';
+import {
+  createApiKey,
+  fetchApiKeys,
+  revokeApiKey,
+  fetchSavedReports,
+  fetchScheduledAudits,
+  fetchUserCollections,
+  saveUserGeminiKey,
+  removeUserGeminiKey,
+  validateGeminiKey,
+  fetchUserProfile,
+} from '../lib/api';
 import type { ApiKeyResponse } from '../types';
 import {
   UserIcon,
@@ -16,11 +27,18 @@ import {
   TrashIcon,
   LockIcon,
   EnvelopeIcon,
-  FolderIcon
+  FolderIcon,
+  SparkleIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  CheckCircleIcon,
+  ArrowSquareOutIcon,
+  WarningCircleIcon,
+  ArrowsClockwiseIcon
 } from '@phosphor-icons/react';
 
 export const UserProfilePage: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
 
   const [apiKeys, setApiKeys] = useState<ApiKeyResponse[]>([]);
@@ -28,6 +46,13 @@ export const UserProfilePage: React.FC = () => {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Gemini API Key management state
+  const [geminiKeyInput, setGeminiKeyInput] = useState('');
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [geminiSaving, setGeminiSaving] = useState(false);
+  const [geminiValidating, setGeminiValidating] = useState(false);
+  const [geminiStatus, setGeminiStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   const [savedReportsCount, setSavedReportsCount] = useState(0);
   const [scheduledMonitorsCount, setScheduledMonitorsCount] = useState(0);
@@ -156,6 +181,94 @@ export const UserProfilePage: React.FC = () => {
     }
   };
 
+  /* ─── Gemini API Key Handlers ─── */
+  const handleValidateGeminiKey = async () => {
+    const keyToTest = geminiKeyInput.trim();
+    if (!keyToTest) {
+      setGeminiStatus({ type: 'error', message: 'Please enter a Gemini API Key to test.' });
+      return;
+    }
+
+    setGeminiValidating(true);
+    setGeminiStatus(null);
+    try {
+      const res = await validateGeminiKey(keyToTest);
+      if (res.valid) {
+        setGeminiStatus({
+          type: 'success',
+          message: res.message || `Gemini API key is verified and active (Model: ${res.model || 'gemini-3.1-flash'})!`,
+        });
+      } else {
+        setGeminiStatus({
+          type: 'error',
+          message: res.message || 'Validation failed. Please check your Gemini API key.',
+        });
+      }
+    } catch (err) {
+      setGeminiStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to connect to validation endpoint.',
+      });
+    } finally {
+      setGeminiValidating(false);
+    }
+  };
+
+  const handleSaveGeminiKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const keyToSave = geminiKeyInput.trim();
+    if (!keyToSave) return;
+
+    setGeminiSaving(true);
+    setGeminiStatus(null);
+    try {
+      const updatedProfile = await saveUserGeminiKey(keyToSave);
+      updateUser({
+        hasGeminiApiKey: updatedProfile.hasGeminiApiKey,
+        geminiApiKeyMasked: updatedProfile.geminiApiKeyMasked,
+      });
+      setGeminiKeyInput('');
+      setGeminiStatus({
+        type: 'success',
+        message: 'Personal Gemini API Key saved successfully! AI-powered SEO analysis is now active for all audits.',
+      });
+    } catch (err) {
+      setGeminiStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save Gemini API key.',
+      });
+    } finally {
+      setGeminiSaving(false);
+    }
+  };
+
+  const handleRemoveGeminiKey = async () => {
+    if (!window.confirm('Are you sure you want to remove your stored Gemini API Key? Audits will revert to the standard rule-based engine.')) {
+      return;
+    }
+
+    setGeminiSaving(true);
+    setGeminiStatus(null);
+    try {
+      const updatedProfile = await removeUserGeminiKey();
+      updateUser({
+        hasGeminiApiKey: false,
+        geminiApiKeyMasked: null,
+      });
+      setGeminiStatus({
+        type: 'info',
+        message: 'Gemini API Key removed. The platform will use deterministic rule engine fallbacks.',
+      });
+    } catch (err) {
+      setGeminiStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to remove Gemini API key.',
+      });
+    } finally {
+      setGeminiSaving(false);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -247,10 +360,176 @@ export const UserProfilePage: React.FC = () => {
 
         <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
           <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
+            <span>Gemini AI Engine</span>
+            <SparkleIcon className={`size-4 ${user.hasGeminiApiKey ? 'text-[#4FD8C4] animate-pulse' : 'text-[#8B93A1]'}`} />
+          </div>
+          <div className="text-sm font-bold truncate">
+            {user.hasGeminiApiKey ? (
+              <span className="text-[#4FD8C4] flex items-center gap-1">
+                <CheckCircleIcon className="size-4 text-[#4ADE80]" /> Active
+              </span>
+            ) : (
+              <span className="text-[#8B93A1]">Heuristic Only</span>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-4 space-y-1">
+          <div className="flex items-center justify-between text-[#8B93A1] text-[11px]">
             <span>API Access Tokens</span>
             <KeyIcon className="size-4 text-[#FBBF24]" />
           </div>
           <div className="text-2xl font-bold text-[#E7EAEE]">{apiKeys.length}</div>
+        </div>
+      </div>
+
+      {/* Google Gemini AI Integration Card */}
+      <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden space-y-0 shadow-xl">
+        <div className="bg-[#191D24] p-4 border-b border-[#262B33] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="size-7 rounded-lg bg-[#4FD8C4]/10 border border-[#4FD8C4]/30 flex items-center justify-center text-[#4FD8C4]">
+              <SparkleIcon className="size-4 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-[#E7EAEE] text-sm uppercase tracking-wider">Google Gemini AI Engine</h3>
+                {user.hasGeminiApiKey ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#4ADE80]/15 text-[#4ADE80] border border-[#4ADE80]/30 inline-flex items-center gap-1">
+                    <CheckCircleIcon className="size-3" /> User Key Active
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FBBF24]/15 text-[#FBBF24] border border-[#FBBF24]/30">
+                    Not Configured
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-[#8B93A1] font-sans">
+                Power intelligent SEO suggestions, high-converting meta tag synthesis, and Schema.org JSON-LD generation.
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="https://aistudio.google.com/app/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] text-[#4FD8C4] hover:underline inline-flex items-center gap-1 bg-[#12151A] px-2.5 py-1.5 rounded border border-[#262B33] hover:border-[#4FD8C4]/40 transition-colors"
+          >
+            <span>Get Free Gemini Key</span>
+            <ArrowSquareOutIcon className="size-3.5" />
+          </a>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Active Key Status Info Banner */}
+          {user.hasGeminiApiKey && (
+            <div className="p-3.5 rounded-lg border border-[#4FD8C4]/30 bg-[#4FD8C4]/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#4FD8C4]">
+                  <CheckCircleIcon className="size-4 text-[#4ADE80]" />
+                  <span>Gemini API Key Connected</span>
+                </div>
+                <div className="font-mono text-xs text-[#8B93A1]">
+                  Masked Key: <code className="bg-[#0A0C0F] px-2 py-0.5 rounded text-[#E7EAEE] border border-[#262B33]">{user.geminiApiKeyMasked || 'AIzaSy••••••••'}</code>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleRemoveGeminiKey}
+                  disabled={geminiSaving}
+                  className="px-3 py-1.5 rounded text-xs text-[#F87171] hover:bg-[#F87171]/10 border border-[#F87171]/30 transition-all cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <TrashIcon className="size-3.5" />
+                  <span>Remove Key</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Key Configuration Form */}
+          <form onSubmit={handleSaveGeminiKey} className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-[#8B93A1] uppercase tracking-wider block">
+                {user.hasGeminiApiKey ? 'Update Personal Gemini API Key' : 'Add Personal Google Gemini API Key'}
+              </label>
+              <div className="relative">
+                <input
+                  type={showGeminiKey ? 'text' : 'password'}
+                  required
+                  placeholder="Paste your Gemini API Key here (starts with AIzaSy...)"
+                  value={geminiKeyInput}
+                  onChange={(e) => setGeminiKeyInput(e.target.value)}
+                  disabled={geminiSaving}
+                  className="w-full bg-[#0A0C0F] border border-[#333A45] rounded-lg pl-3 pr-10 py-2 text-xs text-[#E7EAEE] placeholder-[#565D68] focus:outline-none focus:border-[#4FD8C4] font-mono transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowGeminiKey(!showGeminiKey)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8B93A1] hover:text-[#E7EAEE] p-1 cursor-pointer"
+                  title={showGeminiKey ? 'Hide key' : 'Show key'}
+                >
+                  {showGeminiKey ? <EyeSlashIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="submit"
+                disabled={geminiSaving || !geminiKeyInput.trim()}
+                className="px-4 py-2 rounded-lg bg-[#4FD8C4]/10 border border-[#4FD8C4]/40 hover:bg-[#4FD8C4]/20 disabled:opacity-40 text-[#4FD8C4] font-bold transition-all cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5"
+              >
+                <SparkleIcon className="size-3.5" />
+                <span>{geminiSaving ? 'Saving...' : user.hasGeminiApiKey ? 'Update Key' : 'Save Gemini Key'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleValidateGeminiKey}
+                disabled={geminiValidating || !geminiKeyInput.trim()}
+                className="px-3 py-2 rounded-lg bg-[#191D24] border border-[#333A45] hover:bg-[#262B33] disabled:opacity-40 text-[#8B93A1] hover:text-[#E7EAEE] font-semibold transition-all cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5"
+              >
+                <ArrowsClockwiseIcon className={`size-3.5 ${geminiValidating ? 'animate-spin text-[#4FD8C4]' : ''}`} />
+                <span>{geminiValidating ? 'Testing...' : 'Test & Validate Key'}</span>
+              </button>
+            </div>
+          </form>
+
+          {/* Feedback / Status Alert Banner */}
+          {geminiStatus && (
+            <div
+              className={`p-3 rounded-lg border text-xs flex items-center gap-2 animate-fade-in ${
+                geminiStatus.type === 'success'
+                  ? 'border-[#4ADE80]/30 bg-[#4ADE80]/10 text-[#4ADE80]'
+                  : geminiStatus.type === 'error'
+                  ? 'border-[#F87171]/30 bg-[#F87171]/10 text-[#F87171]'
+                  : 'border-[#7AA2F7]/30 bg-[#7AA2F7]/10 text-[#7AA2F7]'
+              }`}
+            >
+              {geminiStatus.type === 'success' && <CheckCircleIcon className="size-4 shrink-0" />}
+              {geminiStatus.type === 'error' && <WarningCircleIcon className="size-4 shrink-0" />}
+              {geminiStatus.type === 'info' && <SparkleIcon className="size-4 shrink-0" />}
+              <span>{geminiStatus.message}</span>
+            </div>
+          )}
+
+          {/* Explanatory Feature Callout */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 text-[11px] font-sans border-t border-[#191D24]">
+            <div className="p-2.5 rounded-lg bg-[#0A0C0F] border border-[#262B33] space-y-1">
+              <span className="font-bold text-[#4FD8C4] block font-mono text-[10px]">1. SEO Title & Meta Fixes</span>
+              <p className="text-[#8B93A1] text-[11px]">Gemini generates high-converting titles and meta descriptions tailored to your target audience.</p>
+            </div>
+            <div className="p-2.5 rounded-lg bg-[#0A0C0F] border border-[#262B33] space-y-1">
+              <span className="font-bold text-[#4ADE80] block font-mono text-[10px]">2. Schema.org JSON-LD</span>
+              <p className="text-[#8B93A1] text-[11px]">Synthesizes valid structured data schemas to qualify for rich snippet search results.</p>
+            </div>
+            <div className="p-2.5 rounded-lg bg-[#0A0C0F] border border-[#262B33] space-y-1">
+              <span className="font-bold text-[#7AA2F7] block font-mono text-[10px]">3. Interactive SEO Consultation</span>
+              <p className="text-[#8B93A1] text-[11px]">Ask custom SEO optimization questions directly against your audited webpage DOM.</p>
+            </div>
+          </div>
         </div>
       </div>
 

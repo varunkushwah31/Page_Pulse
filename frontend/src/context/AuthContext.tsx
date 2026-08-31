@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-interface User {
+export interface User {
   id: number;
   username: string;
   email: string;
+  fullName?: string;
   role: string;
+  hasGeminiApiKey?: boolean;
+  geminiApiKeyMasked?: string | null;
 }
 
 interface AuthContextType {
@@ -12,6 +15,7 @@ interface AuthContextType {
   token: string | null;
   login: (token: string, user: User) => void;
   logout: () => void;
+  updateUser: (updatedFields: Partial<User>) => void;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -37,6 +41,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [auth, setAuth] = useState<{ token: string | null; user: User | null }>(() => getInitialAuth());
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    if (auth.token) {
+      // Sync fresh profile data from server in background
+      fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${auth.token}` }
+      })
+        .then((res) => res.ok ? res.json() : null)
+        .then((freshUser) => {
+          if (freshUser && auth.token) {
+            setAuth((prev) => {
+              const merged = { ...prev.user, ...freshUser };
+              localStorage.setItem('pagepulse_user', JSON.stringify(merged));
+              return { ...prev, user: merged };
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [auth.token]);
+
   const login = (newToken: string, newUser: User) => {
     localStorage.setItem('pagepulse_token', newToken);
     localStorage.setItem('pagepulse_user', JSON.stringify(newUser));
@@ -49,12 +73,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setAuth({ token: null, user: null });
   };
 
+  const updateUser = (updatedFields: Partial<User>) => {
+    setAuth((prev) => {
+      if (!prev.user) return prev;
+      const updated = { ...prev.user, ...updatedFields };
+      localStorage.setItem('pagepulse_user', JSON.stringify(updated));
+      return { ...prev, user: updated };
+    });
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user: auth.user, 
       token: auth.token, 
       login, 
       logout, 
+      updateUser,
       isAuthenticated: !!auth.token, 
       isLoading 
     }}>

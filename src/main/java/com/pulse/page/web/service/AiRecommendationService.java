@@ -3,13 +3,18 @@ package com.pulse.page.web.service;
 import com.pulse.page.web.config.AppProperties;
 import com.pulse.page.web.dto.AiRecommendationDto;
 import com.pulse.page.web.dto.AuditResponse;
+import com.pulse.page.web.entity.UserEntity;
 import com.pulse.page.web.model.*;
+import com.pulse.page.web.repository.jpa.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -37,15 +42,52 @@ public class AiRecommendationService {
     private static final String TITLE_TAG = "<title>";
     private static final String DEFAULT_DOMAIN = "example.com";
 
+    private final GeminiService geminiService;
+    private final UserRepository userRepository;
+    private final AppProperties appProperties;
+
     public AiRecommendationService() {
-        // Default constructor
+        this(null, null, null);
     }
 
     public AiRecommendationService(AppProperties appProperties) {
-        // Maintained for backwards compatibility
+        this(null, null, appProperties);
+    }
+
+    public AiRecommendationService(GeminiService geminiService, UserRepository userRepository, AppProperties appProperties) {
+        this.geminiService = geminiService;
+        this.userRepository = userRepository;
+        this.appProperties = appProperties;
     }
 
     public List<AiRecommendationDto> generateRecommendations(AuditResponse report) {
+        return generateRecommendations(report, null);
+    }
+
+    public List<AiRecommendationDto> generateRecommendations(AuditResponse report, String overrideApiKey) {
+        if (report == null) {
+            return Collections.emptyList();
+        }
+
+        String effectiveKey = resolveEffectiveGeminiApiKey(overrideApiKey);
+
+        if (effectiveKey != null && !effectiveKey.isBlank() && geminiService != null) {
+            try {
+                log.info("Requesting Gemini AI recommendations for URL: {}", report.getUrl());
+                List<AiRecommendationDto> geminiRecs = geminiService.generateSeoRecommendations(report, effectiveKey);
+                if (geminiRecs != null && !geminiRecs.isEmpty()) {
+                    return geminiRecs;
+                }
+                log.warn("Gemini recommendations were empty or failed, falling back to rule engine.");
+            } catch (Exception e) {
+                log.warn("Gemini generation failed: {}, falling back to deterministic recommendations", e.getMessage());
+            }
+        }
+
+        return generateDeterministicRecommendations(report);
+    }
+
+    public List<AiRecommendationDto> generateDeterministicRecommendations(AuditResponse report) {
         if (report == null) {
             return Collections.emptyList();
         }
@@ -67,8 +109,42 @@ public class AiRecommendationService {
         buildLinkSecurityRecommendations(links, sec, recommendations);
         buildSchemaRecommendations(seo, domain, recommendations);
 
-        log.info("Generated {} prioritized AI code fix recommendations for target domain: {}", recommendations.size(), domain);
+        for (AiRecommendationDto dto : recommendations) {
+            dto.setEngineSource("RULE_ENGINE");
+            dto.setModel("heuristic-rules");
+        }
+
+        log.info("Generated {} prioritized rule-based AI code fix recommendations for target domain: {}", recommendations.size(), domain);
         return recommendations;
+    }
+
+    private String resolveEffectiveGeminiApiKey(String overrideKey) {
+        if (overrideKey != null && !overrideKey.isBlank()) {
+            return overrideKey.trim();
+        }
+
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+                String username = auth.getName();
+                Optional<UserEntity> userOpt = userRepository.findByUsername(username);
+                if (userOpt.isPresent()) {
+                    String userKey = userOpt.get().getGeminiApiKey();
+                    if (userKey != null && !userKey.isBlank()) {
+                        log.debug("Using user-configured Gemini API key for {}", username);
+                        return userKey.trim();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Failed to resolve user Gemini API key from security context: {}", e.getMessage());
+        }
+
+        if (appProperties != null && appProperties.getGemini() != null && appProperties.getGemini().getApiKey() != null && !appProperties.getGemini().getApiKey().isBlank()) {
+            return appProperties.getGemini().getApiKey().trim();
+        }
+
+        return null;
     }
 
     private void buildSeoRecommendations(SeoMetrics seo, String domain, List<AiRecommendationDto> recs) {

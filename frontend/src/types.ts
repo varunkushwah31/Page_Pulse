@@ -349,6 +349,8 @@ export interface AiRecommendation {
   impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
   estimatedScoreImprovement?: string;
   guidelineReference?: string;
+  engineSource?: 'GEMINI_AI' | 'RULE_ENGINE' | string;
+  model?: string;
 }
 
 export interface BatchAuditUrlResult {
@@ -618,5 +620,37 @@ export interface CollectionExportData {
     customHeaders?: Record<string, string>;
     tags?: string[];
   }[];
+}
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  fullName?: string;
+  role: string;
+  hasGeminiApiKey?: boolean;
+  geminiApiKeyMasked?: string | null;
+}
+
+export interface GeminiKeyRequest {
+  apiKey: string;
+}
+
+export interface GeminiValidationResponse {
+  valid: boolean;
+  message: string;
+  model?: string;
+}
+
+export interface GeminiCustomPromptRequest {
+  audit: AuditResponse;
+  prompt: string;
+}
+
+export interface GeminiCustomPromptResponse {
+  response?: string;
+  model?: string;
+  success: boolean;
+  error?: string;
 }
 

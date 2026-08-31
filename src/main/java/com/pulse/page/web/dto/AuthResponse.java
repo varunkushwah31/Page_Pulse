@@ -37,15 +37,38 @@ public class AuthResponse {
         private String email;
         private String fullName;
         private String role;
+        private boolean hasGeminiApiKey;
+        private String geminiApiKeyMasked;
+        private String targetNiche;
+        private String brandTone;
+        private String targetCountry;
+        private String primaryObjective;
+        private String aiCreativityLevel;
+        private String preferredAiModel;
 
         public static UserInfo from(UserEntity user) {
+            boolean hasKey = user.getGeminiApiKey() != null && !user.getGeminiApiKey().isBlank();
             return UserInfo.builder()
                     .id(user.getId())
                     .username(user.getUsername())
                     .email(user.getEmail())
                     .fullName(user.getFullName())
                     .role(user.getRole().name())
+                    .hasGeminiApiKey(hasKey)
+                    .geminiApiKeyMasked(hasKey ? maskApiKey(user.getGeminiApiKey()) : null)
+                    .targetNiche(user.getTargetNiche())
+                    .brandTone(user.getBrandTone())
+                    .targetCountry(user.getTargetCountry())
+                    .primaryObjective(user.getPrimaryObjective())
+                    .aiCreativityLevel(user.getAiCreativityLevel())
+                    .preferredAiModel(user.getPreferredAiModel())
                     .build();
+        }
+
+        public static String maskApiKey(String key) {
+            if (key == null || key.isBlank()) return null;
+            if (key.length() <= 8) return "••••••••";
+            return key.substring(0, 6) + "••••••••" + key.substring(key.length() - 4);
         }
     }
 }

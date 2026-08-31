@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.pulse.page.web.repository.jpa.UserRepository userRepository;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -49,12 +50,17 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<AuthResponse.UserInfo> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(AuthResponse.UserInfo.builder()
-                .username(userDetails.getUsername())
-                .role(userDetails.getAuthorities().stream()
-                        .findFirst()
-                        .map(a -> a.getAuthority().replace("ROLE_", ""))
-                        .orElse("USER"))
-                .build());
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return userRepository.findByUsername(userDetails.getUsername())
+                .map(u -> ResponseEntity.ok(AuthResponse.UserInfo.from(u)))
+                .orElseGet(() -> ResponseEntity.ok(AuthResponse.UserInfo.builder()
+                        .username(userDetails.getUsername())
+                        .role(userDetails.getAuthorities().stream()
+                                .findFirst()
+                                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                                .orElse("USER"))
+                        .build()));
     }
 }

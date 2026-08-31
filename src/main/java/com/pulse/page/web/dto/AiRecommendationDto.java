@@ -23,4 +23,6 @@ public class AiRecommendationDto {
     private String impactLevel; // HIGH, MEDIUM, LOW
     private String estimatedScoreImprovement; // e.g. "+5 to +10 pts"
     private String guidelineReference;        // e.g. "WCAG 2.1 SC 1.1.1", "Google Search Central"
+    private String engineSource;              // "GEMINI_AI" or "RULE_ENGINE"
+    private String model;                     // e.g. "gemini-1.5-flash"
 }

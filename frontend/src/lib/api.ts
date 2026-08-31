@@ -20,15 +20,20 @@ import type {
   CollectionRunRequest,
   CollectionRunResult,
   CollectionExportData,
+  UserProfile,
+  GeminiValidationResponse,
+  GeminiCustomPromptResponse,
 } from '../types';
 
 const API_BASE = '';
 
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('pagepulse_token');
+  const customGeminiKey = localStorage.getItem('pagepulse_gemini_key');
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
+    ...(customGeminiKey && { 'X-Gemini-Api-Key': customGeminiKey.trim() }),
   };
 }
 
@@ -372,11 +377,110 @@ export async function revokeApiKey(id: string): Promise<void> {
   });
 }
 
+export async function fetchUserProfile(): Promise<UserProfile> {
+  const response = await fetch(`${API_BASE}/api/v1/user/profile`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch user profile');
+  }
+  return response.json();
+}
+
+export async function saveUserGeminiKey(apiKey: string): Promise<UserProfile> {
+  const trimmed = apiKey.trim();
+  localStorage.setItem('pagepulse_gemini_key', trimmed);
+
+  const token = localStorage.getItem('pagepulse_token');
+  if (token) {
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/user/gemini-key`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ apiKey: trimmed }),
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      console.warn('Could not sync Gemini key to server profile, stored locally:', err);
+    }
+  }
+
+  // Return local user profile representation if guest
+  const masked = trimmed.length > 8 ? `${trimmed.slice(0, 6)}••••${trimmed.slice(-4)}` : '••••••••';
+  return {
+    id: 0,
+    username: 'Guest',
+    email: '',
+    role: 'GUEST',
+    hasGeminiApiKey: true,
+    geminiApiKeyMasked: masked,
+  };
+}
+
+export async function removeUserGeminiKey(): Promise<UserProfile> {
+  localStorage.removeItem('pagepulse_gemini_key');
+
+  const token = localStorage.getItem('pagepulse_token');
+  if (token) {
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/user/gemini-key`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      console.warn('Could not remove key from server profile:', err);
+    }
+  }
+
+  return {
+    id: 0,
+    username: 'Guest',
+    email: '',
+    role: 'GUEST',
+    hasGeminiApiKey: false,
+    geminiApiKeyMasked: null,
+  };
+}
+
+export async function validateGeminiKey(apiKey: string): Promise<GeminiValidationResponse> {
+  const response = await fetch(`${API_BASE}/api/v1/user/gemini-key/validate`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ apiKey }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'Validation request failed' }));
+    throw new Error(err.message || 'Validation request failed');
+  }
+  return response.json();
+}
+
+export async function askGeminiCustomSeo(audit: AuditResponse, prompt: string): Promise<GeminiCustomPromptResponse> {
+  const response = await fetch(`${API_BASE}/api/v1/ai/custom-seo-prompt`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ audit, prompt }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Custom SEO prompt request failed' }));
+    return {
+      success: false,
+      error: err.error || err.message || 'Custom SEO prompt request failed',
+    };
+  }
+  return response.json();
+}
+
 export async function fetchAiRecommendations(audit: AuditResponse): Promise<AiRecommendation[]> {
   try {
     const response = await fetch(`${API_BASE}/api/v1/ai/recommendations`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(audit),
     });
     if (!response.ok) {
@@ -400,7 +504,9 @@ export async function fetchAiRecommendations(audit: AuditResponse): Promise<AiRe
 }
 
 export async function fetchAiRecommendationsById(tempId: number): Promise<AiRecommendation[]> {
-  const response = await fetch(`${API_BASE}/api/v1/ai/recommendations/${tempId}`);
+  const response = await fetch(`${API_BASE}/api/v1/ai/recommendations/${tempId}`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch AI recommendations for ID ${tempId}`);
   }
@@ -408,7 +514,9 @@ export async function fetchAiRecommendationsById(tempId: number): Promise<AiReco
 }
 
 export async function fetchAiRecommendationsByUrl(url: string): Promise<AiRecommendation[]> {
-  const response = await fetch(`${API_BASE}/api/v1/ai/recommendations?url=${encodeURIComponent(url)}`);
+  const response = await fetch(`${API_BASE}/api/v1/ai/recommendations?url=${encodeURIComponent(url)}`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch AI recommendations for URL: ${url}`);
   }

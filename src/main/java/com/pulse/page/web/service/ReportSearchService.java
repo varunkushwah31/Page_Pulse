@@ -31,7 +31,12 @@ public class ReportSearchService {
     @NonNull
     public Page<AuditReportDocument> searchSavedReports(@Nullable Pageable pageable) {
         Pageable validPageable = pageable != null ? pageable : Pageable.unpaged();
-        return mongoRepository.findAll(validPageable);
+        try {
+            return mongoRepository.findAll(validPageable);
+        } catch (Exception e) {
+            log.warn("MongoDB storage unavailable when retrieving saved reports ({}). Returning empty page.", e.getMessage());
+            return Page.empty(validPageable);
+        }
     }
 
     @NonNull
@@ -39,22 +44,45 @@ public class ReportSearchService {
         if (id == null || id.isBlank()) {
             return Optional.empty();
         }
-        return mongoRepository.findById(id);
+        try {
+            return mongoRepository.findById(id);
+        } catch (Exception e) {
+            log.warn("MongoDB storage unavailable when retrieving report by ID '{}': {}", id, e.getMessage());
+            return Optional.empty();
+        }
     }
 
     public void deleteSavedReport(@NonNull String id) {
         Objects.requireNonNull(id, "id parameter must not be null");
-        if (!mongoRepository.existsById(id)) {
-            throw new ReportNotFoundException("Saved audit report with ID '" + id + "' not found.");
+        try {
+            if (!mongoRepository.existsById(id)) {
+                throw new ReportNotFoundException("Saved audit report with ID '" + id + "' not found.");
+            }
+            mongoRepository.deleteById(id);
+            log.info("Deleted MongoDB saved report with ID {}", id);
+        } catch (ReportNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Failed to delete report from MongoDB ({}).", e.getMessage());
+            throw new ReportNotFoundException("Failed to delete report with ID '" + id + "' due to database error: " + e.getMessage());
         }
-        mongoRepository.deleteById(id);
-        log.info("Deleted MongoDB saved report with ID {}", id);
     }
 
     @NonNull
     public PlatformStatsResponse getPlatformStats() {
-        long totalTransient = jpaRepository.count();
-        List<AuditReportDocument> allSaved = mongoRepository.findAll();
+        long totalTransient = 0L;
+        try {
+            totalTransient = jpaRepository.count();
+        } catch (Exception e) {
+            log.warn("Transient H2 count failed: {}", e.getMessage());
+        }
+
+        List<AuditReportDocument> allSaved = List.of();
+        try {
+            allSaved = mongoRepository.findAll();
+        } catch (Exception e) {
+            log.warn("MongoDB unavailable when retrieving platform stats ({}). Using fallback stats.", e.getMessage());
+        }
 
         long totalSaved = allSaved.size();
         double avgScore = allSaved.stream()
@@ -67,7 +95,11 @@ public class ReportSearchService {
             .average()
             .orElse(0.0);
 
-        Map<String, Long> topDomains = Map.of("example.com", totalSaved);
+        Map<String, Long> topDomains = totalSaved > 0
+                ? allSaved.stream()
+                        .filter(d -> d.getDomain() != null)
+                        .collect(java.util.stream.Collectors.groupingBy(AuditReportDocument::getDomain, java.util.stream.Collectors.counting()))
+                : Map.of("example.com", totalTransient > 0 ? totalTransient : 1L);
 
         return PlatformStatsResponse.builder()
             .totalTransientAuditsRun(totalTransient)

@@ -99,25 +99,31 @@ public class PdfReportGeneratorService {
     public byte[] generatePdfReport(String reportId, PdfBrandingConfig branding) {
         log.info("Generating Comprehensive Audit PDF Report for ID: {}", reportId);
 
-        AuditReportDocument doc = mongoRepository.findById(reportId)
-            .orElseGet(() -> {
-                try {
-                    Long tempId = Long.parseLong(reportId);
-                    return jpaRepository.findById(tempId)
-                        .map(this::mapEntityToDocument)
-                        .orElse(null);
-                } catch (NumberFormatException e) {
-                    log.debug("Non-numeric report ID cannot be retrieved from JPA: {}", reportId, e);
-                    return null;
-                }
-            });
+        AuditReportDocument doc = null;
+        try {
+            doc = mongoRepository.findById(reportId).orElse(null);
+        } catch (Exception e) {
+            log.warn("MongoDB unavailable when retrieving report for PDF export ({}). Falling back to JPA.", e.getMessage());
+        }
+
+        if (doc == null) {
+            try {
+                Long tempId = Long.parseLong(reportId);
+                doc = jpaRepository.findById(tempId)
+                    .map(this::mapEntityToDocument)
+                    .orElse(null);
+            } catch (NumberFormatException e) {
+                log.debug("Non-numeric report ID cannot be retrieved from JPA: {}", reportId, e);
+            }
+        }
 
         if (doc == null) {
             throw new ReportNotFoundException("Report with ID '" + reportId + "' not found for PDF export.");
         }
 
-        Optional<AuditResponse> cached = cacheService.getCachedAudit(doc.getUrl());
-        AuditResponse audit = cached.orElseGet(() -> buildAuditResponseFromDocument(doc));
+        final AuditReportDocument finalDoc = doc;
+        Optional<AuditResponse> cached = cacheService.getCachedAudit(finalDoc.getUrl());
+        AuditResponse audit = cached.orElseGet(() -> buildAuditResponseFromDocument(finalDoc));
 
         return generatePdfReportFromAudit(audit, branding);
     }

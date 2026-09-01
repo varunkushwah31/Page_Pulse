@@ -41,3 +41,5 @@ DESIGN.md
 src/main/resources/static/
 frontend/dist/
 frontend/node_modules/
+logs/
+*.log

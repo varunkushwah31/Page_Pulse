@@ -1,12 +1,4 @@
-# Stage 1: Frontend Build Stage
-FROM node:20-alpine AS frontend-builder
-WORKDIR /frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ .
-RUN npm run build
-
-# Stage 2: Backend Build Stage
+# Stage 1: Backend Build Stage
 FROM eclipse-temurin:25-jdk-alpine AS builder
 WORKDIR /build
 
@@ -17,11 +9,8 @@ RUN apk add --no-cache maven
 COPY pom.xml .
 RUN mvn dependency:go-offline -B || true
 
-# Copy source code
+# Copy source code and build executable jar
 COPY src ./src
-
-# Copy built frontend assets into Spring Boot static resources
-COPY --from=frontend-builder /frontend/dist ./src/main/resources/static
 RUN mvn clean package -DskipTests -B
 
 # Stage 2: Runtime stage
@@ -50,4 +39,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS --enable-preview -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dserver.port=${PORT:-8080} -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS --enable-preview -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:TieredStopAtLevel=1 -Dserver.port=${PORT:-8080} -jar app.jar"]

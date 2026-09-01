@@ -43,8 +43,8 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
     <div className="space-y-6 font-mono text-xs">
       {/* 1. Core Web Vitals Section */}
       {vitals && (
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#262B33] pb-3">
+        <div className="rounded-xl border border-border bg-[#12151A] p-5 space-y-4 shadow-2xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-3">
             <div className="flex flex-wrap items-center gap-2">
               <GaugeIcon className="size-4 text-[#4FD8C4]" />
               <h3 className="font-bold text-[#E7EAEE] text-sm">Core Web Vitals</h3>
@@ -53,7 +53,7 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
                   CrUX Real User Field Data (75th %)
                 </span>
               ) : (
-                <span className="text-[10px] text-[#8B93A1] bg-[#191D24] border border-[#262B33] px-2 py-0.5 rounded">
+                <span className="text-[10px] text-[#8B93A1] bg-[#191D24] border border-border px-2 py-0.5 rounded">
                   Lab Estimated Heuristic
                 </span>
               )}
@@ -103,8 +103,8 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
 
       {/* 2. Deep Security & SSL Inspector Section */}
       {security && (
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+        <div className="rounded-xl border border-border bg-[#12151A] p-5 space-y-4 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <ShieldCheckIcon className="size-4 text-[#4ADE80]" />
               <h3 className="font-bold text-[#E7EAEE] text-sm">Deep Security & SSL Certificate Inspector</h3>
@@ -118,26 +118,26 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+            <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1">
               <span className="text-[#8B93A1] text-[10px] uppercase">Certificate Expiry</span>
               <div className="text-base font-bold text-[#E7EAEE]">
                 {security.daysUntilSslExpiry > 0 ? `${security.daysUntilSslExpiry} days remaining` : 'Expired'}
               </div>
-              <span className="text-[11px] text-[#565D68] block truncate">Issuer: {security.sslIssuer}</span>
+              <span className="text-[11px] text-text-faint block truncate">Issuer: {security.sslIssuer}</span>
             </div>
 
-            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+            <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1">
               <span className="text-[#8B93A1] text-[10px] uppercase">TLS Protocol & Cipher</span>
               <div className="text-base font-bold text-[#E7EAEE]">{security.tlsVersion}</div>
-              <span className="text-[11px] text-[#565D68] block truncate">{security.cipherSuite}</span>
+              <span className="text-[11px] text-text-faint block truncate">{security.cipherSuite}</span>
             </div>
 
-            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+            <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1">
               <span className="text-[#8B93A1] text-[10px] uppercase">Mixed Content Warnings</span>
               <div className={`text-base font-bold ${security.hasMixedContent ? 'text-[#F87171]' : 'text-[#4ADE80]'}`}>
                 {security.mixedContentCount} HTTP asset(s)
               </div>
-              <span className="text-[11px] text-[#565D68] block">
+              <span className="text-[11px] text-text-faint block">
                 {security.hasMixedContent ? 'Insecure HTTP elements found' : 'Fully HTTPS compliant'}
               </span>
             </div>
@@ -162,10 +162,10 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
 
       {/* 3. Broken Links & Redirect Chain Detector Section */}
       {links && (
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#262B33] pb-3">
+        <div className="rounded-xl border border-border bg-[#12151A] p-5 space-y-4 shadow-2xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-3">
             <div className="flex items-center gap-2">
-              <LinkIcon className="size-4 text-[#7AA2F7]" />
+              <LinkIcon className="size-4 text-info" />
               <h3 className="font-bold text-[#E7EAEE] text-sm">Broken Link & Redirect Chain Detector</h3>
             </div>
             <div className="flex items-center gap-3 text-[#8B93A1] text-[11px]">
@@ -188,21 +188,21 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
                 <span>Detected Broken Anchor Links ({links.brokenLinksCount})</span>
               </span>
 
-              <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] overflow-x-auto">
+              <div className="rounded-lg border border-border bg-[#0A0C0F] overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-[#262B33] bg-[#191D24] text-[#8B93A1] text-[10px] uppercase">
+                    <tr className="border-b border-border bg-[#191D24] text-[#8B93A1] text-[10px] uppercase">
                       <th className="p-2.5">Target Anchor Link URL</th>
                       <th className="p-2.5">Anchor Text</th>
                       <th className="p-2.5 text-center">Status</th>
                       <th className="p-2.5 text-center">Scope</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#262B33]">
+                  <tbody className="divide-y divide-border">
                     {links.brokenLinks.map((b) => (
                       <tr key={b.url} className="hover:bg-[#191D24]/50">
                         <td className="p-2.5 text-[#E7EAEE] font-mono break-all max-w-xs">{b.url}</td>
-                        <td className="p-2.5 text-[#8B93A1] font-sans truncate max-w-[150px]">{b.anchorText || 'N/A'}</td>
+                        <td className="p-2.5 text-[#8B93A1] font-sans truncate max-w-37.5">{b.anchorText || 'N/A'}</td>
                         <td className="p-2.5 text-center">
                           <span className="px-2 py-0.5 rounded border border-[#F87171]/30 bg-[#F87171]/10 text-[#F87171] font-bold">
                             {b.statusCode} ({b.statusMessage})
@@ -226,40 +226,40 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
 
       {/* 4. Asset Bottlenecks Section */}
       {audit.assetBottleneckMetrics && (
-        <div className="rounded-xl border border-[#262B33] bg-[#12151A] p-5 space-y-4 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+        <div className="rounded-xl border border-border bg-[#12151A] p-5 space-y-4 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <PulseIcon className="size-4 text-[#FBBF24]" />
               <h3 className="font-bold text-[#E7EAEE] text-sm">Web Font & Asset Bottlenecks</h3>
             </div>
-            <span className="text-[10px] text-[#8B93A1] bg-[#191D24] border border-[#262B33] px-2 py-0.5 rounded">
+            <span className="text-[10px] text-[#8B93A1] bg-[#191D24] border border-border px-2 py-0.5 rounded">
               CLS & Render-Blocking Inspector
             </span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+            <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1">
               <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">Render-Blocking Fonts</span>
               <div className={`text-xl font-extrabold ${audit.assetBottleneckMetrics.renderBlockingFontsCount > 0 ? 'text-[#F87171]' : 'text-[#4ADE80]'}`}>
                 {audit.assetBottleneckMetrics.renderBlockingFontsCount}
               </div>
             </div>
 
-            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+            <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1">
               <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">Unsized Images (CLS)</span>
               <div className={`text-xl font-extrabold ${audit.assetBottleneckMetrics.unSizedImagesCount > 0 ? 'text-[#FBBF24]' : 'text-[#4ADE80]'}`}>
                 {audit.assetBottleneckMetrics.unSizedImagesCount}
               </div>
             </div>
 
-            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+            <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1">
               <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">Estimated TBT</span>
               <div className="text-xl font-extrabold text-[#4FD8C4]">
                 {audit.assetBottleneckMetrics.totalBlockingTimeMs} ms
               </div>
             </div>
 
-            <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1">
+            <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1">
               <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">Est. Script / Style Size</span>
               <div className="text-xl font-extrabold text-[#E7EAEE]">
                 {Math.round((audit.assetBottleneckMetrics.estimatedUnminifiedCssBytes + audit.assetBottleneckMetrics.estimatedUnminifiedJsBytes) / 1024)} KB
@@ -273,7 +273,7 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
                 <WarningIcon className="size-3.5" />
                 <span>Detected Asset Bottleneck Warnings</span>
               </span>
-              <ul className="space-y-1.5 text-[11px] text-[#8B93A1] bg-[#0A0C0F] p-3 rounded-lg border border-[#262B33]">
+              <ul className="space-y-1.5 text-[11px] text-[#8B93A1] bg-[#0A0C0F] p-3 rounded-lg border border-border">
                 {audit.assetBottleneckMetrics.bottleneckIssues.map((issue) => (
                   <li key={issue} className="flex items-start gap-2">
                     <span className="text-[#FBBF24]">•</span>
@@ -285,6 +285,51 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
           )}
         </div>
       )}
+
+      {/* 5. SPA & JavaScript Rendering Diagnostics */}
+      <div className="rounded-xl border border-border bg-[#12151A] p-5 space-y-4 shadow-2xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border pb-3">
+          <div className="flex items-center gap-2">
+            <PulseIcon className="size-4 text-[#4FD8C4]" />
+            <h3 className="font-bold text-[#E7EAEE] text-sm">JavaScript Engine & SPA Diagnostics</h3>
+          </div>
+          <span className={`inline-flex items-center rounded-full border px-3 py-0.5 text-[11px] font-bold ${audit.jsRendered ? 'text-[#4ADE80] border-[#4ADE80]/30 bg-[#4ADE80]/10' : 'text-[#8B93A1] border-border bg-[#191D24]'}`}>
+            {audit.jsRendered ? 'PLAYWRIGHT CHROMIUM (SPA)' : 'STATIC JSOUP DOM'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1">
+            <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">Rendering Mode</span>
+            <div className="text-sm font-extrabold text-[#E7EAEE]">
+              {audit.jsRendered ? 'Dynamic Client-Side Render (SPA)' : 'Static Server HTML Scraping'}
+            </div>
+            <p className="text-[10px] font-sans text-text-faint">
+              {audit.jsRendered ? 'Executed JS scripts and hydrated DOM tree' : 'Parsed initial raw HTML payload directly'}
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1">
+            <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">Detected SPA Framework</span>
+            <div className="text-sm font-extrabold text-[#4FD8C4]">
+              {audit.spaFramework || (audit.jsRendered ? 'Vanilla JS / Unknown' : 'Standard Web Document')}
+            </div>
+            <p className="text-[10px] font-sans text-text-faint">
+              {audit.spaFramework ? 'Identified from DOM markers & hydration anchors' : 'No SPA framework signatures found'}
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1">
+            <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">DOM Scripts & Hydration</span>
+            <div className="text-sm font-extrabold text-[#E7EAEE]">
+              {audit.performanceMetrics?.scriptResourceCount || 0} Script Tags Detected
+            </div>
+            <p className="text-[10px] font-sans text-text-faint">
+              {audit.jsExecutionTimeMs ? `Total JS execution latency: ${audit.jsExecutionTimeMs} ms` : `Network latency: ${audit.responseTimeMs} ms`}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

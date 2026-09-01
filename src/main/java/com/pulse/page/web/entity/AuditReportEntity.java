@@ -57,5 +57,11 @@ public class AuditReportEntity {
     private HealthGrade healthGrade;
 
     @Builder.Default
+    private boolean jsRendered = false;
+
+    @Column(length = 100)
+    private String spaFramework;
+
+    @Builder.Default
     private Instant createdAt = Instant.now();
 }

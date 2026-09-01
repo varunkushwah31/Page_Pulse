@@ -53,6 +53,11 @@ public class AuditReportDocument {
     private HealthGrade healthGrade;
 
     @Builder.Default
+    private boolean jsRendered = false;
+
+    private String spaFramework;
+
+    @Builder.Default
     private Instant savedAt = Instant.now();
 
     private Long userId;

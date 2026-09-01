@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
-import java.util.NoSuchElementException;
 
 @Slf4j
 @Service
@@ -89,6 +88,13 @@ public class UrlAuditService {
         metricsConfig.recordResponseTime(METRIC_AUDIT_NAME, responseTimeMs);
 
         return jpaRepository.save(entity);
+    }
+
+    @Transactional(readOnly = true)
+    public AuditReportEntity findTransientById(Long tempId) {
+        return jpaRepository.findById(tempId)
+                .orElseThrow(() -> new com.pulse.page.web.exception.ReportNotFoundException(
+                        "Temporary H2 audit report record with ID " + tempId + " not found."));
     }
 
     @Transactional(rollbackFor = Exception.class)

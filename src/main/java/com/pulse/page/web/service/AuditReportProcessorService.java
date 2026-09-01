@@ -111,6 +111,8 @@ public class AuditReportProcessorService {
             .performanceScore(scores.getPerformanceScore())
             .overallScore(scores.getOverallScore())
             .healthGrade(scores.getHealthGrade())
+            .jsRendered(scrapeResult.isJsRendered())
+            .spaFramework(scrapeResult.getSpaFramework())
             .build();
 
         AuditReportEntity savedEntity = jpaRepository.save(entity);
@@ -131,6 +133,9 @@ public class AuditReportProcessorService {
             .securityMetrics(security)
             .assetBottleneckMetrics(bottlenecks)
             .scores(scores)
+            .jsRendered(scrapeResult.isJsRendered())
+            .spaFramework(scrapeResult.getSpaFramework())
+            .jsExecutionTimeMs(scrapeResult.getJsExecutionTimeMs())
             .cached(false)
             .build();
 

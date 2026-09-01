@@ -35,6 +35,10 @@ public class PageScraperEngine {
         private String contentType;
         private java.util.Map<String, String> responseHeaders;
         private Document document;
+        @Builder.Default
+        private boolean jsRendered = false;
+        private String spaFramework;
+        private long jsExecutionTimeMs;
     }
 
     @CircuitBreaker(name = "scraperEngine", fallbackMethod = "fetchPageFallback")

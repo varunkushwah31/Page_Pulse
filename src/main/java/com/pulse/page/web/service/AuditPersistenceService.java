@@ -50,6 +50,8 @@ public class AuditPersistenceService {
             .performanceScore(transientEntity.getPerformanceScore())
             .overallScore(transientEntity.getOverallScore())
             .healthGrade(transientEntity.getHealthGrade())
+            .jsRendered(transientEntity.isJsRendered())
+            .spaFramework(transientEntity.getSpaFramework())
             .userId(userId)
             .build();
 

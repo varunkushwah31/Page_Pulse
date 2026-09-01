@@ -16,6 +16,7 @@ import {
 export const BatchAuditorConsole: React.FC = () => {
   const [urlListText, setUrlListText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [enableJsRendering, setEnableJsRendering] = useState(false);
   const [results, setResults] = useState<AuditResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
@@ -57,7 +58,7 @@ export const BatchAuditorConsole: React.FC = () => {
     setSavedMap({});
 
     try {
-      const auditPromises = urls.slice(0, 10).map((u) => runFullAudit(u).catch(() => null));
+      const auditPromises = urls.slice(0, 10).map((u) => runFullAudit(u, enableJsRendering).catch(() => null));
       const res = await Promise.all(auditPromises);
       const validResults = res.filter((r): r is AuditResponse => r !== null);
       setResults(validResults);
@@ -199,18 +200,33 @@ export const BatchAuditorConsole: React.FC = () => {
           ))}
         </div>
 
-        <div className="flex items-center justify-between font-mono text-xs pt-1">
-          <span className="text-[#8B93A1]">
-            Target count:{' '}
-            <strong className="text-[#E7EAEE]">
-              {urlListText.split('\n').filter((u) => u.trim()).length}
-            </strong>
-          </span>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between font-mono text-xs pt-1 gap-2">
+          <div className="flex items-center gap-4">
+            <span className="text-[#8B93A1]">
+              Target count:{' '}
+              <strong className="text-[#E7EAEE]">
+                {urlListText.split('\n').filter((u) => u.trim()).length}
+              </strong>
+            </span>
+
+            <label className="flex items-center gap-1.5 text-[11px] text-[#8B93A1] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={enableJsRendering}
+                onChange={(e) => setEnableJsRendering(e.target.checked)}
+                disabled={loading}
+                className="rounded border-[#333A45] bg-[#191D24] text-[#4FD8C4] focus:ring-[#4FD8C4] focus:ring-offset-0 cursor-pointer"
+              />
+              <span className={enableJsRendering ? 'text-[#4FD8C4] font-semibold' : ''}>
+                JS Render (SPA)
+              </span>
+            </label>
+          </div>
 
           <button
             type="submit"
             disabled={loading || !urlListText.trim()}
-            className="rounded border border-[#333A45] bg-[#191D24] px-5 py-2 font-semibold text-[#4FD8C4] hover:bg-[#262B33] active:bg-[#333A45] disabled:opacity-40 transition-all cursor-pointer flex items-center gap-1.5"
+            className="rounded border border-[#333A45] bg-[#191D24] px-5 py-2 font-semibold text-[#4FD8C4] hover:bg-[#262B33] active:bg-[#333A45] disabled:opacity-40 transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
           >
             <LightningIcon className="size-3.5" />
             <span>{loading ? 'Auditing Batch...' : 'Run Parallel Batch'}</span>
@@ -369,6 +385,11 @@ export const BatchAuditorConsole: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
+                        {r.jsRendered && (
+                          <span className="px-1.5 py-0.5 rounded border border-[#4FD8C4]/40 bg-[#4FD8C4]/15 text-[#4FD8C4] font-bold text-[10px]" title={r.spaFramework || 'JS Rendered'}>
+                            ⚡ JS
+                          </span>
+                        )}
                         <span className="text-[#8B93A1]">{r.responseTimeMs} ms</span>
                         <span className="px-2 py-0.5 rounded border border-[#4ADE80]/30 bg-[#4ADE80]/10 text-[#4ADE80] font-bold">
                           HTTP {r.httpStatus}

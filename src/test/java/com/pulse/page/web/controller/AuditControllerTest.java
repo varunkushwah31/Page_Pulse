@@ -75,6 +75,41 @@ class AuditControllerTest {
     }
 
     @Test
+    void auditUrlGetEndpointWithJsRenderingCallsProcessorService() throws Exception {
+        AuditReportEntity mockEntity = AuditReportEntity.builder()
+            .id(2L)
+            .url("https://example.com")
+            .domain("example.com")
+            .httpStatus(200)
+            .responseTimeMs(450L)
+            .jsRendered(true)
+            .spaFramework("React")
+            .overallScore(94)
+            .healthGrade(HealthGrade.EXCELLENT)
+            .build();
+
+        AuditResponse fullResponse = AuditResponse.builder()
+            .id(2L)
+            .url("https://example.com")
+            .domain("example.com")
+            .httpStatus(200)
+            .jsRendered(true)
+            .spaFramework("React")
+            .build();
+
+        when(processorService.processAudit("https://example.com", true)).thenReturn(fullResponse);
+        when(urlAuditService.findTransientById(2L)).thenReturn(mockEntity);
+
+        mockMvc.perform(get("/api/audit")
+                .param("url", "https://example.com")
+                .param("enableJsRendering", "true"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(2))
+            .andExpect(jsonPath("$.jsRendered").value(true))
+            .andExpect(jsonPath("$.spaFramework").value("React"));
+    }
+
+    @Test
     void runFullAuditPostEndpointReturnsAuditResponseWithScores() throws Exception {
         AuditScoreBreakdown score = AuditScoreBreakdown.builder()
             .seoScore(90)

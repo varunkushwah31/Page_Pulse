@@ -43,6 +43,10 @@ public class BatchAuditJobEntity {
     @Column(name = "correlation_id", length = 36)
     private String correlationId;
 
+    @Builder.Default
+    @Column(name = "enable_js_rendering")
+    private boolean enableJsRendering = false;
+
     @CreationTimestamp
     @Column(name = "submitted_at", nullable = false, updatable = false)
     private Instant submittedAt;

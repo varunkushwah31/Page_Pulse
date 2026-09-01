@@ -5,7 +5,6 @@ import com.pulse.page.web.dto.BatchAuditRequest;
 import com.pulse.page.web.dto.BatchAuditResponse;
 import com.pulse.page.web.entity.BatchAuditJobEntity;
 import com.pulse.page.web.entity.BatchAuditResultEntity;
-import com.pulse.page.web.exception.AuditExecutionException;
 import com.pulse.page.web.repository.jpa.BatchAuditJobRepository;
 import com.pulse.page.web.repository.jpa.BatchAuditResultRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +44,7 @@ public class BatchAuditService {
                 .urls(request.getUrls())
                 .webhookUrl(request.getWebhookUrl())
                 .correlationId(request.getCorrelationId())
+                .enableJsRendering(request.isEnableJsRendering())
                 .build();
 
         jobRepository.save(job);
@@ -82,9 +81,11 @@ public class BatchAuditService {
         job.setStatus(BatchAuditJobEntity.Status.RUNNING);
         jobRepository.save(job);
 
+        boolean enableJs = job.isEnableJsRendering();
+
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<CompletableFuture<Void>> futures = job.getUrls().stream()
-                    .map(url -> CompletableFuture.runAsync(() -> processSingleUrl(jobId, url), executor))
+                    .map(url -> CompletableFuture.runAsync(() -> processSingleUrl(jobId, url, enableJs), executor))
                     .toList();
 
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
@@ -111,16 +112,15 @@ public class BatchAuditService {
         }
     }
 
-    private void processSingleUrl(String jobId, String url) {
+    private void processSingleUrl(String jobId, String url, boolean enableJsRendering) {
         try {
-            Optional<AuditResponse> cached = cacheService.getCachedAudit(url);
-            AuditResponse response = cached.orElseGet(() -> {
-                try {
-                    return processorService.processAudit(url);
-                } catch (IOException ex) {
-                    throw new AuditExecutionException("Failed to process audit for URL: " + url, ex);
-                }
-            });
+            AuditResponse response;
+            if (!enableJsRendering) {
+                Optional<AuditResponse> cached = cacheService.getCachedAudit(url);
+                response = cached.isPresent() ? cached.get() : processorService.processAudit(url, false);
+            } else {
+                response = processorService.processAudit(url, true);
+            }
 
             BatchAuditJobEntity job = jobRepository.findByJobId(jobId).orElseThrow();
             job.setCompletedUrls(job.getCompletedUrls() + 1);

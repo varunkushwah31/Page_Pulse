@@ -231,6 +231,9 @@ export interface AuditResponse {
   securityMetrics?: SecurityMetrics;
   assetBottleneckMetrics?: AssetBottleneckMetrics;
   scores: AuditScoreBreakdown;
+  jsRendered?: boolean;
+  spaFramework?: string;
+  jsExecutionTimeMs?: number;
   cached: boolean;
   timestamp: string;
 }
@@ -254,6 +257,8 @@ export interface AuditReportDocument {
   performanceScore: number;
   overallScore: number;
   healthGrade: HealthGrade;
+  jsRendered?: boolean;
+  spaFramework?: string;
   savedAt: string;
 }
 

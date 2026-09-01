@@ -27,7 +27,14 @@ public class AuditController {
     private final AuditProgressStreamService streamService;
 
     @GetMapping
-    public ResponseEntity<AuditReportEntity> auditUrl(@RequestParam("url") String url) throws IOException {
+    public ResponseEntity<AuditReportEntity> auditUrl(
+            @RequestParam("url") String url,
+            @RequestParam(value = "enableJsRendering", defaultValue = "false") boolean enableJsRendering) throws IOException {
+        if (enableJsRendering) {
+            AuditResponse fullResponse = processorService.processAudit(url, true);
+            AuditReportEntity report = urlAuditService.findTransientById(fullResponse.getId());
+            return ResponseEntity.ok(report);
+        }
         AuditReportEntity report = urlAuditService.auditAndSaveTransient(url);
         return ResponseEntity.ok(report);
     }

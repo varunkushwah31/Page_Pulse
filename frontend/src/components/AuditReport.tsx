@@ -177,16 +177,16 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const strokeDashoffset = circumference - (overallScore / 100) * circumference;
 
   return (
-    <div className="rounded-xl border border-[#262B33] bg-[#12151A] overflow-hidden shadow-2xl space-y-0 font-mono text-xs text-[#E7EAEE]">
+    <div className="rounded-xl border border-border bg-[#12151A] overflow-hidden shadow-2xl space-y-0 font-mono text-xs text-[#E7EAEE]">
       {/* Report Header Strip */}
-      <div className="bg-[#191D24] px-5 py-4 border-b border-[#262B33] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="bg-[#191D24] px-5 py-4 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#565D68]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-faint">
               Target Host & Domain
             </span>
             {seoMetrics?.charset && (
-              <span className="text-[10px] bg-[#262B33] text-[#8B93A1] px-1.5 py-0.2 rounded font-mono">
+              <span className="text-[10px] bg-border text-[#8B93A1] px-1.5 py-0.2 rounded font-mono">
                 {seoMetrics.charset}
               </span>
             )}
@@ -198,8 +198,16 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${getStatusColor(audit.httpStatus)}`}>
             HTTP {audit.httpStatus}
           </span>
+          {audit.jsRendered && (
+            <span className="rounded bg-[#4FD8C4]/15 border border-[#4FD8C4]/40 px-2.5 py-0.5 text-[10px] text-[#4FD8C4] font-bold inline-flex items-center gap-1">
+              <span>⚡ JS RENDERED</span>
+              {audit.spaFramework && (
+                <span className="text-[#8B93A1] font-normal">({audit.spaFramework})</span>
+              )}
+            </span>
+          )}
           {audit.cached && (
-            <span className="rounded bg-[#7AA2F7]/10 border border-[#7AA2F7]/30 px-2 py-0.5 text-[10px] text-[#7AA2F7] font-bold">
+            <span className="rounded bg-info/10 border border-info/30 px-2 py-0.5 text-[10px] text-info font-bold">
               CACHED
             </span>
           )}
@@ -207,7 +215,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
       </div>
 
       {/* Health Grade & Radial Meter Breakdown */}
-      <div className="p-5 border-b border-[#262B33] space-y-5">
+      <div className="p-5 border-b border-border space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             {/* Radial SVG Circular Score Gauge */}
@@ -236,12 +244,12 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-xl font-extrabold text-[#E7EAEE] leading-none">{overallScore}</span>
-                <span className="text-[9px] text-[#565D68]">/100</span>
+                <span className="text-[9px] text-text-faint">/100</span>
               </div>
             </div>
 
             <div className="space-y-1">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#565D68]">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-text-faint">
                 Overall Health Grade & Indexability
               </span>
               <div className="flex flex-wrap items-center gap-2">
@@ -277,7 +285,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
               type="button"
               onClick={handleSaveToMongo}
               disabled={saving}
-              className="rounded border border-[#333A45] bg-[#191D24] px-4 py-2 font-semibold text-[#E7EAEE] hover:border-[#4FD8C4] hover:text-[#4FD8C4] transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              className="rounded border border-input bg-[#191D24] px-4 py-2 font-semibold text-[#E7EAEE] hover:border-[#4FD8C4] hover:text-[#4FD8C4] transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
               title="Persist Report to MongoDB Atlas (Ctrl+S)"
             >
               <DatabaseIcon className="size-3.5 text-[#4ADE80]" />
@@ -288,7 +296,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
         {/* 4-Way Sub-Score Visual Progress Bars Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-          <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
+          <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1.5">
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-[#8B93A1]">Technical SEO</span>
               <span className="font-bold text-[#4FD8C4]">{seoScore}%</span>
@@ -298,17 +306,17 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             </div>
           </div>
 
-          <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
+          <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1.5">
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-[#8B93A1]">Content & Readability</span>
-              <span className="font-bold text-[#7AA2F7]">{contentScore}%</span>
+              <span className="font-bold text-info">{contentScore}%</span>
             </div>
             <div className="w-full h-1.5 bg-[#191D24] rounded-full overflow-hidden">
-              <div className="h-full bg-[#7AA2F7] transition-all" style={{ width: `${contentScore}%` }} />
+              <div className="h-full bg-info transition-all" style={{ width: `${contentScore}%` }} />
             </div>
           </div>
 
-          <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
+          <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1.5">
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-[#8B93A1]">WCAG Accessibility</span>
               <span className="font-bold text-[#4ADE80]">{accessibilityScore}%</span>
@@ -318,7 +326,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
             </div>
           </div>
 
-          <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-1.5">
+          <div className="rounded-lg border border-border bg-[#0A0C0F] p-3 space-y-1.5">
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-[#8B93A1]">Performance & Vitals</span>
               <span className="font-bold text-[#FBBF24]">{performanceScore}%</span>
@@ -331,7 +339,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
       </div>
 
       {/* Navigation View Switcher Tabs with Keyboard Badges */}
-      <div className="flex flex-wrap items-center gap-1 px-5 py-2.5 bg-[#161A20] border-b border-[#262B33]">
+      <div className="flex flex-wrap items-center gap-1 px-5 py-2.5 bg-[#161A20] border-b border-border">
         <button
           type="button"
           onClick={() => setActiveTab('OVERVIEW')}
@@ -341,19 +349,19 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
         >
           <MagnifyingGlassIcon className="size-3.5" />
           <span>SEO & SERP Preview</span>
-          <span className="text-[9px] bg-[#0A0C0F] text-[#565D68] px-1 py-0.2 rounded border border-[#262B33]">1</span>
+          <span className="text-[9px] bg-[#0A0C0F] text-text-faint px-1 py-0.2 rounded border border-border">1</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('CONTENT')}
           className={`px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-            activeTab === 'CONTENT' ? 'bg-[#191D24] text-[#7AA2F7] border border-[#7AA2F7]/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
+            activeTab === 'CONTENT' ? 'bg-[#191D24] text-info border border-info/40 shadow' : 'text-[#8B93A1] hover:text-[#E7EAEE]'
           }`}
         >
           <BookOpenIcon className="size-3.5" />
           <span>Editorial & Hierarchy</span>
-          <span className="text-[9px] bg-[#0A0C0F] text-[#565D68] px-1 py-0.2 rounded border border-[#262B33]">2</span>
+          <span className="text-[9px] bg-[#0A0C0F] text-text-faint px-1 py-0.2 rounded border border-border">2</span>
         </button>
 
         <button
@@ -365,7 +373,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
         >
           <CodeIcon className="size-3.5" />
           <span>Schema & Social Meta</span>
-          <span className="text-[9px] bg-[#0A0C0F] text-[#565D68] px-1 py-0.2 rounded border border-[#262B33]">3</span>
+          <span className="text-[9px] bg-[#0A0C0F] text-text-faint px-1 py-0.2 rounded border border-border">3</span>
         </button>
 
         <button
@@ -377,7 +385,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
         >
           <CpuIcon className="size-3.5" />
           <span>Advanced Diagnostics</span>
-          <span className="text-[9px] bg-[#0A0C0F] text-[#565D68] px-1 py-0.2 rounded border border-[#262B33]">4</span>
+          <span className="text-[9px] bg-[#0A0C0F] text-text-faint px-1 py-0.2 rounded border border-border">4</span>
         </button>
 
         <button
@@ -389,13 +397,13 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
         >
           <CompassIcon className="size-3.5" />
           <span>AI Recommendations</span>
-          <span className="text-[9px] bg-[#0A0C0F] text-[#565D68] px-1 py-0.2 rounded border border-[#262B33]">5</span>
+          <span className="text-[9px] bg-[#0A0C0F] text-text-faint px-1 py-0.2 rounded border border-border">5</span>
         </button>
       </div>
 
       {/* TAB 1: OVERVIEW & TECHNICAL SEO */}
       {activeTab === 'OVERVIEW' && (
-        <div className="divide-y divide-[#262B33]">
+        <div className="divide-y divide-border">
           {/* SERP Simulator Card with Desktop / Mobile Toggle */}
           {seoMetrics?.serpPreview && (
             <div className="p-5 bg-[#0A0C0F]/60 space-y-3">
@@ -405,13 +413,13 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                 </span>
 
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-[#12151A] border border-[#262B33] rounded p-0.5">
+                  <div className="flex items-center bg-[#12151A] border border-border rounded p-0.5">
                     <button
                       type="button"
                       onClick={() => setSerpViewMode('desktop')}
                       className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
                         serpViewMode === 'desktop'
-                          ? 'bg-[#191D24] text-[#4FD8C4] border border-[#333A45]'
+                          ? 'bg-[#191D24] text-[#4FD8C4] border border-input'
                           : 'text-[#8B93A1] hover:text-[#E7EAEE]'
                       }`}
                     >
@@ -423,7 +431,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                       onClick={() => setSerpViewMode('mobile')}
                       className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
                         serpViewMode === 'mobile'
-                          ? 'bg-[#191D24] text-[#4FD8C4] border border-[#333A45]'
+                          ? 'bg-[#191D24] text-[#4FD8C4] border border-input'
                           : 'text-[#8B93A1] hover:text-[#E7EAEE]'
                       }`}
                     >
@@ -439,7 +447,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
               {/* SERP Preview Box */}
               <div
-                className={`bg-[#12151A] p-4 rounded-xl border border-[#262B33] font-sans space-y-1 transition-all ${
+                className={`bg-[#12151A] p-4 rounded-xl border border-border font-sans space-y-1 transition-all ${
                   serpViewMode === 'mobile' ? 'max-w-sm border-l-4 border-l-[#4FD8C4]' : 'max-w-2xl'
                 }`}
               >
@@ -447,7 +455,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                   <GlobeIcon className="size-3 text-[#4ADE80]" />
                   <span className="text-[#8B93A1] font-mono text-[11px] truncate">{seoMetrics.serpPreview.displayedUrl}</span>
                 </div>
-                <h4 className="text-[#7AA2F7] text-base font-medium hover:underline cursor-pointer">
+                <h4 className="text-info text-base font-medium hover:underline cursor-pointer">
                   {seoMetrics.serpPreview.displayedTitle}
                 </h4>
                 <p className="text-xs text-[#A9B1D6] leading-relaxed">
@@ -459,7 +467,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
           {/* Page Title Row with 1-Click Copy */}
           <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider flex items-center justify-between">
+            <div className="w-full sm:w-45 shrink-0 text-xs text-text-faint uppercase tracking-wider flex items-center justify-between">
               <span>Title Tag ({seoMetrics?.titleLength ?? 0})</span>
               {pageTitle && (
                 <button
@@ -496,7 +504,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
           {/* Meta Description Row with 1-Click Copy */}
           <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider flex items-center justify-between">
+            <div className="w-full sm:w-45 shrink-0 text-xs text-text-faint uppercase tracking-wider flex items-center justify-between">
               <span>Description ({seoMetrics?.descriptionLength ?? 0})</span>
               {metaDescription && (
                 <button
@@ -533,13 +541,13 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
           {/* Canonical & Hreflang Row */}
           <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
+            <div className="w-full sm:w-45 shrink-0 text-xs text-text-faint uppercase tracking-wider">
               Canonical & Indexing
             </div>
             <div className="flex-1 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[#8B93A1]">Canonical Status:</span>
-                <span className="rounded bg-[#191D24] border border-[#262B33] px-2 py-0.5 text-xs text-[#4FD8C4] font-bold">
+                <span className="rounded bg-[#191D24] border border-border px-2 py-0.5 text-xs text-[#4FD8C4] font-bold">
                   {seoMetrics?.canonicalStatus || 'MISSING'}
                 </span>
                 {seoMetrics?.canonicalUrl && (
@@ -561,7 +569,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
                   <span className="text-[#8B93A1] text-[11px]">Hreflang Directives ({Object.keys(seoMetrics.hreflangTags).length}):</span>
                   {Object.entries(seoMetrics.hreflangTags).map(([lang, url]) => (
-                    <span key={lang} className="rounded bg-[#0A0C0F] border border-[#262B33] px-2 py-0.5 text-[10px] text-[#E7EAEE]" title={url}>
+                    <span key={lang} className="rounded bg-[#0A0C0F] border border-border px-2 py-0.5 text-[10px] text-[#E7EAEE]" title={url}>
                       {lang}
                     </span>
                   ))}
@@ -577,7 +585,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
           {/* Core Technical Flags Row */}
           <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-6">
-            <div className="w-full sm:w-[180px] shrink-0 text-xs text-[#565D68] uppercase tracking-wider">
+            <div className="w-full sm:w-45 shrink-0 text-xs text-text-faint uppercase tracking-wider">
               Compliance Signals
             </div>
             <div className="flex-1 flex flex-wrap gap-2">
@@ -596,7 +604,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                 <span>HTML Lang: {accessibilityMetrics?.htmlLangValue || 'missing'}</span>
               </span>
 
-              <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${perfMetrics?.hasCompression ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#191D24] text-[#8B93A1] border border-[#262B33]'}`}>
+              <span className={`inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-xs font-bold ${perfMetrics?.hasCompression ? 'bg-[#4ADE80]/10 text-[#4ADE80] border border-[#4ADE80]/30' : 'bg-[#191D24] text-[#8B93A1] border border-border'}`}>
                 {perfMetrics?.hasCompression ? <CheckCircleIcon className="size-3" /> : <WarningIcon className="size-3" />}
                 <span>Compression ({perfMetrics?.contentEncoding || 'none'})</span>
               </span>
@@ -610,40 +618,40 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
         <div className="p-5 space-y-6">
           {/* Readability Score Dashboard */}
           {contentMetrics?.readabilityMetrics && (
-            <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+            <div className="rounded-xl border border-border bg-[#0A0C0F] p-4 space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2">
-                  <BookOpenIcon className="size-4 text-[#7AA2F7]" />
+                  <BookOpenIcon className="size-4 text-info" />
                   <h3 className="font-bold text-[#E7EAEE] text-sm">Linguistic Readability & Content Health</h3>
                 </div>
-                <span className="rounded bg-[#7AA2F7]/10 border border-[#7AA2F7]/30 px-2.5 py-0.5 text-xs text-[#7AA2F7] font-bold">
+                <span className="rounded bg-info/10 border border-info/30 px-2.5 py-0.5 text-xs text-info font-bold">
                   {contentMetrics.readabilityMetrics.readingEaseLevel}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-3 space-y-1">
+                <div className="rounded-lg border border-border bg-[#12151A] p-3 space-y-1">
                   <span className="text-[10px] text-[#8B93A1] uppercase font-semibold">Flesch Reading Ease</span>
                   <div className="text-xl font-extrabold text-[#4ADE80]">
                     {contentMetrics.readabilityMetrics.fleschKincaidReadingEase} / 100
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-3 space-y-1">
+                <div className="rounded-lg border border-border bg-[#12151A] p-3 space-y-1">
                   <span className="text-[10px] text-[#8B93A1] uppercase font-semibold">FK Grade Level</span>
-                  <div className="text-xl font-extrabold text-[#7AA2F7]">
+                  <div className="text-xl font-extrabold text-info">
                     Grade {contentMetrics.readabilityMetrics.fleschKincaidGradeLevel}
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-3 space-y-1">
+                <div className="rounded-lg border border-border bg-[#12151A] p-3 space-y-1">
                   <span className="text-[10px] text-[#8B93A1] uppercase font-semibold">Avg Words / Sentence</span>
                   <div className="text-xl font-extrabold text-[#E7EAEE]">
                     {contentMetrics.readabilityMetrics.averageWordsPerSentence}
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-[#262B33] bg-[#12151A] p-3 space-y-1">
+                <div className="rounded-lg border border-border bg-[#12151A] p-3 space-y-1">
                   <span className="text-[10px] text-[#8B93A1] uppercase font-semibold">Complex Words Ratio</span>
                   <div className="text-xl font-extrabold text-[#FBBF24]">
                     {contentMetrics.readabilityMetrics.complexWordsPercentage}%
@@ -654,8 +662,8 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           )}
 
           {/* Heading Structure & Tree */}
-          <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-3">
-            <div className="flex items-center justify-between border-b border-[#262B33] pb-2">
+          <div className="rounded-xl border border-border bg-[#0A0C0F] p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-border pb-2">
               <div className="flex items-center gap-2">
                 <StackIcon className="size-4 text-[#4FD8C4]" />
                 <h3 className="font-bold text-[#E7EAEE] text-sm">Heading Hierarchy (H1-H6)</h3>
@@ -679,7 +687,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
               {contentMetrics?.headingHierarchy?.map((node, idx) => (
                 <div
                   key={`${node.tag}-${node.text}-${idx}`}
-                  className="flex items-center justify-between p-2 rounded bg-[#12151A] border border-[#262B33] text-xs"
+                  className="flex items-center justify-between p-2 rounded bg-[#12151A] border border-border text-xs"
                   style={{ marginLeft: `${(node.level - 1) * 16}px` }}
                 >
                   <div className="flex items-center gap-2 truncate">
@@ -700,7 +708,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
           {/* Top Keywords / N-Grams */}
           {contentMetrics?.topKeywords && contentMetrics.topKeywords.length > 0 && (
-            <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-3">
+            <div className="rounded-xl border border-border bg-[#0A0C0F] p-4 space-y-3">
               <span className="text-[11px] font-bold uppercase text-[#8B93A1] block">
                 Top N-Gram Key Phrases & Density
               </span>
@@ -711,7 +719,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                     className={`rounded border px-2.5 py-1 text-xs inline-flex items-center gap-1.5 ${
                       kw.isStuffingWarning
                         ? 'bg-[#F87171]/10 border-[#F87171]/30 text-[#F87171]'
-                        : 'bg-[#12151A] border-[#262B33] text-[#E7EAEE]'
+                        : 'bg-[#12151A] border-border text-[#E7EAEE]'
                     }`}
                   >
                     <span className="font-semibold">{kw.phrase}</span>
@@ -728,8 +736,8 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
       {activeTab === 'SCHEMA' && (
         <div className="p-5 space-y-6">
           {/* Schema.org Deep Inspection */}
-          <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-4">
-            <div className="flex items-center justify-between border-b border-[#262B33] pb-3">
+          <div className="rounded-xl border border-border bg-[#0A0C0F] p-4 space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
                 <CodeIcon className="size-4 text-[#4ADE80]" />
                 <h3 className="font-bold text-[#E7EAEE] text-sm">Schema.org JSON-LD Structured Data</h3>
@@ -752,13 +760,13 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
 
                 {seoMetrics.structuredDataInfo.rawJsonLdSnippets.map((snippet, idx) => (
                   <div key={`${snippet.slice(0, 20)}-${idx}`} className="relative group">
-                    <pre className="p-3 bg-[#12151A] rounded border border-[#262B33] text-[11px] text-[#A9B1D6] font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+                    <pre className="p-3 bg-[#12151A] rounded border border-border text-[11px] text-[#A9B1D6] font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
                       {snippet}
                     </pre>
                     <button
                       type="button"
                       onClick={() => handleCopy(snippet, `jsonld-${idx}`)}
-                      className="absolute top-2 right-2 rounded bg-[#191D24] border border-[#262B33] p-1.5 text-[#8B93A1] hover:text-[#4FD8C4] transition-all cursor-pointer"
+                      className="absolute top-2 right-2 rounded bg-[#191D24] border border-border p-1.5 text-[#8B93A1] hover:text-[#4FD8C4] transition-all cursor-pointer"
                       title="Copy JSON-LD Schema"
                     >
                       {copiedField === `jsonld-${idx}` ? <CheckIcon className="size-3 text-[#4ADE80]" /> : <CopyIcon className="size-3" />}
@@ -774,19 +782,19 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           </div>
 
           {/* OpenGraph & Twitter Cards Checklist */}
-          <div className="rounded-xl border border-[#262B33] bg-[#0A0C0F] p-4 space-y-4">
-            <h3 className="font-bold text-[#E7EAEE] text-sm border-b border-[#262B33] pb-2">
+          <div className="rounded-xl border border-border bg-[#0A0C0F] p-4 space-y-4">
+            <h3 className="font-bold text-[#E7EAEE] text-sm border-b border-border pb-2">
               Social Media OpenGraph & Twitter Card Tags
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3 bg-[#12151A] rounded border border-[#262B33] space-y-2">
-                <span className="text-xs font-bold text-[#7AA2F7] block">OpenGraph Protocol (og:*)</span>
+              <div className="p-3 bg-[#12151A] rounded border border-border space-y-2">
+                <span className="text-xs font-bold text-info block">OpenGraph Protocol (og:*)</span>
                 <div className="space-y-1 text-xs">
                   {seoMetrics?.openGraphTags && Object.keys(seoMetrics.openGraphTags).length > 0 ? (
                     Object.entries(seoMetrics.openGraphTags).map(([k, v]) => (
                       <div key={k} className="flex justify-between items-center text-[11px] border-b border-[#191D24] py-1">
                         <span className="text-[#8B93A1]">{k}</span>
-                        <span className="text-[#E7EAEE] font-sans truncate max-w-[200px]" title={v}>{v}</span>
+                        <span className="text-[#E7EAEE] font-sans truncate max-w-50" title={v}>{v}</span>
                       </div>
                     ))
                   ) : (
@@ -795,14 +803,14 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                 </div>
               </div>
 
-              <div className="p-3 bg-[#12151A] rounded border border-[#262B33] space-y-2">
+              <div className="p-3 bg-[#12151A] rounded border border-border space-y-2">
                 <span className="text-xs font-bold text-[#4FD8C4] block">Twitter / X Cards (twitter:*)</span>
                 <div className="space-y-1 text-xs">
                   {seoMetrics?.twitterCardTags && Object.keys(seoMetrics.twitterCardTags).length > 0 ? (
                     Object.entries(seoMetrics.twitterCardTags).map(([k, v]) => (
                       <div key={k} className="flex justify-between items-center text-[11px] border-b border-[#191D24] py-1">
                         <span className="text-[#8B93A1]">{k}</span>
-                        <span className="text-[#E7EAEE] font-sans truncate max-w-[200px]" title={v}>{v}</span>
+                        <span className="text-[#E7EAEE] font-sans truncate max-w-50" title={v}>{v}</span>
                       </div>
                     ))
                   ) : (
@@ -821,7 +829,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
           <AdvancedEngineConsole audit={audit} />
           {((audit.accessibilityMetrics?.domIssues && audit.accessibilityMetrics.domIssues.length > 0) ||
             (audit.seoMetrics?.domIssues && audit.seoMetrics.domIssues.length > 0)) && (
-            <div className="space-y-4 pt-4 border-t border-[#262B33]">
+            <div className="space-y-4 pt-4 border-t border-border">
               {audit.accessibilityMetrics?.domIssues && audit.accessibilityMetrics.domIssues.length > 0 && (
                 <DomInspectorConsole issues={audit.accessibilityMetrics.domIssues} title="Accessibility DOM Visual Inspector" />
               )}
@@ -859,7 +867,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
       {/* Login Prompt Modal */}
       {showLoginPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="bg-[#12151A] border border-[#262B33] rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+          <div className="bg-[#12151A] border border-border rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
             <div className="flex items-center gap-3 text-center mx-auto">
               <div className="size-12 rounded-full bg-[#F87171]/10 border border-[#F87171]/30 flex items-center justify-center mx-auto text-[#F87171]">
                 <LockIcon className="size-6" />
@@ -874,7 +882,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
                 <button
                   type="button"
                   onClick={() => setShowLoginPrompt(false)}
-                  className="flex-1 rounded border border-[#333A45] bg-[#191D24] px-4 py-2 font-mono text-xs font-semibold text-[#8B93A1] hover:bg-[#262B33] transition-all cursor-pointer"
+                  className="flex-1 rounded border border-input bg-[#191D24] px-4 py-2 font-mono text-xs font-semibold text-[#8B93A1] hover:bg-[#262B33] transition-all cursor-pointer"
                 >
                   Cancel
                 </button>

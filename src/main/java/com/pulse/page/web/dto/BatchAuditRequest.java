@@ -21,4 +21,6 @@ public class BatchAuditRequest {
 
     private String webhookUrl;
     private String correlationId;
+    @Builder.Default
+    private boolean enableJsRendering = false;
 }

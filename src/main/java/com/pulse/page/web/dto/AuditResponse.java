@@ -32,6 +32,11 @@ public class AuditResponse {
     private AssetBottleneckMetrics assetBottleneckMetrics;
     private AuditScoreBreakdown scores;
 
+    @Builder.Default
+    private boolean jsRendered = false;
+    private String spaFramework;
+    private long jsExecutionTimeMs;
+
     private boolean cached;
 
     @Builder.Default

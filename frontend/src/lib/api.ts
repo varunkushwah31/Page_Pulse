@@ -692,11 +692,11 @@ export async function fetchAiRecommendationsByUrl(url: string): Promise<AiRecomm
   return response.json();
 }
 
-export async function submitBatchAuditJob(urls: string[], webhookUrl?: string): Promise<BatchAuditResponse> {
+export async function submitBatchAuditJob(urls: string[], webhookUrl?: string, enableJsRendering = false): Promise<BatchAuditResponse> {
   const response = await fetch(`${API_BASE}/api/audit/batch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ urls, webhookUrl }),
+    body: JSON.stringify({ urls, webhookUrl, enableJsRendering }),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: 'Batch audit job submission failed' }));

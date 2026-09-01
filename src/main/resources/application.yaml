@@ -38,9 +38,6 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
-    mongodb:
-      uri: ${MONGO_URI:${SPRING_DATA_MONGODB_URI:mongodb://admin:password@localhost:27017/sitelook_db?authSource=admin&serverSelectionTimeoutMS=2000&connectTimeoutMS=2000}}
-      database: ${MONGO_DATABASE:sitelook_db}
 
 management:
   endpoints:
@@ -60,18 +57,8 @@ management:
     metrics:
       export:
         enabled: false
-
-otel:
-  traces:
-    exporter: ${OTEL_TRACES_EXPORTER:none}
-  exporter:
-    otlp:
+    tracing:
       endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
-      protocol: http/protobuf
-  resource:
-    attributes:
-      service.name: ${spring.application.name}
-      service.version: 1.0.0
 
 resilience4j:
   circuitbreaker:

@@ -1,6 +1,13 @@
-# Stage 1: Build stage
-FROM eclipse-temurin:25-jdk-alpine AS builder
+# Stage 1: Frontend Build Stage
+FROM node:20-alpine AS frontend-builder
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ .
+RUN npm run build
 
+# Stage 2: Backend Build Stage
+FROM eclipse-temurin:25-jdk-alpine AS builder
 WORKDIR /build
 
 # Install maven
@@ -10,8 +17,11 @@ RUN apk add --no-cache maven
 COPY pom.xml .
 RUN mvn dependency:go-offline -B || true
 
-# Copy source code and build executable jar
+# Copy source code
 COPY src ./src
+
+# Copy built frontend assets into Spring Boot static resources
+COPY --from=frontend-builder /frontend/dist ./src/main/resources/static
 RUN mvn clean package -DskipTests -B
 
 # Stage 2: Runtime stage

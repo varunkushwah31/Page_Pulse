@@ -33,8 +33,9 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
-  mongodb:
-    uri: ${MONGO_URI:mongodb://admin:password@localhost:27017/sitelook_db?authSource=admin}
+    mongodb:
+      uri: ${MONGO_URI:mongodb://admin:password@localhost:27017/sitelook_db?authSource=admin}
+      database: ${MONGO_DATABASE:sitelook_db}
 
 management:
   endpoints:

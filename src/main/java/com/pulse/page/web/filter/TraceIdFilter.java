@@ -24,14 +24,20 @@ public class TraceIdFilter implements Filter {
         if (request instanceof HttpServletRequest httpRequest && response instanceof HttpServletResponse httpResponse) {
             String traceId = httpRequest.getHeader(TRACE_ID_HEADER);
             if (traceId == null || traceId.isBlank()) {
+                traceId = httpRequest.getHeader(CorrelationIdFilter.CORRELATION_ID_HEADER);
+            }
+            if (traceId == null || traceId.isBlank()) {
                 traceId = UUID.randomUUID().toString();
             }
             MDC.put(MDC_TRACE_ID_KEY, traceId);
+            MDC.put(CorrelationIdFilter.CORRELATION_ID_MDC_KEY, traceId);
             httpResponse.setHeader(TRACE_ID_HEADER, traceId);
+            httpResponse.setHeader(CorrelationIdFilter.CORRELATION_ID_HEADER, traceId);
             try {
                 chain.doFilter(request, response);
             } finally {
                 MDC.remove(MDC_TRACE_ID_KEY);
+                MDC.remove(CorrelationIdFilter.CORRELATION_ID_MDC_KEY);
             }
         } else {
             chain.doFilter(request, response);

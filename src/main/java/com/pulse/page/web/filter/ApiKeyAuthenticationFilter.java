@@ -5,8 +5,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -31,6 +31,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
         String path = request.getServletPath();
         return path.startsWith("/api/auth/")
                 || path.startsWith("/api/audit")
@@ -42,7 +45,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
         String apiKey = request.getHeader(API_KEY_HEADER);
@@ -54,33 +57,31 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         // Validate API key format
         if (apiKey.length() < 35) { // ppk_ + 32 chars
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("""
-                {
-                    "status": 401,
-                    "error": "Unauthorized",
-                    "message": "Invalid credentials"
-                }
-                """);
+            sendUnauthorized(request, response);
             return;
         }
 
         // Validate API key against database
         if (!apiKeyService.isValidApiKey(apiKey)) {
-            log.warn("Invalid API key attempt: {}***", apiKey.substring(0, Math.min(10, apiKey.length())));
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("""
-                {
-                    "status": 401,
-                    "error": "Unauthorized",
-                    "message": "Invalid credentials"
-                }
-                """);
+            log.warn("Invalid API key attempt: {}***", apiKey.substring(0, 10));
+            sendUnauthorized(request, response);
             return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void sendUnauthorized(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin") != null ? request.getHeader("Origin") : "*");
+        response.setHeader("Access-Control-Allow-Credentials", "true");
+        response.getWriter().write("""
+            {
+                "status": 401,
+                "error": "Unauthorized",
+                "message": "Invalid credentials"
+            }
+            """);
     }
 }

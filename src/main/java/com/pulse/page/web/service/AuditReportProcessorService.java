@@ -55,12 +55,18 @@ public class AuditReportProcessorService {
     private AuditResponse executeAudit(String rawUrl, boolean enableJsRendering) throws IOException {
         Objects.requireNonNull(rawUrl, "rawUrl parameter must not be null");
 
+        long auditStartTime = System.currentTimeMillis();
         String normalizedUrl = urlValidationEngine.validateAndNormalize(rawUrl);
         String domain = urlValidationEngine.extractDomain(normalizedUrl);
+
+        log.info("[AUDIT START] Target: '{}' | Domain: '{}' | Mode: {}", 
+                normalizedUrl, domain, enableJsRendering ? "PLAYWRIGHT_JS" : "STATIC_HTML");
 
         if (!enableJsRendering) {
             Optional<AuditResponse> cachedResponse = cacheService.getCachedAudit(normalizedUrl);
             if (cachedResponse.isPresent()) {
+                log.info("[AUDIT CACHE HIT] Returned cached audit for '{}' in {}ms", 
+                        normalizedUrl, System.currentTimeMillis() - auditStartTime);
                 return cachedResponse.get();
             }
         }
@@ -68,6 +74,9 @@ public class AuditReportProcessorService {
         ScrapeResult scrapeResult = enableJsRendering
                 ? playwrightScraperEngine.fetchPageWithJs(normalizedUrl)
                 : pageScraperEngine.fetchPage(normalizedUrl);
+
+        log.info("[SCRAPE COMPLETE] Target: '{}' | Status: {} | Latency: {}ms | Content-Type: {}",
+                normalizedUrl, scrapeResult.getStatusCode(), scrapeResult.getResponseTimeMs(), scrapeResult.getContentType());
 
         SeoMetrics seo = seoExtractor.extract(scrapeResult.getDocument(), normalizedUrl, scrapeResult.getResponseHeaders());
         ContentMetrics content = contentExtractor.extract(scrapeResult.getDocument());
@@ -80,6 +89,10 @@ public class AuditReportProcessorService {
         AssetBottleneckMetrics bottlenecks = assetBottleneckInspectorEngine.inspectAssets(scrapeResult.getDocument(), scrapeResult.getResponseTimeMs());
 
         AuditScoreBreakdown scores = scoringEngine.calculateScore(seo, content, a11y, perf);
+
+        log.info("[AUDIT SCORES] Target: '{}' | Overall: {} ({}) | SEO: {} | Content: {} | A11y: {} | Perf: {}",
+                normalizedUrl, scores.getOverallScore(), scores.getHealthGrade(),
+                scores.getSeoScore(), scores.getContentScore(), scores.getAccessibilityScore(), scores.getPerformanceScore());
 
         AuditReportEntity entity = AuditReportEntity.builder()
             .url(normalizedUrl)
@@ -122,6 +135,9 @@ public class AuditReportProcessorService {
             .build();
 
         cacheService.cacheAudit(normalizedUrl, response);
+        long totalElapsed = System.currentTimeMillis() - auditStartTime;
+        log.info("[AUDIT SUCCESS] Target: '{}' completed in {}ms (Saved ID: #{})", 
+                normalizedUrl, totalElapsed, savedEntity.getId());
         return response;
     }
 }

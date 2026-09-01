@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -21,19 +22,25 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
     public static final String CORRELATION_ID_MDC_KEY = "correlationId";
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
         String correlationId = request.getHeader(CORRELATION_ID_HEADER);
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = request.getHeader(TraceIdFilter.TRACE_ID_HEADER);
+        }
         if (correlationId == null || correlationId.isBlank()) {
             correlationId = UUID.randomUUID().toString();
         }
         MDC.put(CORRELATION_ID_MDC_KEY, correlationId);
+        MDC.put(TraceIdFilter.MDC_TRACE_ID_KEY, correlationId);
         response.setHeader(CORRELATION_ID_HEADER, correlationId);
+        response.setHeader(TraceIdFilter.TRACE_ID_HEADER, correlationId);
 
         try {
             filterChain.doFilter(request, response);
         } finally {
             MDC.remove(CORRELATION_ID_MDC_KEY);
+            MDC.remove(TraceIdFilter.MDC_TRACE_ID_KEY);
         }
     }
 }

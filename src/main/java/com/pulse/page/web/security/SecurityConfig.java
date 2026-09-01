@@ -13,6 +13,8 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,7 +29,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity()
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -44,29 +46,30 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http, ApiKeyAuthenticationFilter apiKeyAuthenticationFilter) {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(customAuthenticationEntryPoint)
                         .accessDeniedHandler(customAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/metrics", "/actuator/prometheus").permitAll()
-                        .requestMatchers("/api/audit", "/api/audit/run", "/api/audit/stream").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/audit/save/**").authenticated()
+                        .requestMatchers("/api/audit/**").permitAll()
                         .requestMatchers("/api/v1/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/", "/index.html", "/static/**", "/assets/**", "/favicon.svg", "/icons.svg", "/manifest.json", "/*.ico", "/*.png", "/*.svg", "/*.js", "/*.css").permitAll()
                         .requestMatchers("/audit", "/sitemap", "/batch", "/schedule", "/scheduled", "/compare", "/trend", "/reports", "/stats", "/telemetry", "/dashboard", "/profile", "/landing", "/auth", "/login", "/signup", "/collections").permitAll()
                         .anyRequest().authenticated())
                 .headers(headers -> headers
-                        .frameOptions(frame -> frame.sameOrigin())
-                        .xssProtection(xss -> {
+                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
+                        .xssProtection(_ -> {
                         })
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
-                                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';")))
+                                "default-src 'self' * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' * 'unsafe-inline' 'unsafe-eval'; style-src 'self' * 'unsafe-inline'; connect-src 'self' *;")))
                 .addFilterBefore(correlationIdFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(rateLimitFilter, CorrelationIdFilter.class)
                 .addFilterBefore(apiKeyAuthenticationFilter, RateLimitFilter.class)
@@ -79,18 +82,26 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         String allowedOriginsStr = appProperties.getCors() != null ? appProperties.getCors().getAllowedOrigins() : null;
-        List<String> allowedOrigins = allowedOriginsStr != null && !allowedOriginsStr.isBlank()
-                ? Arrays.asList(allowedOriginsStr.split(","))
+        List<String> allowedOrigins = (allowedOriginsStr != null && !allowedOriginsStr.isBlank())
+                ? Arrays.stream(allowedOriginsStr.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList()
                 : List.of("http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175",
-                        "http://127.0.0.1:3000", "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:5175");
+                        "http://127.0.0.1:3000", "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:5175",
+                        "https://*.vercel.app", "*");
         config.setAllowedOriginPatterns(allowedOrigins);
 
         String allowedMethodsStr = appProperties.getCors() != null ? appProperties.getCors().getAllowedMethods() : null;
-        config.setAllowedMethods(allowedMethodsStr != null && !allowedMethodsStr.isBlank()
-                ? Arrays.asList(allowedMethodsStr.split(","))
-                : Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        config.setAllowedMethods((allowedMethodsStr != null && !allowedMethodsStr.isBlank())
+                ? Arrays.stream(allowedMethodsStr.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList()
+                : Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
 
         config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("X-Trace-Id", "X-Correlation-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining", "Authorization"));
         config.setAllowCredentials(true);
 
         Long maxAge = appProperties.getCors() != null ? appProperties.getCors().getMaxAge() : null;

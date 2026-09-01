@@ -1,32 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+    <conversionRule conversionWord="clr" converterClass="org.springframework.boot.logging.logback.ColorConverter" />
+    <conversionRule conversionWord="wex" converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter" />
+    <conversionRule conversionWord="wEx" converterClass="org.springframework.boot.logging.logback.ExtendedWhitespaceThrowableProxyConverter" />
+
+    <property name="CONSOLE_LOG_PATTERN" 
+              value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr([%15.15t]){faint} %clr(%-38.38logger{36}){cyan} %clr(:){faint} %clr(%replace([%X{traceId}]){'^\\[\\]$', ''}){yellow} %m%n%wEx"/>
     <property name="LOG_DIR" value="logs"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
-            <providers>
-                <timestamp>
-                    <timeZone>UTC</timeZone>
-                </timestamp>
-                <logLevel/>
-                <loggerName/>
-                <threadName/>
-                <message/>
-                <mdc/>
-                <stackTrace>
-                    <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
-                        <maxDepthPerThrowable>30</maxDepthPerThrowable>
-                        <maxLength>2048</maxLength>
-                        <shortenedClassNameLength>20</shortenedClassNameLength>
-                        <rootCauseFirst>true</rootCauseFirst>
-                    </throwableConverter>
-                </stackTrace>
-                <arguments/>
-                <context>
-                    <includeMdcKeyName>correlationId</includeMdcKeyName>
-                </context>
-            </providers>
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
         </encoder>
     </appender>
 
@@ -58,15 +43,18 @@
                 <arguments/>
                 <context>
                     <includeMdcKeyName>correlationId</includeMdcKeyName>
+                    <includeMdcKeyName>traceId</includeMdcKeyName>
                 </context>
             </providers>
         </encoder>
     </appender>
 
-    <logger name="com.pulse.page" level="DEBUG"/>
+    <logger name="com.pulse.page" level="INFO"/>
+    <logger name="com.pulse.page.web.service" level="INFO"/>
+    <logger name="com.pulse.page.web.engine" level="INFO"/>
     <logger name="org.springframework.security" level="INFO"/>
     <logger name="org.springframework.web" level="INFO"/>
-    <logger name="io.github.resilience4j" level="DEBUG"/>
+    <logger name="io.github.resilience4j" level="WARN"/>
     <logger name="org.mongodb.driver" level="WARN"/>
 
     <root level="INFO">

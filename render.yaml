@@ -12,7 +12,7 @@ services:
       - key: APP_JWT_SECRET
         generateValue: true
       - key: APP_CORS_ALLOWED_ORIGINS
-        value: https://*.vercel.app,http://localhost:3000,http://localhost:5173,http://localhost:5174
+        value: https://*.vercel.app,https://*.vercel.app/*,*,http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175
       - key: GEMINI_API_KEY
         sync: false
       - key: LOG_LEVEL

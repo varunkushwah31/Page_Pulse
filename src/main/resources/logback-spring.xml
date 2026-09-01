@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <conversionRule conversionWord="clr" converterClass="org.springframework.boot.logging.logback.ColorConverter" />
-    <conversionRule conversionWord="wex" converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter" />
-    <conversionRule conversionWord="wEx" converterClass="org.springframework.boot.logging.logback.ExtendedWhitespaceThrowableProxyConverter" />
+    <conversionRule conversionWord="clr" class="org.springframework.boot.logging.logback.ColorConverter" />
+    <conversionRule conversionWord="wex" class="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter" />
+    <conversionRule conversionWord="wEx" class="org.springframework.boot.logging.logback.ExtendedWhitespaceThrowableProxyConverter" />
 
     <property name="CONSOLE_LOG_PATTERN" 
               value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr([%15.15t]){faint} %clr(%-38.38logger{36}){cyan} %clr(:){faint} %clr(%replace([%X{traceId}]){'^\\[\\]$', ''}){yellow} %m%n%wEx"/>
@@ -41,10 +41,7 @@
                     </throwableConverter>
                 </stackTrace>
                 <arguments/>
-                <context>
-                    <includeMdcKeyName>correlationId</includeMdcKeyName>
-                    <includeMdcKeyName>traceId</includeMdcKeyName>
-                </context>
+                <context/>
             </providers>
         </encoder>
     </appender>

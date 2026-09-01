@@ -26,6 +26,7 @@ spring:
     show-sql: false
   mongodb:
     uri: ${MONGO_URI:${SPRING_DATA_MONGODB_URI:mongodb://admin:password@localhost:27017/sitelook_db?authSource=admin&serverSelectionTimeoutMS=2000&connectTimeoutMS=2000}}
+    database: ${MONGO_DATABASE:sitelook_db}
   data:
     redis:
       host: ${REDIS_HOST:localhost}

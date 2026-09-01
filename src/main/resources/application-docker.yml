@@ -15,6 +15,9 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
+  mongodb:
+    uri: ${MONGO_URI:mongodb://admin:password@mongodb:27017/sitelook_db?authSource=admin}
+    database: ${MONGO_DATABASE:sitelook_db}
   data:
     redis:
       host: ${REDIS_HOST:redis}

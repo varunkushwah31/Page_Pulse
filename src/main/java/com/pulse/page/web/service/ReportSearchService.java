@@ -15,7 +15,7 @@ import org.springframework.data.domain.Pageable;
 
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -27,6 +27,7 @@ public class ReportSearchService {
 
     private final AuditReportMongoRepository mongoRepository;
     private final AuditReportJpaRepository jpaRepository;
+    private final org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
 
     @NonNull
     public Page<AuditReportDocument> searchSavedReports(@Nullable Pageable pageable) {
@@ -77,29 +78,61 @@ public class ReportSearchService {
             log.warn("Transient H2 count failed: {}", e.getMessage());
         }
 
-        List<AuditReportDocument> allSaved = List.of();
+        long totalSaved = 0L;
+        double avgScore = 0.0;
+        double avgResponseTime = 0.0;
+        Map<String, Long> topDomains = new HashMap<>();
+
         try {
-            allSaved = mongoRepository.findAll();
+            if (mongoTemplate != null) {
+                totalSaved = mongoTemplate.count(new org.springframework.data.mongodb.core.query.Query(), AuditReportDocument.class);
+
+                if (totalSaved > 0) {
+                    // Fast MongoDB aggregation for average score and response time
+                    org.springframework.data.mongodb.core.aggregation.Aggregation avgAgg =
+                            org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation(
+                                    org.springframework.data.mongodb.core.aggregation.Aggregation.group()
+                                            .avg("overallScore").as("avgScore")
+                                            .avg("responseTimeMs").as("avgResponseTime")
+                            );
+                    org.springframework.data.mongodb.core.aggregation.AggregationResults<org.bson.Document> avgResults =
+                            mongoTemplate.aggregate(avgAgg, AuditReportDocument.class, org.bson.Document.class);
+                    org.bson.Document avgDoc = avgResults.getUniqueMappedResult();
+                    if (avgDoc != null) {
+                        Number scoreVal = avgDoc.get("avgScore", Number.class);
+                        Number respVal = avgDoc.get("avgResponseTime", Number.class);
+                        if (scoreVal != null) avgScore = scoreVal.doubleValue();
+                        if (respVal != null) avgResponseTime = respVal.doubleValue();
+                    }
+
+                    // Fast MongoDB aggregation for top domains
+                    org.springframework.data.mongodb.core.aggregation.Aggregation domainAgg =
+                            org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation(
+                                    org.springframework.data.mongodb.core.aggregation.Aggregation.match(
+                                            org.springframework.data.mongodb.core.query.Criteria.where("domain").ne(null)),
+                                    org.springframework.data.mongodb.core.aggregation.Aggregation.group("domain").count().as("count"),
+                                    org.springframework.data.mongodb.core.aggregation.Aggregation.sort(
+                                            org.springframework.data.domain.Sort.Direction.DESC, "count"),
+                                    org.springframework.data.mongodb.core.aggregation.Aggregation.limit(10)
+                            );
+                    org.springframework.data.mongodb.core.aggregation.AggregationResults<org.bson.Document> domainResults =
+                            mongoTemplate.aggregate(domainAgg, AuditReportDocument.class, org.bson.Document.class);
+                    for (org.bson.Document doc : domainResults.getMappedResults()) {
+                        String domain = doc.getString("_id");
+                        Number count = doc.get("count", Number.class);
+                        if (domain != null && count != null) {
+                            topDomains.put(domain, count.longValue());
+                        }
+                    }
+                }
+            }
         } catch (Exception e) {
             log.warn("MongoDB unavailable when retrieving platform stats ({}). Using fallback stats.", e.getMessage());
         }
 
-        long totalSaved = allSaved.size();
-        double avgScore = allSaved.stream()
-            .mapToInt(doc -> doc != null ? doc.getOverallScore() : 0)
-            .average()
-            .orElse(0.0);
-
-        double avgResponseTime = allSaved.stream()
-            .mapToLong(doc -> doc != null ? doc.getResponseTimeMs() : 0L)
-            .average()
-            .orElse(0.0);
-
-        Map<String, Long> topDomains = totalSaved > 0
-                ? allSaved.stream()
-                        .filter(d -> d.getDomain() != null)
-                        .collect(java.util.stream.Collectors.groupingBy(AuditReportDocument::getDomain, java.util.stream.Collectors.counting()))
-                : Map.of("example.com", totalTransient > 0 ? totalTransient : 1L);
+        if (topDomains.isEmpty()) {
+            topDomains = Map.of("example.com", totalTransient > 0 ? totalTransient : 1L);
+        }
 
         return PlatformStatsResponse.builder()
             .totalTransientAuditsRun(totalTransient)

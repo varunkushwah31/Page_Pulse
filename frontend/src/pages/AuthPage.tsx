@@ -14,8 +14,7 @@ import {
   WarningCircleIcon,
   ArrowRightIcon,
   CheckIcon,
-  XIcon,
-  LightningIcon
+  XIcon
 } from '@phosphor-icons/react';
 
 function calculatePasswordStrength(password: string) {
@@ -172,11 +171,6 @@ export const AuthPage: React.FC = () => {
     setErrorMessage(null);
   };
 
-  const handleDemoFill = (username: string, password: string) => {
-    setLoginIdentifier(username);
-    setLoginPassword(password);
-  };
-
   return (
     <div className="max-w-2xl mx-auto space-y-6 font-mono text-xs animate-fade-in-up">
 
@@ -327,42 +321,6 @@ export const AuthPage: React.FC = () => {
           {/* LOGIN FORM */}
           {mode === 'login' && (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
-              {/* Quick Demo Credentials Auto-Fill Card */}
-              <div className="rounded-lg border border-[#262B33] bg-[#0A0C0F] p-3 space-y-2">
-                <div className="flex items-center justify-between text-[11px] text-[#4FD8C4] font-bold">
-                  <span className="flex items-center gap-1">
-                    <LightningIcon className="size-3.5" />
-                    Demo Accounts (Pre-seeded & Ready)
-                  </span>
-                  <span className="text-[#565D68] text-[10px] uppercase">1-Click Auto-Fill</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleDemoFill('admin', 'Admin@123456')}
-                    className="p-2.5 rounded border border-[#333A45] bg-[#191D24] hover:bg-[#262B33] hover:border-[#4FD8C4]/60 transition-all text-left cursor-pointer space-y-0.5"
-                  >
-                    <div className="font-bold text-[#E7EAEE] text-[11px] flex items-center justify-between">
-                      <span>Admin Demo</span>
-                      <span className="text-[#4FD8C4] text-[9px] border border-[#4FD8C4]/30 px-1 rounded">ADMIN</span>
-                    </div>
-                    <div className="text-[10px] text-[#8B93A1] font-mono">admin / Admin@123456</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDemoFill('devuser', 'Dev@123456')}
-                    className="p-2.5 rounded border border-[#333A45] bg-[#191D24] hover:bg-[#262B33] hover:border-[#4FD8C4]/60 transition-all text-left cursor-pointer space-y-0.5"
-                  >
-                    <div className="font-bold text-[#E7EAEE] text-[11px] flex items-center justify-between">
-                      <span>Developer Demo</span>
-                      <span className="text-[#7AA2F7] text-[9px] border border-[#7AA2F7]/30 px-1 rounded">USER</span>
-                    </div>
-                    <div className="text-[10px] text-[#8B93A1] font-mono">devuser / Dev@123456</div>
-                  </button>
-                </div>
-              </div>
-
               <div className="space-y-1.5">
                 <label htmlFor="login-identifier" className="block text-[11px] text-[#8B93A1] uppercase tracking-wider">
                   Username or Email
@@ -372,7 +330,7 @@ export const AuthPage: React.FC = () => {
                   type="text"
                   value={loginIdentifier}
                   onChange={(e) => setLoginIdentifier(e.target.value)}
-                  placeholder="e.g. admin or devuser"
+                  placeholder="e.g. your_username or user@example.com"
                   className="w-full rounded-lg bg-[#191D24] border border-[#262B33] p-2.5 text-[#E7EAEE] focus:border-[#4FD8C4] focus:outline-none placeholder-[#565D68] transition-colors"
                   required
                 />

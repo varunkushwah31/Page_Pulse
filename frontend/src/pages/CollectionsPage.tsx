@@ -398,7 +398,7 @@ export const CollectionsPage: React.FC = () => {
       const localColl: SeoCollection = {
         id: localId,
         userId: user?.id,
-        username: user?.username || 'devuser',
+        username: user?.username || 'anonymous',
         name: req.name,
         description: req.description,
         color: req.color || '#4FD8C4',
@@ -557,7 +557,7 @@ export const CollectionsPage: React.FC = () => {
         const localColl: SeoCollection = {
           id: localId,
           userId: user?.id,
-          username: user?.username || 'devuser',
+          username: user?.username || 'anonymous',
           name: parsed.name,
           description: parsed.description,
           color: parsed.color || '#4FD8C4',
@@ -602,7 +602,7 @@ export const CollectionsPage: React.FC = () => {
         const localColl: SeoCollection = {
           id: localId,
           userId: user?.id,
-          username: user?.username || 'devuser',
+          username: user?.username || 'anonymous',
           name: tpl.name,
           description: tpl.description,
           color: tpl.color,
@@ -2211,11 +2211,11 @@ export const CollectionsPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#262B33]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setShowImportModal(false)}
-                  className="px-3.5 py-2 rounded-lg border border-[#262B33] bg-[#0A0C0F] text-[#8B93A1] hover:text-[#E7EAEE] cursor-pointer text-xs"
+                  className="px-3.5 py-2 rounded-lg border border-border bg-[#0A0C0F] text-[#8B93A1] hover:text-[#E7EAEE] cursor-pointer text-xs"
                 >
                   Cancel
                 </button>

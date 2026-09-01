@@ -31,12 +31,16 @@ public class CompetitorComparisonService {
             correlationId = java.util.UUID.randomUUID().toString();
         }
 
-        log.info("Starting competitor comparison for {} URLs (correlationId: {})",
-                request.getUrls().size(), correlationId);
+        List<CompetitorComparisonResponse.CompetitorResult> results;
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var futures = request.getUrls().stream()
+                    .map(url -> java.util.concurrent.CompletableFuture.supplyAsync(() -> processSingleUrl(url), executor))
+                    .toList();
 
-        List<CompetitorComparisonResponse.CompetitorResult> results = request.getUrls().stream()
-                .map(this::processSingleUrl)
-                .toList();
+            results = futures.stream()
+                    .map(java.util.concurrent.CompletableFuture::join)
+                    .toList();
+        }
 
         List<CompetitorComparisonResponse.CompetitorResult> successful = results.stream()
                 .filter(r -> STATUS_SUCCESS.equals(r.getStatus()))

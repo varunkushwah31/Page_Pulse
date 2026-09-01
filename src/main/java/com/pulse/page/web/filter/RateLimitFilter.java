@@ -31,7 +31,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String ip = getClientIp(request);
         String correlationId = MDC.get(CorrelationIdFilter.CORRELATION_ID_MDC_KEY);
 
-        if (!cacheService.tryAcquireRateLimit(ip)) {
+        int count = cacheService.incrementRateLimit(ip);
+
+        if (count > CacheService.RATE_LIMIT_MAX_REQUESTS) {
             response.setStatus(429);
             response.setContentType("application/json");
             response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin") != null ? request.getHeader("Origin") : "*");
@@ -47,7 +49,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        long remaining = Math.max(0, CacheService.RATE_LIMIT_MAX_REQUESTS - getCurrentCount(ip));
+        long remaining = Math.max(0, CacheService.RATE_LIMIT_MAX_REQUESTS - count);
         response.setHeader("X-RateLimit-Limit", String.valueOf(CacheService.RATE_LIMIT_MAX_REQUESTS));
         response.setHeader("X-RateLimit-Remaining", String.valueOf(remaining));
 
@@ -64,17 +66,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return xRealIp;
         }
         return request.getRemoteAddr();
-    }
-
-    private long getCurrentCount(String ip) {
-        var template = cacheService.getRedisTemplate();
-        if (template == null) return 0;
-        try {
-            Object count = template.opsForValue().get("ratelimit:ip:" + ip);
-            return count instanceof Long ? (Long) count : 0;
-        } catch (Exception e) {
-            return 0;
-        }
     }
 
     @Override

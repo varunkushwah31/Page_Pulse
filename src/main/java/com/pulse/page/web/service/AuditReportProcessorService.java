@@ -78,15 +78,47 @@ public class AuditReportProcessorService {
         log.info("[SCRAPE COMPLETE] Target: '{}' | Status: {} | Latency: {}ms | Content-Type: {}",
                 normalizedUrl, scrapeResult.getStatusCode(), scrapeResult.getResponseTimeMs(), scrapeResult.getContentType());
 
-        SeoMetrics seo = seoExtractor.extract(scrapeResult.getDocument(), normalizedUrl, scrapeResult.getResponseHeaders());
-        ContentMetrics content = contentExtractor.extract(scrapeResult.getDocument());
-        AccessibilityMetrics a11y = accessibilityExtractor.extract(scrapeResult.getDocument());
-        PerformanceMetrics perf = performanceExtractor.extract(scrapeResult);
+        // Execute CPU and network-bound inspections in parallel using Java Virtual Threads
+        SeoMetrics seo;
+        ContentMetrics content;
+        AccessibilityMetrics a11y;
+        PerformanceMetrics perf;
+        CoreWebVitals vitals;
+        SecurityMetrics security;
+        LinkInspectionMetrics links;
+        AssetBottleneckMetrics bottlenecks;
 
-        CoreWebVitals vitals = pageSpeedMetricsEngine.calculateWebVitals(scrapeResult);
-        SecurityMetrics security = sslInspectionEngine.inspectSecurity(normalizedUrl, scrapeResult);
-        LinkInspectionMetrics links = linkInspectionEngine.inspectLinks(normalizedUrl, scrapeResult.getDocument());
-        AssetBottleneckMetrics bottlenecks = assetBottleneckInspectorEngine.inspectAssets(scrapeResult.getDocument(), scrapeResult.getResponseTimeMs());
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var seoFuture = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> seoExtractor.extract(scrapeResult.getDocument(), normalizedUrl, scrapeResult.getResponseHeaders()), executor);
+            var contentFuture = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> contentExtractor.extract(scrapeResult.getDocument()), executor);
+            var a11yFuture = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> accessibilityExtractor.extract(scrapeResult.getDocument()), executor);
+            var perfFuture = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> performanceExtractor.extract(scrapeResult), executor);
+            var vitalsFuture = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> pageSpeedMetricsEngine.calculateWebVitals(scrapeResult), executor);
+            var securityFuture = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> sslInspectionEngine.inspectSecurity(normalizedUrl, scrapeResult), executor);
+            var linksFuture = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> linkInspectionEngine.inspectLinks(normalizedUrl, scrapeResult.getDocument()), executor);
+            var bottlenecksFuture = java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> assetBottleneckInspectorEngine.inspectAssets(scrapeResult.getDocument(), scrapeResult.getResponseTimeMs()), executor);
+
+            java.util.concurrent.CompletableFuture.allOf(
+                seoFuture, contentFuture, a11yFuture, perfFuture, vitalsFuture, securityFuture, linksFuture, bottlenecksFuture
+            ).join();
+
+            seo = seoFuture.join();
+            content = contentFuture.join();
+            a11y = a11yFuture.join();
+            perf = perfFuture.join();
+            vitals = vitalsFuture.join();
+            security = securityFuture.join();
+            links = linksFuture.join();
+            bottlenecks = bottlenecksFuture.join();
+        }
 
         AuditScoreBreakdown scores = scoringEngine.calculateScore(seo, content, a11y, perf);
 

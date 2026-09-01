@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 public class LinkInspectionEngine {
 
     private static final int MAX_LINKS_TO_CHECK = 20;
-    private static final Duration LINK_CHECK_TIMEOUT = Duration.ofMillis(2500);
+    private static final Duration LINK_CHECK_TIMEOUT = Duration.ofMillis(1500);
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SiteLookAuditor/2.0 Enterprise";
 
     private static final Set<String> GENERIC_ANCHOR_TEXTS = Set.of(
@@ -38,6 +38,7 @@ public class LinkInspectionEngine {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(LINK_CHECK_TIMEOUT)
                 .followRedirects(HttpClient.Redirect.NEVER)
+                .executor(Executors.newVirtualThreadPerTaskExecutor())
                 .build();
     }
 

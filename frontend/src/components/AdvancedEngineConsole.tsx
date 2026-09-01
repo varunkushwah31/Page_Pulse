@@ -78,7 +78,6 @@ export const AdvancedEngineConsole: React.FC<AdvancedEngineConsoleProps> = ({ au
               <p className="text-[10px] font-sans opacity-80">Good ≤ 200ms</p>
             </div>
 
-            {/* CLS */}
             <div className={`rounded-lg border p-3 space-y-1 ${getClsColor(vitals.clsRatio)}`}>
               <span className="text-[10px] uppercase font-semibold text-[#8B93A1]">CLS (Layout Shift)</span>
               <div className="text-xl font-extrabold">{vitals.clsRatio}</div>

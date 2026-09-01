@@ -26,12 +26,12 @@ export const Footer: React.FC = () => {
         {/* Brand & Version */}
         <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-4 text-[11px] text-[#565D68]">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-[#E7EAEE]">Page Pulse</span>
+            <span className="font-bold text-[#E7EAEE]">SiteLook</span>
             <span>•</span>
             <span>Enterprise Site Audit & Core Intelligence Platform</span>
           </div>
           <div className="flex items-center gap-4 flex-wrap justify-center">
-            <span>&copy; {new Date().getFullYear()} Page Pulse. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} SiteLook. All rights reserved.</span>
             <span className="px-2 py-0.5 rounded border border-[#262B33] bg-[#12151A] text-[10px] text-[#4FD8C4]">
               v1.0.0
             </span>

@@ -2,7 +2,7 @@ package com.pulse.page.web.exception;
 
 import org.springframework.http.HttpStatus;
 
-public class CircuitBreakerOpenException extends PagePulseException {
+public class CircuitBreakerOpenException extends SiteLookException {
     public CircuitBreakerOpenException(String message) {
         super(message, HttpStatus.SERVICE_UNAVAILABLE, "CIRCUIT_BREAKER_OPEN");
     }

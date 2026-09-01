@@ -70,7 +70,7 @@ export function generateClientSideAiRecommendations(report: AuditResponse): AiRe
 
   const rawDomain = report.domain || (report.url ? report.url.replace(/^https?:\/\//, '').split('/')[0].split(':')[0] : 'example.com');
   const domain = rawDomain.replace('www.', '');
-  const brandName = domain.split('.')[0] ? domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1) : 'Page Pulse';
+  const brandName = domain.split('.')[0] ? domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1) : 'SiteLook';
 
   // 1. SEO Fixes
   if (seo) {
@@ -451,7 +451,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
   const [viewModeMap, setViewModeMap] = useState<Record<number, 'code' | 'diff'>>({});
 
   // Local / Auth Gemini Key resolution
-  const [localKey, setLocalKey] = useState<string | null>(() => localStorage.getItem('pagepulse_gemini_key'));
+  const [localKey, setLocalKey] = useState<string | null>(() => localStorage.getItem('sitelook_gemini_key'));
   const hasGeminiKey = Boolean(user?.hasGeminiApiKey || localKey);
   const localMasked = localKey ? (localKey.length > 8 ? `${localKey.slice(0, 6)}••••${localKey.slice(-4)}` : '••••••••') : null;
   const activeMaskedKey = user?.geminiApiKeyMasked || localMasked;
@@ -633,7 +633,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
   // Export full AI Action Plan as Markdown file
   const handleExportFullActionPlan = () => {
     const domain = audit.domain || 'example.com';
-    let md = `# Page Pulse AI Action Plan: ${domain}\n`;
+    let md = `# SiteLook AI Action Plan: ${domain}\n`;
     md += `**Target URL:** ${audit.url}\n`;
     md += `**Audited At:** ${new Date().toLocaleString()}\n`;
     md += `**Health Grade:** ${audit.scores?.healthGrade || 'GOOD'} (${audit.scores?.overallScore || 0}/100)\n`;
@@ -683,7 +683,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `pagepulse-ai-action-plan-${domain.replace(/[^a-z0-9]/gi, '_')}.md`;
+    link.download = `sitelook-ai-action-plan-${domain.replace(/[^a-z0-9]/gi, '_')}.md`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -1619,7 +1619,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-[#4FD8C4] font-bold text-xs">
                 <ChatCircleDotsIcon className="size-4 animate-pulse" />
-                <span>Interactive Page Pulse AI Assistant</span>
+                <span>Interactive SiteLook AI Assistant</span>
               </div>
               <span className="text-[10px] text-[#8B93A1] font-sans">
                 Context: {audit.domain} • Niche: {userPrefs.targetNiche || 'SaaS'}
@@ -1667,7 +1667,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
                       }`}
                     >
                       <div className="text-[10px] font-mono font-bold mb-1 opacity-70">
-                        {isUser ? 'You' : '✦ Page Pulse AI (Gemini)'}
+                        {isUser ? 'You' : '✦ SiteLook AI (Gemini)'}
                       </div>
                       <div className="whitespace-pre-wrap">{msg.text}</div>
                     </div>
@@ -1679,7 +1679,7 @@ export const AiFixConsole: React.FC<AiFixConsoleProps> = ({ audit }) => {
               <div className="flex justify-start">
                 <div className="p-3 rounded-xl bg-[#12151A] border border-[#262B33] text-[#4FD8C4] flex items-center gap-2 text-xs">
                   <CpuIcon className="size-4 animate-spin" />
-                  <span>Page Pulse AI is thinking...</span>
+                  <span>SiteLook AI is thinking...</span>
                 </div>
               </div>
             )}

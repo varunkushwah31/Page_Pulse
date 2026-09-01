@@ -267,7 +267,7 @@ export const SitemapConsole: React.FC = () => {
                     c.scores?.overallScore || 0,
                     c.scores?.healthGrade || 'N/A',
                   ]);
-                  exportToCsv(headers, rows, 'pagepulse-sitemap-crawl-results.csv');
+                  exportToCsv(headers, rows, 'sitelook-sitemap-crawl-results.csv');
                 }}
                 className="rounded border border-[#4FD8C4]/30 bg-[#4FD8C4]/10 px-2 py-1 text-[11px] font-bold text-[#4FD8C4] hover:bg-[#4FD8C4]/20 transition-all cursor-pointer"
               >
@@ -275,7 +275,7 @@ export const SitemapConsole: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => exportToJson(filteredAndSortedAudits, 'pagepulse-sitemap-crawl-results.json')}
+                onClick={() => exportToJson(filteredAndSortedAudits, 'sitelook-sitemap-crawl-results.json')}
                 className="rounded border border-[#7AA2F7]/30 bg-[#7AA2F7]/10 px-2 py-1 text-[11px] font-bold text-[#7AA2F7] hover:bg-[#7AA2F7]/20 transition-all cursor-pointer"
               >
                 JSON

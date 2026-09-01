@@ -501,7 +501,7 @@ export const CollectionsPage: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `pagepulse-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.json`;
+      a.download = `sitelook-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -512,7 +512,7 @@ export const CollectionsPage: React.FC = () => {
       const target = collections.find((c) => c.id === id);
       if (target) {
         const exportData = {
-          schema: 'https://pagepulse.dev/schemas/collection/v1.json',
+          schema: 'https://sitelook.dev/schemas/collection/v1.json',
           name: target.name,
           description: target.description,
           color: target.color,
@@ -524,7 +524,7 @@ export const CollectionsPage: React.FC = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `pagepulse-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.json`;
+        a.download = `sitelook-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.json`;
         document.body.appendChild(a);
         a.click();
         a.remove();

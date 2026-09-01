@@ -239,7 +239,7 @@ export const CompetitorConsole: React.FC = () => {
                       ['Response Latency (ms)', audit1.responseTimeMs, audit2.responseTimeMs],
                       ['Word Count', audit1.contentMetrics?.wordCount || 0, audit2.contentMetrics?.wordCount || 0],
                     ];
-                    exportToCsv(headers, rows, 'pagepulse-competitor-comparison.csv');
+                    exportToCsv(headers, rows, 'sitelook-competitor-comparison.csv');
                   }}
                   className="rounded border border-[#FBBF24]/30 bg-[#FBBF24]/10 px-2.5 py-1 text-[#FBBF24] text-[11px] font-bold hover:bg-[#FBBF24]/20 transition-all cursor-pointer"
                 >

@@ -171,9 +171,9 @@ class PdfReportGeneratorServiceTest {
             .build();
 
         PdfBrandingConfig branding = PdfBrandingConfig.builder()
-            .companyName("PagePulse Pro")
+            .companyName("SiteLook Pro")
             .primaryColorHex("#0F172A")
-            .footerText("Confidential • Prepared for PagePulse")
+            .footerText("Confidential • Prepared for SiteLook")
             .build();
 
         byte[] pdfBytes = pdfReportGeneratorService.generatePdfReportFromAudit(audit, branding);

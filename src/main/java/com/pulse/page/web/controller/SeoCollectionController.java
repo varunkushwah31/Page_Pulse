@@ -124,7 +124,7 @@ public class SeoCollectionController {
             @AuthenticationPrincipal UserDetails userDetails) {
         String username = getUsername(userDetails);
         CollectionExportDto exportDto = collectionService.exportCollection(id, username);
-        String filename = "pagepulse-collection-" + exportDto.getName().replaceAll("[^a-zA-Z0-9.-]", "_") + ".json";
+        String filename = "sitelook-collection-" + exportDto.getName().replaceAll("[^a-zA-Z0-9.-]", "_") + ".json";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.APPLICATION_JSON)

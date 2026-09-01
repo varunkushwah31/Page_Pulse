@@ -103,8 +103,8 @@ export const BatchAuditorConsole: React.FC = () => {
       setSavedMap((prev) => ({ ...prev, [idx]: doc.id }));
     } catch (err: unknown) {
       if (err instanceof Error && err.message === 'AUTH_REQUIRED') {
-        localStorage.removeItem('pagepulse_token');
-        localStorage.removeItem('pagepulse_user');
+        localStorage.removeItem('sitelook_token');
+        localStorage.removeItem('sitelook_user');
         setSaveErrorMap((prev) => ({ ...prev, [idx]: 'Authentication required to save report.' }));
       } else {
         const msg = err instanceof Error ? err.message : 'Failed to save report to database.';
@@ -318,7 +318,7 @@ export const BatchAuditorConsole: React.FC = () => {
                         r.scores?.overallScore || 0,
                         r.scores?.healthGrade || 'N/A',
                       ]);
-                      exportToCsv(headers, rows, 'pagepulse-batch-audit-results.csv');
+                      exportToCsv(headers, rows, 'sitelook-batch-audit-results.csv');
                     }}
                     className="rounded border border-[#4FD8C4]/30 bg-[#4FD8C4]/10 px-2 py-1 text-[11px] font-bold text-[#4FD8C4] hover:bg-[#4FD8C4]/20 transition-all cursor-pointer"
                   >
@@ -326,7 +326,7 @@ export const BatchAuditorConsole: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => exportToJson(filteredResults, 'pagepulse-batch-audit-results.json')}
+                    onClick={() => exportToJson(filteredResults, 'sitelook-batch-audit-results.json')}
                     className="rounded border border-[#7AA2F7]/30 bg-[#7AA2F7]/10 px-2 py-1 text-[11px] font-bold text-[#7AA2F7] hover:bg-[#7AA2F7]/20 transition-all cursor-pointer"
                   >
                     JSON
@@ -343,8 +343,8 @@ export const BatchAuditorConsole: React.FC = () => {
                 const content: Partial<ContentMetrics> = r.contentMetrics || {};
                 const accessibility: Partial<AccessibilityMetrics> = r.accessibilityMetrics || {};
                 const isSaved = !!savedMap[idx];
-                const isSaving = !!savingMap[idx];
-                const isDownloadingPdf = !!downloadingPdfMap[idx];
+                const isSaving = savingMap[idx];
+                const isDownloadingPdf = downloadingPdfMap[idx];
 
                 let saveStatusText = 'Transient audit result.';
                 if (isSaved) {

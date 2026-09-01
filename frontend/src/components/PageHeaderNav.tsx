@@ -93,11 +93,11 @@ export const PageHeaderNav: React.FC<PageHeaderNavProps> = ({ onOpenCommandPalet
               </div>
             </NavLink>
 
-            {/* Page Pulse Branding */}
+            {/* SiteLook Branding */}
             <NavLink to="/" className="flex items-center gap-2 pl-3 border-l border-[#262B33]">
               <PulseIcon className="size-4 text-[#4FD8C4]" />
               <span className="font-bold text-[#E7EAEE] tracking-tight hidden sm:inline">
-                Page Pulse
+                SiteLook
               </span>
             </NavLink>
           </div>

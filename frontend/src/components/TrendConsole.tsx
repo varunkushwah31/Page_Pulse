@@ -331,14 +331,14 @@ export const TrendConsole: React.FC<TrendConsoleProps> = ({ initialDomain = '' }
                     dp.value,
                     dp.auditId || 'N/A',
                   ]);
-                  exportToCsv(headers, rows, `pagepulse-trends-${trendResponse.domain}.csv`);
+                  exportToCsv(headers, rows, `sitelook-trends-${trendResponse.domain}.csv`);
                 }}
                 className="rounded border border-[#4FD8C4]/30 bg-[#4FD8C4]/10 px-2.5 py-1 text-[#4FD8C4] text-[11px] font-bold hover:bg-[#4FD8C4]/20 transition-all cursor-pointer"
               >
                 Export CSV
               </button>
               <button
-                onClick={() => exportToJson(trendResponse, `pagepulse-trends-${trendResponse.domain}.json`)}
+                onClick={() => exportToJson(trendResponse, `sitelook-trends-${trendResponse.domain}.json`)}
                 className="rounded border border-[#7AA2F7]/30 bg-[#7AA2F7]/10 px-2.5 py-1 text-[#7AA2F7] text-[11px] font-bold hover:bg-[#7AA2F7]/20 transition-all cursor-pointer"
               >
                 Export JSON

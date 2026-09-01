@@ -24,7 +24,7 @@ class ContentMetricsExtractorTest {
             <html>
             <body>
                 <h1>Main Enterprise Product Overview</h1>
-                <p>Page Pulse is an advanced web auditing platform engineered for modern technical teams. It delivers comprehensive analysis across performance, search engine optimization, content readability, accessibility, and link infrastructure.</p>
+                <p>SiteLook is an advanced web auditing platform engineered for modern technical teams. It delivers comprehensive analysis across performance, search engine optimization, content readability, accessibility, and link infrastructure.</p>
                 <h2>Core Architecture Capabilities</h2>
                 <p>The platform inspects critical web vitals, detects DOM hierarchy regressions, and extracts actionable recommendations.</p>
                 <p>Users can automate audit workflows with scheduled cron jobs and push notifications.</p>

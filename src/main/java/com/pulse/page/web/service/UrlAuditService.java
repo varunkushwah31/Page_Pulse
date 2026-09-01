@@ -28,7 +28,7 @@ import java.util.NoSuchElementException;
 public class UrlAuditService {
 
     private static final int TIMEOUT_MS = 5000;
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PagePulse/2.0 Enterprise Engine";
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SiteLook/2.0 Enterprise Engine";
     private static final String CONTENT_ATTR = "content";
     private static final String METRIC_AUDIT_NAME = "audit";
 

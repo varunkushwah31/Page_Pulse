@@ -62,7 +62,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isAuthenticated = !!localStorage.getItem('pagepulse_token');
+  const isAuthenticated = !!localStorage.getItem('sitelook_token');
 
   // Keyboard shortcut navigation (1-5 for tabs, Ctrl+S for save, Ctrl+P for PDF)
   useEffect(() => {
@@ -118,8 +118,8 @@ export const AuditReport: React.FC<AuditReportProps> = ({ audit }) => {
       setSavedMessage(`Saved permanently! Document ID: ${doc.id}`);
     } catch (err: unknown) {
       if (err instanceof Error && err.message === 'AUTH_REQUIRED') {
-        localStorage.removeItem('pagepulse_token');
-        localStorage.removeItem('pagepulse_user');
+        localStorage.removeItem('sitelook_token');
+        localStorage.removeItem('sitelook_user');
         setShowLoginPrompt(true);
       } else {
         const msg = err instanceof Error ? err.message : 'Failed to save report to database.';

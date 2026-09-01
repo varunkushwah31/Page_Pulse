@@ -15,9 +15,9 @@ import java.util.Map;
 @AllArgsConstructor
 public class CollectionExportDto {
     @Builder.Default
-    private String schema = "https://schema.pagepulse.dev/v1/collection.json";
+    private String schema = "https://schema.sitelook.dev/v1/collection.json";
     @Builder.Default
-    private String exporter = "Page Pulse (Postman for SEO) v1.0.0";
+    private String exporter = "SiteLook (Postman for SEO) v1.0.0";
     private String name;
     private String description;
     private String color;

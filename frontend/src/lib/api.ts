@@ -32,11 +32,11 @@ import type {
   AiChatResponse,
 } from '../types';
 
-const API_BASE = '';
+export const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('pagepulse_token');
-  const customGeminiKey = localStorage.getItem('pagepulse_gemini_key');
+  const token = localStorage.getItem('sitelook_token');
+  const customGeminiKey = localStorage.getItem('sitelook_gemini_key');
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -396,9 +396,9 @@ export async function fetchUserProfile(): Promise<UserProfile> {
 
 export async function saveUserGeminiKey(apiKey: string): Promise<UserProfile> {
   const trimmed = apiKey.trim();
-  localStorage.setItem('pagepulse_gemini_key', trimmed);
+  localStorage.setItem('sitelook_gemini_key', trimmed);
 
-  const token = localStorage.getItem('pagepulse_token');
+  const token = localStorage.getItem('sitelook_token');
   if (token) {
     try {
       const response = await fetch(`${API_BASE}/api/v1/user/gemini-key`, {
@@ -427,9 +427,9 @@ export async function saveUserGeminiKey(apiKey: string): Promise<UserProfile> {
 }
 
 export async function removeUserGeminiKey(): Promise<UserProfile> {
-  localStorage.removeItem('pagepulse_gemini_key');
+  localStorage.removeItem('sitelook_gemini_key');
 
-  const token = localStorage.getItem('pagepulse_token');
+  const token = localStorage.getItem('sitelook_token');
   if (token) {
     try {
       const response = await fetch(`${API_BASE}/api/v1/user/gemini-key`, {
@@ -468,7 +468,7 @@ export async function validateGeminiKey(apiKey: string): Promise<GeminiValidatio
 }
 
 export async function fetchAvailableGeminiModels(apiKey?: string): Promise<GeminiModelsResponse> {
-  const localKey = apiKey || localStorage.getItem('pagepulse_gemini_key') || '';
+  const localKey = apiKey || localStorage.getItem('sitelook_gemini_key') || '';
   try {
     if (apiKey) {
       const response = await fetch(`${API_BASE}/api/v1/ai/models/discover`, {
@@ -500,9 +500,9 @@ export async function fetchAvailableGeminiModels(apiKey?: string): Promise<Gemin
 }
 
 export async function saveUserAiPreferences(preferences: UserAiPreferences): Promise<UserProfile> {
-  localStorage.setItem('pagepulse_ai_preferences', JSON.stringify(preferences));
+  localStorage.setItem('sitelook_ai_preferences', JSON.stringify(preferences));
 
-  const token = localStorage.getItem('pagepulse_token');
+  const token = localStorage.getItem('sitelook_token');
   if (token) {
     try {
       const response = await fetch(`${API_BASE}/api/v1/user/ai-preferences`, {
@@ -533,7 +533,7 @@ export async function saveUserAiPreferences(preferences: UserAiPreferences): Pro
 
 export function getLocalAiPreferences(): UserAiPreferences {
   try {
-    const raw = localStorage.getItem('pagepulse_ai_preferences');
+    const raw = localStorage.getItem('sitelook_ai_preferences');
     if (raw) return JSON.parse(raw);
   } catch (err) {
     console.warn('Could not parse local AI preferences, using defaults:', err);

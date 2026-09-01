@@ -2,7 +2,7 @@ package com.pulse.page.web.service;
 
 import com.pulse.page.web.dto.AuditResponse;
 import com.pulse.page.web.engine.UrlValidationEngine;
-import com.pulse.page.web.exception.PagePulseException;
+import com.pulse.page.web.exception.SiteLookException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,7 +66,7 @@ public class AuditProgressStreamService {
 
                 emitter.complete();
 
-            } catch (PagePulseException e) {
+            } catch (SiteLookException e) {
                 log.warn("Streaming audit failed for URL {}: {}", rawUrl, e.getMessage());
                 sendErrorEvent(emitter, e.getStatus().value(), e.getErrorCode(), e.getMessage());
             } catch (Exception e) {

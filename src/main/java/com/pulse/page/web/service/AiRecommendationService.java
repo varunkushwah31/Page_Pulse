@@ -613,7 +613,7 @@ public class AiRecommendationService {
     }
 
     private String capitalizeDomain(String domain) {
-        if (domain == null || domain.isBlank()) return "Page Pulse";
+        if (domain == null || domain.isBlank()) return "SiteLook";
         String name = domain.replace("www.", "").split("\\.")[0];
         if (name.isEmpty()) return domain;
         return Character.toUpperCase(name.charAt(0)) + name.substring(1);

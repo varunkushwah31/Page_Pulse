@@ -47,8 +47,8 @@ public class GlobalExceptionHandler {
 
     private static final String CODE_VALIDATION_ERROR = "VALIDATION_ERROR";
 
-    @ExceptionHandler(PagePulseException.class)
-    public ResponseEntity<ErrorResponse> handlePagePulseException(PagePulseException ex, HttpServletRequest request) {
+    @ExceptionHandler({SiteLookException.class, PagePulseException.class})
+    public ResponseEntity<ErrorResponse> handleSiteLookException(SiteLookException ex, HttpServletRequest request) {
         String traceId = getTraceId(request);
         log.warn("[Trace: {}] Domain exception at {}: {} ({})", traceId, request.getRequestURI(), ex.getMessage(), ex.getErrorCode());
 

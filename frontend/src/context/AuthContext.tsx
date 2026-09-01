@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { API_BASE } from '../lib/api';
 
 export interface User {
   id: number;
@@ -29,15 +30,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const getInitialAuth = (): { token: string | null; user: User | null } => {
-  const savedToken = localStorage.getItem('pagepulse_token');
-  const savedUser = localStorage.getItem('pagepulse_user');
+  const savedToken = localStorage.getItem('sitelook_token');
+  const savedUser = localStorage.getItem('sitelook_user');
   
   if (savedToken && savedUser) {
     try {
       return { token: savedToken, user: JSON.parse(savedUser) };
     } catch {
-      localStorage.removeItem('pagepulse_token');
-      localStorage.removeItem('pagepulse_user');
+      localStorage.removeItem('sitelook_token');
+      localStorage.removeItem('sitelook_user');
     }
   }
   return { token: null, user: null };
@@ -50,7 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (auth.token) {
       // Sync fresh profile data from server in background
-      fetch('/api/auth/me', {
+      fetch(`${API_BASE}/api/auth/me`, {
         headers: { Authorization: `Bearer ${auth.token}` }
       })
         .then((res) => res.ok ? res.json() : null)
@@ -58,7 +59,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (freshUser && auth.token) {
             setAuth((prev) => {
               const merged = { ...prev.user, ...freshUser };
-              localStorage.setItem('pagepulse_user', JSON.stringify(merged));
+              localStorage.setItem('sitelook_user', JSON.stringify(merged));
               return { ...prev, user: merged };
             });
           }
@@ -68,14 +69,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [auth.token]);
 
   const login = React.useCallback((newToken: string, newUser: User) => {
-    localStorage.setItem('pagepulse_token', newToken);
-    localStorage.setItem('pagepulse_user', JSON.stringify(newUser));
+    localStorage.setItem('sitelook_token', newToken);
+    localStorage.setItem('sitelook_user', JSON.stringify(newUser));
     setAuth({ token: newToken, user: newUser });
   }, []);
 
   const logout = React.useCallback(() => {
-    localStorage.removeItem('pagepulse_token');
-    localStorage.removeItem('pagepulse_user');
+    localStorage.removeItem('sitelook_token');
+    localStorage.removeItem('sitelook_user');
     setAuth({ token: null, user: null });
   }, []);
 
@@ -83,7 +84,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setAuth((prev) => {
       if (!prev.user) return prev;
       const updated = { ...prev.user, ...updatedFields };
-      localStorage.setItem('pagepulse_user', JSON.stringify(updated));
+      localStorage.setItem('sitelook_user', JSON.stringify(updated));
       return { ...prev, user: updated };
     });
   }, []);

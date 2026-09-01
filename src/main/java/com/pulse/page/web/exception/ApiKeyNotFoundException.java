@@ -2,7 +2,7 @@ package com.pulse.page.web.exception;
 
 import org.springframework.http.HttpStatus;
 
-public class ApiKeyNotFoundException extends PagePulseException {
+public class ApiKeyNotFoundException extends SiteLookException {
     public ApiKeyNotFoundException(String message) {
         super(message, HttpStatus.UNAUTHORIZED, "API_KEY_NOT_FOUND");
     }

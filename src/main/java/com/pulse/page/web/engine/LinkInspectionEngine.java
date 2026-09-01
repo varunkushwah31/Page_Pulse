@@ -25,7 +25,7 @@ public class LinkInspectionEngine {
 
     private static final int MAX_LINKS_TO_CHECK = 20;
     private static final Duration LINK_CHECK_TIMEOUT = Duration.ofMillis(2500);
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PagePulseAuditor/2.0 Enterprise";
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SiteLookAuditor/2.0 Enterprise";
 
     private static final Set<String> GENERIC_ANCHOR_TEXTS = Set.of(
             "click here", "here", "read more", "learn more", "more", "link", "this", "website",

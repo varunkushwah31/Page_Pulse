@@ -51,9 +51,9 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handlePagePulseExceptionReturnsDomainStatusAndErrorCode() {
+    void handleSiteLookExceptionReturnsDomainStatusAndErrorCode() {
         InvalidUrlException ex = new InvalidUrlException("Invalid URL provided");
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handlePagePulseException(ex, request);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleSiteLookException(ex, request);
 
         assertNotNull(response);
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());

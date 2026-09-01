@@ -30,9 +30,9 @@ public class CacheService {
 
     public CacheService(@Autowired(required = false) RedisTemplate<String, Object> redisTemplate, MeterRegistry meterRegistry) {
         this.redisTemplate = redisTemplate;
-        this.cacheHitCounter = Counter.builder("pagepulse.cache.hit").register(meterRegistry);
-        this.cacheMissCounter = Counter.builder("pagepulse.cache.miss").register(meterRegistry);
-        this.rateLimitCounter = Counter.builder("pagepulse.ratelimit.exceeded").register(meterRegistry);
+        this.cacheHitCounter = Counter.builder("sitelook.cache.hit").register(meterRegistry);
+        this.cacheMissCounter = Counter.builder("sitelook.cache.miss").register(meterRegistry);
+        this.rateLimitCounter = Counter.builder("sitelook.ratelimit.exceeded").register(meterRegistry);
     }
 
     public RedisTemplate<String, Object> getRedisTemplate() {

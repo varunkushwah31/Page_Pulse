@@ -1,4 +1,4 @@
-name: PagePulse CD & Container Registry Pipeline
+name: SiteLook CD & Container Registry Pipeline
 
 on:
   push:

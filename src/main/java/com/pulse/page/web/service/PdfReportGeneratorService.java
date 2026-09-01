@@ -136,7 +136,7 @@ public class PdfReportGeneratorService {
             PdfWriter writer = PdfWriter.getInstance(pdfDoc, out);
             String customFooter = (branding != null && branding.getFooterText() != null && !branding.getFooterText().isBlank())
                 ? branding.getFooterText()
-                : "PagePulse Web Auditing Engine • Comprehensive Audit Report";
+                : "SiteLook Web Auditing Engine • Comprehensive Audit Report";
 
             HeaderFooterPageEvent pageEvent = new HeaderFooterPageEvent(customFooter, audit.getDomain() != null ? audit.getDomain() : audit.getUrl());
             writer.setPageEvent(pageEvent);
@@ -200,7 +200,7 @@ public class PdfReportGeneratorService {
         cell.setPadding(12);
         cell.setBorder(Rectangle.NO_BORDER);
 
-        String titleText = "PAGEPULSE COMPREHENSIVE WEB AUDIT REPORT";
+        String titleText = "SITELOOK COMPREHENSIVE WEB AUDIT REPORT";
         if (branding != null) {
             if (branding.getCompanyName() != null && !branding.getCompanyName().isBlank()) {
                 titleText = branding.getCompanyName().toUpperCase() + " AUDIT REPORT";
@@ -984,7 +984,7 @@ public class PdfReportGeneratorService {
 
             // Running Top Header on Page 2+
             if (writer.getPageNumber() > 1) {
-                String headerText = "PagePulse Audit Report  •  " + (targetDomain != null ? targetDomain : "Web Audit");
+                String headerText = "SiteLook Audit Report  •  " + (targetDomain != null ? targetDomain : "Web Audit");
                 ColumnText.showTextAligned(cb, Element.ALIGN_LEFT, new Phrase(headerText, FONT_HEADER_RUNNING),
                         document.left(), document.top() + 12, 0);
 

@@ -3,20 +3,20 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: pagepulse-frontend
+    container_name: sitelook-frontend
     ports:
       - "5174:80"
     depends_on:
       - app
     networks:
-      - pagepulse-network
+      - sitelook-network
     restart: unless-stopped
 
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pagepulse-app
+    container_name: sitelook-app
     ports:
       - "8082:8080"
     environment:
@@ -27,14 +27,14 @@ services:
       - REDIS_PORT=6379
       - SERVER_PORT=8080
       - APP_CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174
-      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dspring.profiles.active=docker -Dspring.data.mongodb.uri=mongodb://admin:password@mongodb:27017/pagepulse_db?authSource=admin -Dspring.mongodb.uri=mongodb://admin:password@mongodb:27017/pagepulse_db?authSource=admin
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dspring.profiles.active=docker -Dspring.data.mongodb.uri=mongodb://admin:password@mongodb:27017/sitelook_db?authSource=admin -Dspring.mongodb.uri=mongodb://admin:password@mongodb:27017/sitelook_db?authSource=admin
     depends_on:
       mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - pagepulse-network
+      - sitelook-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
@@ -45,17 +45,17 @@ services:
 
   mongodb:
     image: mongo:7.0
-    container_name: pagepulse-mongodb
+    container_name: sitelook-mongodb
     ports:
       - "27018:27017"
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=password
-      - MONGO_INITDB_DATABASE=pagepulse_db
+      - MONGO_INITDB_DATABASE=sitelook_db
     volumes:
       - mongodb_data:/data/db
     networks:
-      - pagepulse-network
+      - sitelook-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
@@ -66,14 +66,14 @@ services:
 
   redis:
     image: redis:7.2-alpine
-    container_name: pagepulse-redis
+    container_name: sitelook-redis
     ports:
       - "6380:6379"
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     networks:
-      - pagepulse-network
+      - sitelook-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -83,7 +83,7 @@ services:
       retries: 3
 
 networks:
-  pagepulse-network:
+  sitelook-network:
     driver: bridge
 
 volumes:

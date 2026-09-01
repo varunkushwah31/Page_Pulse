@@ -2,7 +2,7 @@ package com.pulse.page.web.exception;
 
 import org.springframework.http.HttpStatus;
 
-public class AuditTimeoutException extends PagePulseException {
+public class AuditTimeoutException extends SiteLookException {
     public AuditTimeoutException(String message) {
         super(message, HttpStatus.GATEWAY_TIMEOUT, "AUDIT_TIMEOUT");
     }

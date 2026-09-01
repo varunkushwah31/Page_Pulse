@@ -2,7 +2,7 @@ package com.pulse.page.web.exception;
 
 import org.springframework.http.HttpStatus;
 
-public class RateLimitExceededException extends PagePulseException {
+public class RateLimitExceededException extends SiteLookException {
     public RateLimitExceededException(String message) {
         super(message, HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED");
     }

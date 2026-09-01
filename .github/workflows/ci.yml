@@ -1,4 +1,4 @@
-name: PagePulse CI Pipeline
+name: SiteLook CI Pipeline
 
 on:
   push:

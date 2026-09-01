@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: sitelook-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: APP_JWT_SECRET
+        generateValue: true
+      - key: APP_CORS_ALLOWED_ORIGINS
+        value: https://*.vercel.app,http://localhost:3000,http://localhost:5173,http://localhost:5174
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO

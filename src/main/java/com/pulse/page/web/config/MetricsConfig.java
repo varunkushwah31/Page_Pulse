@@ -21,7 +21,7 @@ public class MetricsConfig {
 
     @PostConstruct
     public void init() {
-        meterRegistry.config().commonTags("application", "page-pulse");
+        meterRegistry.config().commonTags("application", "sitelook");
     }
 
     public Timer.Sample startAuditTimer() {
@@ -29,7 +29,7 @@ public class MetricsConfig {
     }
 
     public void recordAuditDuration(Timer.Sample sample, String endpoint, String status) {
-        sample.stop(Timer.builder("pagepulse.audit.duration")
+        sample.stop(Timer.builder("sitelook.audit.duration")
                 .tag(TAG_ENDPOINT, endpoint)
                 .tag(TAG_STATUS, status)
                 .description("Audit execution duration")
@@ -38,18 +38,18 @@ public class MetricsConfig {
     }
 
     public void incrementAuditCounter(String endpoint, String status) {
-        meterRegistry.counter("pagepulse.audit.total", 
+        meterRegistry.counter("sitelook.audit.total", 
                 TAG_ENDPOINT, endpoint, 
                 TAG_STATUS, status).increment();
     }
 
     public void recordScrapedUrlSize(int bytes) {
-        meterRegistry.summary("pagepulse.scraped.content.size.bytes")
+        meterRegistry.summary("sitelook.scraped.content.size.bytes")
                 .record(bytes);
     }
 
     public void recordResponseTime(String endpoint, long milliseconds) {
-        Timer.builder("pagepulse.http.response.time")
+        Timer.builder("sitelook.http.response.time")
                 .tag(TAG_ENDPOINT, endpoint)
                 .publishPercentiles(0.5, 0.95, 0.99)
                 .register(meterRegistry)

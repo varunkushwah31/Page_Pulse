@@ -564,8 +564,8 @@ public class SeoCollectionService {
         }
 
         return CollectionExportDto.builder()
-                .schema("https://pagepulse.dev/schemas/collection/v1.json")
-                .exporter("PagePulse-v1.0")
+                .schema("https://sitelook.dev/schemas/collection/v1.json")
+                .exporter("SiteLook-v1.0")
                 .name(doc.getName())
                 .description(doc.getDescription())
                 .color(doc.getColor())
@@ -609,48 +609,44 @@ public class SeoCollectionService {
 
     private CollectionExportDto getTemplateDefinition(String templateKey) {
         String key = templateKey != null ? templateKey.toLowerCase().trim() : "saas";
-        switch (key) {
-            case "ecommerce":
-                return CollectionExportDto.builder()
-                        .name("E-Commerce Funnel Suite")
-                        .description("Critical conversion pages: Storefront, Product Matrix, Cart, and Checkout.")
-                        .color("#4ADE80")
-                        .icon("ShoppingCart")
-                        .tags(new ArrayList<>(List.of("ecommerce", "conversion", "critical")))
-                        .items(new ArrayList<>(List.of(
-                                CollectionExportDto.ExportItem.builder().name("Store Homepage").url("https://shopify.com").method(DEFAULT_METHOD).expectedMinScore(85).maxResponseTimeMs(3000).build(),
-                                CollectionExportDto.ExportItem.builder().name("Product Detail Page").url("https://amazon.com").method(DEFAULT_METHOD).expectedMinScore(80).maxResponseTimeMs(3500).build(),
-                                CollectionExportDto.ExportItem.builder().name("Documentation Hub").url("https://developer.mozilla.org").method(DEFAULT_METHOD).expectedMinScore(90).maxResponseTimeMs(2500).build()
-                        )))
-                        .build();
-            case "devhub":
-                return CollectionExportDto.builder()
-                        .name("Developer Documentation Suite")
-                        .description("API references, technical guides, changelogs, and sandbox playgrounds.")
-                        .color("#7AA2F7")
-                        .icon("Code")
-                        .tags(new ArrayList<>(List.of("docs", "api", "developer")))
-                        .items(new ArrayList<>(List.of(
-                                CollectionExportDto.ExportItem.builder().name("API Reference Root").url("https://docs.github.com").method(DEFAULT_METHOD).expectedMinScore(85).maxResponseTimeMs(2500).build(),
-                                CollectionExportDto.ExportItem.builder().name("Codeforces Arena").url("https://codeforces.com").method(DEFAULT_METHOD).expectedMinScore(80).maxResponseTimeMs(3500).build(),
-                                CollectionExportDto.ExportItem.builder().name("LeetCode Portal").url("https://leetcode.com").method(DEFAULT_METHOD).expectedMinScore(80).maxResponseTimeMs(3000).build()
-                        )))
-                        .build();
-            case "saas":
-            default:
-                return CollectionExportDto.builder()
-                        .name("SaaS Core Product Suite")
-                        .description("High-intent landing pages, pricing tier table, feature pages, and login gates.")
-                        .color(DEFAULT_COLOR)
-                        .icon("Lightning")
-                        .tags(new ArrayList<>(List.of("saas", "production", "marketing")))
-                        .items(new ArrayList<>(List.of(
-                                CollectionExportDto.ExportItem.builder().name("Product Landing").url("https://vercel.com").method(DEFAULT_METHOD).expectedMinScore(90).maxResponseTimeMs(2500).build(),
-                                CollectionExportDto.ExportItem.builder().name("Pricing Tier Matrix").url("https://stripe.com").method(DEFAULT_METHOD).expectedMinScore(85).maxResponseTimeMs(3000).build(),
-                                CollectionExportDto.ExportItem.builder().name("Knowledge Base").url("https://wikipedia.org").method(DEFAULT_METHOD).expectedMinScore(88).maxResponseTimeMs(2000).build()
-                        )))
-                        .build();
-        }
+        return switch (key) {
+            case "ecommerce" -> CollectionExportDto.builder()
+                    .name("E-Commerce Funnel Suite")
+                    .description("Critical conversion pages: Storefront, Product Matrix, Cart, and Checkout.")
+                    .color("#4ADE80")
+                    .icon("ShoppingCart")
+                    .tags(new ArrayList<>(List.of("ecommerce", "conversion", "critical")))
+                    .items(new ArrayList<>(List.of(
+                            CollectionExportDto.ExportItem.builder().name("Store Homepage").url("https://shopify.com").method(DEFAULT_METHOD).expectedMinScore(85).maxResponseTimeMs(3000).build(),
+                            CollectionExportDto.ExportItem.builder().name("Product Detail Page").url("https://amazon.com").method(DEFAULT_METHOD).expectedMinScore(80).maxResponseTimeMs(3500).build(),
+                            CollectionExportDto.ExportItem.builder().name("Documentation Hub").url("https://developer.mozilla.org").method(DEFAULT_METHOD).expectedMinScore(90).maxResponseTimeMs(2500).build()
+                    )))
+                    .build();
+            case "devhub" -> CollectionExportDto.builder()
+                    .name("Developer Documentation Suite")
+                    .description("API references, technical guides, changelogs, and sandbox playgrounds.")
+                    .color("#7AA2F7")
+                    .icon("Code")
+                    .tags(new ArrayList<>(List.of("docs", "api", "developer")))
+                    .items(new ArrayList<>(List.of(
+                            CollectionExportDto.ExportItem.builder().name("API Reference Root").url("https://docs.github.com").method(DEFAULT_METHOD).expectedMinScore(85).maxResponseTimeMs(2500).build(),
+                            CollectionExportDto.ExportItem.builder().name("Codeforces Arena").url("https://codeforces.com").method(DEFAULT_METHOD).expectedMinScore(80).maxResponseTimeMs(3500).build(),
+                            CollectionExportDto.ExportItem.builder().name("LeetCode Portal").url("https://leetcode.com").method(DEFAULT_METHOD).expectedMinScore(80).maxResponseTimeMs(3000).build()
+                    )))
+                    .build();
+            default -> CollectionExportDto.builder()
+                    .name("SaaS Core Product Suite")
+                    .description("High-intent landing pages, pricing tier table, feature pages, and login gates.")
+                    .color(DEFAULT_COLOR)
+                    .icon("Lightning")
+                    .tags(new ArrayList<>(List.of("saas", "production", "marketing")))
+                    .items(new ArrayList<>(List.of(
+                            CollectionExportDto.ExportItem.builder().name("Product Landing").url("https://vercel.com").method(DEFAULT_METHOD).expectedMinScore(90).maxResponseTimeMs(2500).build(),
+                            CollectionExportDto.ExportItem.builder().name("Pricing Tier Matrix").url("https://stripe.com").method(DEFAULT_METHOD).expectedMinScore(85).maxResponseTimeMs(3000).build(),
+                            CollectionExportDto.ExportItem.builder().name("Knowledge Base").url("https://wikipedia.org").method(DEFAULT_METHOD).expectedMinScore(88).maxResponseTimeMs(2000).build()
+                    )))
+                    .build();
+        };
     }
 
     private void recalculateAverageScore(SeoCollectionDocument doc) {

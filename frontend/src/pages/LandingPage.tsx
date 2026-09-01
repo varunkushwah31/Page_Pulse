@@ -94,7 +94,7 @@ export const LandingPage: React.FC = () => {
         <div className="flex items-center justify-between border-b border-[#262B33] pb-3 text-[#565D68]">
           <div className="flex items-center gap-2">
             <PulseIcon className="size-4 text-[#4FD8C4]" />
-            <span className="font-bold text-[#E7EAEE] tracking-wider uppercase">PAGE PULSE v1.0 AUDIT ENGINE</span>
+            <span className="font-bold text-[#E7EAEE] tracking-wider uppercase">SITELOOK v1.0 AUDIT ENGINE</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block size-2 rounded-full bg-[#4ADE80] animate-pulse" />

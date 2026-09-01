@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "43828625-17cd59f3-2b08-4c96-99cb-4cea4a4a3b9e",
-    "name": "Page Pulse Enterprise API - Production Suite",
-    "description": "Complete, production-grade Postman test collection for Page Pulse Monolith (Spring Boot 3.x + Jsoup Scraper + H2 + MongoDB Atlas). Contains real-site live audit requests, authentication flows, sitemap crawlers, scheduled audits, batch processing, competitor comparisons, and automated assertions.",
+    "name": "SiteLook Enterprise API - Production Suite",
+    "description": "Complete, production-grade Postman test collection for SiteLook Monolith (Spring Boot 3.x + Jsoup Scraper + H2 + MongoDB Atlas). Contains real-site live audit requests, authentication flows, sitemap crawlers, scheduled audits, batch processing, competitor comparisons, and automated assertions.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

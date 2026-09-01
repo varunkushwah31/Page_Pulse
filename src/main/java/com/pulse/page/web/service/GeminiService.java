@@ -563,7 +563,7 @@ public class GeminiService {
         List<Map<String, Object>> contents = new ArrayList<>();
 
         StringBuilder systemContext = new StringBuilder();
-        systemContext.append("You are Page Pulse AI, an elite SEO, Web Performance, and Accessibility Consultant.\n");
+        systemContext.append("You are SiteLook AI, an elite SEO, Web Performance, and Accessibility Consultant.\n");
         systemContext.append("You are chatting live with a developer / webmaster about the technical audit for: ")
                 .append(audit.getUrl()).append(" (Domain: ").append(audit.getDomain()).append(")\n\n");
         appendPersonalizationContext(systemContext, preferences);
@@ -586,7 +586,7 @@ public class GeminiService {
         ));
         contents.add(Map.of(
                 "role", "model",
-                JSON_PARTS, List.of(Map.of(JSON_TEXT, "Understood. I am Page Pulse AI, your personalized SEO & Web Quality Advisor. How can I help you improve " + audit.getDomain() + "?"))
+                JSON_PARTS, List.of(Map.of(JSON_TEXT, "Understood. I am SiteLook AI, your personalized SEO & Web Quality Advisor. How can I help you improve " + audit.getDomain() + "?"))
         ));
 
         if (conversationHistory != null) {

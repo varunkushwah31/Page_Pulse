@@ -83,7 +83,7 @@ public class SecurityConfig {
                 ? Arrays.asList(allowedOriginsStr.split(","))
                 : List.of("http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175",
                         "http://127.0.0.1:3000", "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:5175");
-        config.setAllowedOrigins(allowedOrigins);
+        config.setAllowedOriginPatterns(allowedOrigins);
 
         String allowedMethodsStr = appProperties.getCors() != null ? appProperties.getCors().getAllowedMethods() : null;
         config.setAllowedMethods(allowedMethodsStr != null && !allowedMethodsStr.isBlank()

@@ -16,7 +16,7 @@ public class OpenApiConfig {
     public OpenAPI openAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Page Pulse API")
+                        .title("SiteLook API")
                         .description("Web auditing tool delivering performance, SEO, and accessibility metrics for any target URL")
                         .version("1.0.0")
                         .license(new License().name("MIT").url("https://opensource.org/licenses/MIT")))

@@ -127,7 +127,7 @@ const COMMAND_ITEMS: CommandItem[] = [
     id: 'auth',
     command: 'auth',
     title: 'Authentication & Sign In',
-    description: 'Sign into your Page Pulse account or register a new identity',
+    description: 'Sign into your SiteLook account or register a new identity',
     icon: ShieldIcon,
     path: '/auth',
   },
@@ -358,7 +358,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
               <span>Select</span>
             </span>
           </div>
-          <span className="text-[#4FD8C4] font-semibold">PAGE PULSE</span>
+          <span className="text-[#4FD8C4] font-semibold">SITELOOK</span>
         </div>
       </dialog>
     </div>

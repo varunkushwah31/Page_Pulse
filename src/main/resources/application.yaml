@@ -19,7 +19,7 @@ spring:
       enabled: ${APP_SECURITY_H2_CONSOLE_ENABLED:true}
       path: /h2-console
   jpa:
-    database-platform: ${SPRING_JPA_DATABASE_PLATFORM:org.hibernate.dialect.H2Dialect}
+    open-in-view: false
     hibernate:
       # Allows overriding to 'validate' or 'none' in production to speed up startup
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
@@ -29,6 +29,8 @@ spring:
     database: ${MONGO_DATABASE:sitelook_db}
   data:
     redis:
+      repositories:
+        enabled: false
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
@@ -53,6 +55,13 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:0.0}
+    export:
+      otlp:
+        enabled: false
+      enabled: ${MANAGEMENT_TRACING_ENABLED:false}
   otlp:
     metrics:
       export:
@@ -60,8 +69,9 @@ management:
   opentelemetry:
     tracing:
       export:
+        enabled: ${MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_ENABLED:false}
         otlp:
-          endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+          enabled: ${MANAGEMENT_OPENTELEMETRY_TRACING_OTLP_ENABLED:false}
 
 resilience4j:
   circuitbreaker:
@@ -128,3 +138,4 @@ logging:
     com.pulse.page.web: ${APP_LOG_LEVEL:INFO}
     org.springframework.web: ${SPRING_WEB_LOG_LEVEL:INFO}
     org.springframework.security: ${SPRING_SECURITY_LOG_LEVEL:INFO}
+    org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR

@@ -3,11 +3,9 @@ package com.pulse.page.web.config;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
-import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
 
 @Configuration
 @EnableJpaRepositories(basePackages = "com.pulse.page.web.repository.jpa")
 @EnableMongoRepositories(basePackages = "com.pulse.page.web.repository.mongo")
-@EnableRedisRepositories(basePackages = "com.pulse.page.web.repository.redis")
 public class DatabaseConfig {
 }

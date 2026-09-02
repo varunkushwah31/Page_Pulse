@@ -82,10 +82,12 @@ public class BatchAuditService {
         jobRepository.save(job);
 
         boolean enableJs = job.isEnableJsRendering();
+        java.util.concurrent.atomic.AtomicInteger completedCounter = new java.util.concurrent.atomic.AtomicInteger(0);
+        java.util.concurrent.atomic.AtomicInteger failedCounter = new java.util.concurrent.atomic.AtomicInteger(0);
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<CompletableFuture<Void>> futures = job.getUrls().stream()
-                    .map(url -> CompletableFuture.runAsync(() -> processSingleUrl(jobId, url, enableJs), executor))
+                    .map(url -> CompletableFuture.runAsync(() -> processSingleUrl(jobId, url, enableJs, completedCounter, failedCounter), executor))
                     .toList();
 
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
@@ -96,9 +98,14 @@ public class BatchAuditService {
             job.setErrorMessage(e.getMessage());
         } finally {
             job = jobRepository.findByJobId(jobId).orElseThrow();
-            if (job.getFailedUrls() > 0 && job.getCompletedUrls() > 0) {
+            int completed = completedCounter.get();
+            int failed = failedCounter.get();
+            job.setCompletedUrls(completed);
+            job.setFailedUrls(failed);
+
+            if (failed > 0 && completed > 0) {
                 job.setStatus(BatchAuditJobEntity.Status.PARTIAL);
-            } else if (job.getCompletedUrls() == job.getTotalUrls()) {
+            } else if (completed == job.getTotalUrls()) {
                 job.setStatus(BatchAuditJobEntity.Status.COMPLETED);
             } else {
                 job.setStatus(BatchAuditJobEntity.Status.FAILED);
@@ -112,7 +119,10 @@ public class BatchAuditService {
         }
     }
 
-    private void processSingleUrl(String jobId, String url, boolean enableJsRendering) {
+    private void processSingleUrl(
+            String jobId, String url, boolean enableJsRendering,
+            java.util.concurrent.atomic.AtomicInteger completedCounter,
+            java.util.concurrent.atomic.AtomicInteger failedCounter) {
         try {
             AuditResponse response;
             if (!enableJsRendering) {
@@ -122,9 +132,7 @@ public class BatchAuditService {
                 response = processorService.processAudit(url, true);
             }
 
-            BatchAuditJobEntity job = jobRepository.findByJobId(jobId).orElseThrow();
-            job.setCompletedUrls(job.getCompletedUrls() + 1);
-            jobRepository.save(job);
+            completedCounter.incrementAndGet();
 
             // Store individual result
             BatchAuditResponse.BatchAuditUrlResult result = BatchAuditResponse.BatchAuditUrlResult.builder()
@@ -137,9 +145,7 @@ public class BatchAuditService {
 
         } catch (Exception e) {
             log.warn("Batch audit failed for URL {}: {}", url, e.getMessage());
-            BatchAuditJobEntity job = jobRepository.findByJobId(jobId).orElseThrow();
-            job.setFailedUrls(job.getFailedUrls() + 1);
-            jobRepository.save(job);
+            failedCounter.incrementAndGet();
 
             BatchAuditResponse.BatchAuditUrlResult result = BatchAuditResponse.BatchAuditUrlResult.builder()
                     .url(url)

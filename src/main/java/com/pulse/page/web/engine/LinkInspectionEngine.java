@@ -16,8 +16,8 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Component
@@ -33,13 +33,21 @@ public class LinkInspectionEngine {
     );
 
     private final HttpClient httpClient;
+    private final com.pulse.page.web.service.CacheService cacheService;
 
-    public LinkInspectionEngine() {
+    @org.springframework.beans.factory.annotation.Autowired
+    public LinkInspectionEngine(com.pulse.page.web.service.CacheService cacheService) {
+        this.cacheService = cacheService;
         this.httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_2)
                 .connectTimeout(LINK_CHECK_TIMEOUT)
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .executor(Executors.newVirtualThreadPerTaskExecutor())
                 .build();
+    }
+
+    public LinkInspectionEngine() {
+        this(null);
     }
 
     @NonNull
@@ -174,38 +182,50 @@ public class LinkInspectionEngine {
             Set<String> uniqueUrlsToCheck, Map<String, String> anchorTextMap, String baseHost) {
 
         List<BrokenLinkInfo> brokenLinks = new CopyOnWriteArrayList<>();
-        int workingCount = 0;
-        int redirectCount = 0;
+        AtomicInteger workingCount = new AtomicInteger(0);
+        AtomicInteger redirectCount = new AtomicInteger(0);
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<LinkCheckResult>> futures = new ArrayList<>();
-            for (String linkUrl : uniqueUrlsToCheck) {
-                futures.add(executor.submit(() -> checkLink(linkUrl, anchorTextMap.get(linkUrl), baseHost)));
-            }
+            List<java.util.concurrent.CompletableFuture<Void>> futures = uniqueUrlsToCheck.stream()
+                    .map(linkUrl -> java.util.concurrent.CompletableFuture.supplyAsync(
+                            () -> checkLink(linkUrl, anchorTextMap.get(linkUrl), baseHost), executor)
+                            .thenAccept(res -> {
+                                if (res.statusCode >= 200 && res.statusCode < 300) {
+                                    workingCount.incrementAndGet();
+                                } else if (res.statusCode >= 300 && res.statusCode < 400) {
+                                    redirectCount.incrementAndGet();
+                                } else {
+                                    brokenLinks.add(res.toBrokenLinkInfo());
+                                }
+                            })
+                            .exceptionally(ex -> {
+                                log.debug("Link inspection error: {}", ex.getMessage());
+                                return null;
+                            }))
+                    .toList();
 
-            for (Future<LinkCheckResult> future : futures) {
-                try {
-                    LinkCheckResult res = future.get(LINK_CHECK_TIMEOUT.toMillis() + 500, TimeUnit.MILLISECONDS);
-                    if (res.statusCode >= 200 && res.statusCode < 300) {
-                        workingCount++;
-                    } else if (res.statusCode >= 300 && res.statusCode < 400) {
-                        redirectCount++;
-                    } else {
-                        brokenLinks.add(res.toBrokenLinkInfo());
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.debug("Link inspection thread interrupted: {}", e.getMessage());
-                } catch (Exception e) {
-                    log.debug("Link inspection future failed: {}", e.getMessage());
-                }
+            try {
+                java.util.concurrent.CompletableFuture.allOf(futures.toArray(new java.util.concurrent.CompletableFuture[0]))
+                        .get(LINK_CHECK_TIMEOUT.toMillis() + 800, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                log.debug("Parallel link inspection timed out or interrupted: {}", e.getMessage());
             }
         }
-        return new ParallelCheckResult(workingCount, redirectCount, brokenLinks);
+        return new ParallelCheckResult(workingCount.get(), redirectCount.get(), brokenLinks);
     }
 
     private LinkCheckResult checkLink(String urlStr, String anchorText, String baseHost) {
         boolean external = !extractHost(urlStr).equalsIgnoreCase(baseHost);
+
+        // 1. Check cache first (<0.01ms)
+        if (cacheService != null) {
+            Optional<Integer> cachedStatus = cacheService.getCachedLinkStatus(urlStr);
+            if (cachedStatus.isPresent()) {
+                int code = cachedStatus.get();
+                return new LinkCheckResult(urlStr, anchorText, code, "HTTP " + code, external);
+            }
+        }
+
         try {
             URI uri = URI.create(urlStr);
             HttpRequest request = HttpRequest.newBuilder()
@@ -229,12 +249,19 @@ public class LinkInspectionEngine {
                 code = response.statusCode();
             }
 
+            if (cacheService != null) {
+                cacheService.cacheLinkStatus(urlStr, code);
+            }
+
             return new LinkCheckResult(urlStr, anchorText, code, "HTTP " + code, external);
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             return new LinkCheckResult(urlStr, anchorText, 404, "Link check thread interrupted", external);
         } catch (Exception e) {
             log.debug("Link inspection failed for URL: {}", urlStr, e);
+            if (cacheService != null) {
+                cacheService.cacheLinkStatus(urlStr, 404);
+            }
             return new LinkCheckResult(urlStr, anchorText, 404, "Connection refused or unreachable", external);
         }
     }

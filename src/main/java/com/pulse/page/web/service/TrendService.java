@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -21,8 +22,18 @@ public class TrendService {
     private static final String FIELD_SAVED_AT = "savedAt";
 
     private final MongoTemplate mongoTemplate;
+    private final CacheService cacheService;
 
     public TrendResponse getTrend(String domain, String metric, Integer days, Integer limit) {
+        String cacheKey = "single:" + domain + ":" + metric + ":" + days + ":" + limit;
+        if (cacheService != null) {
+            Optional<Object> cached = cacheService.getCachedTrend(cacheKey);
+            if (cached.isPresent() && cached.get() instanceof TrendResponse trendResponse) {
+                log.info("Serving trend response from cache for domain: {}, metric: {}", domain, metric);
+                return trendResponse;
+            }
+        }
+
         Instant to = Instant.now();
         Instant from = days != null ? to.minusSeconds(days * 24L * 60 * 60) : to.minusSeconds(30L * 24 * 60 * 60);
         int maxResults = limit != null ? limit : 100;
@@ -38,7 +49,7 @@ public class TrendService {
         List<AuditReportDocument> reports = mongoTemplate.find(query, AuditReportDocument.class);
 
         if (reports.isEmpty()) {
-            return TrendResponse.builder()
+            TrendResponse emptyRes = TrendResponse.builder()
                     .domain(domain)
                     .metric(metric)
                     .from(from)
@@ -46,6 +57,10 @@ public class TrendService {
                     .dataPoints(0)
                     .data(List.of())
                     .build();
+            if (cacheService != null) {
+                cacheService.cacheTrend(cacheKey, emptyRes);
+            }
+            return emptyRes;
         }
 
         List<TrendResponse.DataPoint> dataPoints = reports.stream()
@@ -56,7 +71,7 @@ public class TrendService {
 
         TrendResponse.Summary summary = computeSummary(dataPoints);
 
-        return TrendResponse.builder()
+        TrendResponse response = TrendResponse.builder()
                 .domain(domain)
                 .metric(metric)
                 .from(from)
@@ -65,11 +80,27 @@ public class TrendService {
                 .data(dataPoints)
                 .summary(summary)
                 .build();
+
+        if (cacheService != null) {
+            cacheService.cacheTrend(cacheKey, response);
+        }
+
+        return response;
     }
 
     public List<TrendResponse> getAllMetricsTrend(String domain, Integer days, Integer limit) {
+        String cacheKey = "all:" + domain + ":" + days + ":" + limit;
+        if (cacheService != null) {
+            Optional<Object> cached = cacheService.getCachedTrend(cacheKey);
+            if (cached.isPresent() && cached.get() instanceof List<?> list) {
+                @SuppressWarnings("unchecked")
+                List<TrendResponse> trendList = (List<TrendResponse>) list;
+                return trendList;
+            }
+        }
+
         Instant to = Instant.now();
-        Instant from = days != null ? to.minusSeconds(days * 24L * 60 * 60) : to.minusSeconds(30L * 24 * 60 * 60);
+        Instant from = (days != null) ? to.minusSeconds(days * 24L * 60 * 60) : to.minusSeconds(30L * 24 * 60 * 60);
         int maxResults = limit != null ? limit : 100;
 
         Query query = new Query()
@@ -86,7 +117,7 @@ public class TrendService {
 
         String[] metrics = {"overallScore", "seoScore", "contentScore", "accessibilityScore", "performanceScore", "responseTimeMs", "wordCount"};
 
-        return java.util.Arrays.stream(metrics)
+        List<TrendResponse> results = java.util.Arrays.stream(metrics)
                 .map(metric -> {
                     List<TrendResponse.DataPoint> dataPoints = reports.stream()
                             .map(report -> extractMetricValue(report, metric))
@@ -107,6 +138,12 @@ public class TrendService {
                             .build();
                 })
                 .toList();
+
+        if (cacheService != null && !results.isEmpty()) {
+            cacheService.cacheTrend(cacheKey, results);
+        }
+
+        return results;
     }
 
     private TrendResponse.DataPoint extractMetricValue(AuditReportDocument report, String metric) {
@@ -144,7 +181,7 @@ public class TrendService {
         Double min = values.stream().min(Double::compare).orElse(0.0);
         Double max = values.stream().max(Double::compare).orElse(0.0);
         Double average = values.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-        Double latest = values.get(values.size() - 1);
+        Double latest = values.getLast();
         Double previous = values.size() > 1 ? values.get(values.size() - 2) : null;
 
         Double change = previous != null ? latest - previous : 0.0;

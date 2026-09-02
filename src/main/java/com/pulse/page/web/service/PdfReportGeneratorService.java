@@ -133,6 +133,17 @@ public class PdfReportGeneratorService {
             throw new IllegalArgumentException("AuditResponse cannot be null for PDF generation.");
         }
 
+        String pdfCacheKey = (audit.getId() != null ? String.valueOf(audit.getId()) : audit.getUrl().toLowerCase())
+                + ":" + (branding != null ? (branding.getCompanyName() + "_" + branding.getPrimaryColorHex()) : "default");
+
+        if (cacheService != null) {
+            Optional<byte[]> cachedPdf = cacheService.getCachedPdf(pdfCacheKey);
+            if (cachedPdf.isPresent()) {
+                log.info("Serving pre-rendered PDF report from cache for: {}", audit.getUrl());
+                return cachedPdf.get();
+            }
+        }
+
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Document pdfDoc = new Document(PageSize.A4, 32, 32, 38, 42);
 
@@ -190,7 +201,12 @@ public class PdfReportGeneratorService {
             throw new IllegalStateException("PDF document generation failed: " + e.getMessage(), e);
         }
 
-        return out.toByteArray();
+        byte[] pdfBytes = out.toByteArray();
+        if (cacheService != null && pdfBytes.length > 0) {
+            cacheService.cachePdf(pdfCacheKey, pdfBytes);
+        }
+
+        return pdfBytes;
     }
 
     // =========================================================================

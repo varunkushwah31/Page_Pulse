@@ -28,6 +28,7 @@ public class ReportSearchService {
     private final AuditReportMongoRepository mongoRepository;
     private final AuditReportJpaRepository jpaRepository;
     private final org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+    private final CacheService cacheService;
 
     @NonNull
     public Page<AuditReportDocument> searchSavedReports(@Nullable Pageable pageable) {
@@ -71,6 +72,13 @@ public class ReportSearchService {
 
     @NonNull
     public PlatformStatsResponse getPlatformStats() {
+        if (cacheService != null) {
+            Optional<PlatformStatsResponse> cached = cacheService.getCachedPlatformStats();
+            if (cached.isPresent()) {
+                return cached.get();
+            }
+        }
+
         long totalTransient = 0L;
         try {
             totalTransient = jpaRepository.count();
@@ -110,7 +118,7 @@ public class ReportSearchService {
                             org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation(
                                     org.springframework.data.mongodb.core.aggregation.Aggregation.match(
                                             org.springframework.data.mongodb.core.query.Criteria.where("domain").ne(null)),
-                                    org.springframework.data.mongodb.core.aggregation.Aggregation.group("domain").count().as("count"),
+                                     org.springframework.data.mongodb.core.aggregation.Aggregation.group("domain").count().as("count"),
                                     org.springframework.data.mongodb.core.aggregation.Aggregation.sort(
                                             org.springframework.data.domain.Sort.Direction.DESC, "count"),
                                     org.springframework.data.mongodb.core.aggregation.Aggregation.limit(10)
@@ -134,12 +142,18 @@ public class ReportSearchService {
             topDomains = Map.of("example.com", totalTransient > 0 ? totalTransient : 1L);
         }
 
-        return PlatformStatsResponse.builder()
+        PlatformStatsResponse response = PlatformStatsResponse.builder()
             .totalTransientAuditsRun(totalTransient)
             .totalSavedReports(totalSaved)
             .averageOverallScore(Math.round(avgScore * 100.0) / 100.0)
             .averageResponseTimeMs(Math.round(avgResponseTime * 100.0) / 100.0)
             .topDomains(topDomains)
             .build();
+
+        if (cacheService != null) {
+            cacheService.cachePlatformStats(response);
+        }
+
+        return response;
     }
 }

@@ -2,13 +2,13 @@ package com.pulse.page.web.service;
 
 import com.pulse.page.web.config.MetricsConfig;
 import com.pulse.page.web.document.AuditReportDocument;
+import com.pulse.page.web.dto.AuditResponse;
 import com.pulse.page.web.entity.AuditReportEntity;
 import com.pulse.page.web.repository.jpa.AuditReportJpaRepository;
 import com.pulse.page.web.repository.mongo.AuditReportMongoRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.micrometer.core.instrument.Timer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
@@ -20,10 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.util.Optional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UrlAuditService {
 
     private static final int TIMEOUT_MS = 5000;
@@ -34,6 +34,26 @@ public class UrlAuditService {
     private final AuditReportJpaRepository jpaRepository;
     private final AuditReportMongoRepository mongoRepository;
     private final MetricsConfig metricsConfig;
+    private final CacheService cacheService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public UrlAuditService(
+            AuditReportJpaRepository jpaRepository,
+            AuditReportMongoRepository mongoRepository,
+            MetricsConfig metricsConfig,
+            CacheService cacheService) {
+        this.jpaRepository = jpaRepository;
+        this.mongoRepository = mongoRepository;
+        this.metricsConfig = metricsConfig;
+        this.cacheService = cacheService;
+    }
+
+    public UrlAuditService(
+            AuditReportJpaRepository jpaRepository,
+            AuditReportMongoRepository mongoRepository,
+            MetricsConfig metricsConfig) {
+        this(jpaRepository, mongoRepository, metricsConfig, null);
+    }
 
     @Transactional(rollbackFor = Exception.class)
     @CircuitBreaker(name = "scraperEngine", fallbackMethod = "auditFallback")
@@ -41,6 +61,17 @@ public class UrlAuditService {
     public AuditReportEntity auditAndSaveTransient(String rawUrl) throws IOException {
         String validatedUrl = validateUrl(rawUrl);
         String domain = extractDomain(validatedUrl);
+
+        if (cacheService != null) {
+            Optional<AuditResponse> cached = cacheService.getCachedAudit(validatedUrl);
+            if (cached.isPresent() && cached.get().getId() != null) {
+                Optional<AuditReportEntity> existing = jpaRepository.findById(cached.get().getId());
+                if (existing.isPresent()) {
+                    log.info("Serving transient audit report from cache for URL: {}", validatedUrl);
+                    return existing.get();
+                }
+            }
+        }
 
         Timer.Sample sample = metricsConfig.startAuditTimer();
         long startTime = System.currentTimeMillis();

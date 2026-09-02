@@ -2,6 +2,7 @@ package com.pulse.page.web.engine;
 
 import com.pulse.page.web.engine.PageScraperEngine.ScrapeResult;
 import com.pulse.page.web.model.SecurityMetrics;
+import com.pulse.page.web.service.CacheService;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -9,6 +10,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.HttpsURLConnection;
+import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
 import java.security.cert.X509Certificate;
@@ -29,6 +31,17 @@ public class SslInspectionEngine {
         "Referrer-Policy"
     );
 
+    private final CacheService cacheService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public SslInspectionEngine(CacheService cacheService) {
+        this.cacheService = cacheService;
+    }
+
+    public SslInspectionEngine() {
+        this.cacheService = null;
+    }
+
     @NonNull
     public SecurityMetrics inspectSecurity(@NonNull String targetUrl, @NonNull ScrapeResult scrapeResult) {
         boolean isHttps = targetUrl.toLowerCase(Locale.ROOT).startsWith("https://");
@@ -36,7 +49,7 @@ public class SslInspectionEngine {
         int missingCount = (int) headersPresent.values().stream().filter(present -> !present).count();
         int mixedContentCount = countMixedContent(targetUrl, scrapeResult.getDocument());
 
-        SslCertDetails certDetails = isHttps ? inspectSslCertificate(targetUrl) : SslCertDetails.notApplicable();
+        SslCertDetails certDetails = isHttps ? getOrInspectSslCertificate(targetUrl) : SslCertDetails.notApplicable();
 
         return SecurityMetrics.builder()
             .isHttps(isHttps)
@@ -70,13 +83,29 @@ public class SslInspectionEngine {
         return headersPresent;
     }
 
+    private SslCertDetails getOrInspectSslCertificate(String targetUrl) {
+        String domain = extractDomain(targetUrl);
+        if (cacheService != null && !domain.isBlank()) {
+            Optional<Object> cached = cacheService.getCachedSslCert(domain);
+            if (cached.isPresent() && cached.get() instanceof SslCertDetails details) {
+                return details;
+            }
+        }
+
+        SslCertDetails details = inspectSslCertificate(targetUrl);
+        if (cacheService != null && !domain.isBlank()) {
+            cacheService.cacheSslCert(domain, details);
+        }
+        return details;
+    }
+
     private SslCertDetails inspectSslCertificate(String targetUrl) {
         HttpsURLConnection conn = null;
         try {
             URL url = URI.create(targetUrl).toURL();
             conn = (HttpsURLConnection) url.openConnection();
-            conn.setConnectTimeout(3000);
-            conn.setReadTimeout(3000);
+            conn.setConnectTimeout(2000);
+            conn.setReadTimeout(2000);
             conn.setRequestMethod("HEAD");
             conn.connect();
 
@@ -109,6 +138,16 @@ public class SslInspectionEngine {
         }
     }
 
+    private String extractDomain(String targetUrl) {
+        try {
+            URI uri = URI.create(targetUrl);
+            String host = uri.getHost();
+            return host != null ? host.toLowerCase() : "";
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     private String extractCommonName(String issuerX500) {
         if (issuerX500 != null && issuerX500.contains("CN=")) {
             return issuerX500.substring(issuerX500.indexOf("CN=") + 3).split(",")[0];
@@ -135,7 +174,7 @@ public class SslInspectionEngine {
         return count;
     }
 
-    private record SslCertDetails(boolean sslValid, long daysUntilExpiry, String sslIssuer, String tlsVersion, String cipherSuite) {
+    public record SslCertDetails(boolean sslValid, long daysUntilExpiry, String sslIssuer, String tlsVersion, String cipherSuite) implements Serializable {
         static SslCertDetails notApplicable() {
             return new SslCertDetails(false, 0, "N/A", "N/A", "N/A");
         }

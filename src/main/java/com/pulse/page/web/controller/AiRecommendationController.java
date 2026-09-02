@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+@lombok.extern.slf4j.Slf4j
 @RestController
 @RequestMapping("/api/v1/ai")
 public class AiRecommendationController {
@@ -52,9 +53,7 @@ public class AiRecommendationController {
     public ResponseEntity<List<AiRecommendationDto>> getAiFixRecommendations(
             @RequestBody AuditResponse audit,
             @RequestHeader(value = "X-Gemini-Api-Key", required = false) String headerApiKey) {
-        List<AiRecommendationDto> recommendations = (headerApiKey != null && !headerApiKey.isBlank())
-                ? recommendationService.generateRecommendations(audit, headerApiKey)
-                : recommendationService.generateRecommendations(audit);
+        List<AiRecommendationDto> recommendations = getCachedOrGenerateRecommendations(audit, headerApiKey);
         return ResponseEntity.ok(recommendations);
     }
 
@@ -68,16 +67,12 @@ public class AiRecommendationController {
         Optional<AuditResponse> cached = cacheService.getCachedAudit(entity.getUrl());
         if (cached.isPresent()) {
             AuditResponse cachedAudit = cached.get();
-            List<AiRecommendationDto> recs = (headerApiKey != null && !headerApiKey.isBlank())
-                    ? recommendationService.generateRecommendations(cachedAudit, headerApiKey)
-                    : recommendationService.generateRecommendations(cachedAudit);
+            List<AiRecommendationDto> recs = getCachedOrGenerateRecommendations(cachedAudit, headerApiKey);
             return ResponseEntity.ok(recs);
         }
 
         AuditResponse constructed = buildAuditResponseFromEntity(entity);
-        List<AiRecommendationDto> recommendations = (headerApiKey != null && !headerApiKey.isBlank())
-                ? recommendationService.generateRecommendations(constructed, headerApiKey)
-                : recommendationService.generateRecommendations(constructed);
+        List<AiRecommendationDto> recommendations = getCachedOrGenerateRecommendations(constructed, headerApiKey);
         return ResponseEntity.ok(recommendations);
     }
 
@@ -92,12 +87,35 @@ public class AiRecommendationController {
         if (url != null && !url.isBlank()) {
             Optional<AuditResponse> cached = cacheService.getCachedAudit(url);
             AuditResponse response = cached.isPresent() ? cached.get() : processorService.processAudit(url);
-            List<AiRecommendationDto> recs = (headerApiKey != null && !headerApiKey.isBlank())
-                    ? recommendationService.generateRecommendations(response, headerApiKey)
-                    : recommendationService.generateRecommendations(response);
+            List<AiRecommendationDto> recs = getCachedOrGenerateRecommendations(response, headerApiKey);
             return ResponseEntity.ok(recs);
         }
         return ResponseEntity.badRequest().build();
+    }
+
+    private List<AiRecommendationDto> getCachedOrGenerateRecommendations(AuditResponse audit, String headerApiKey) {
+        if (audit == null) {
+            return List.of();
+        }
+        String recCacheKey = (audit.getUrl() != null ? audit.getUrl().toLowerCase() : String.valueOf(audit.getId()))
+                + ":" + (headerApiKey != null ? headerApiKey.trim().hashCode() : "default");
+
+        if (cacheService != null) {
+            Optional<List<AiRecommendationDto>> cached = cacheService.getCachedAiRecommendations(recCacheKey);
+            if (cached.isPresent()) {
+                log.info("Serving cached AI recommendations for: {}", audit.getUrl());
+                return cached.get();
+            }
+        }
+
+        List<AiRecommendationDto> recs = (headerApiKey != null && !headerApiKey.isBlank())
+                ? recommendationService.generateRecommendations(audit, headerApiKey)
+                : recommendationService.generateRecommendations(audit);
+
+        if (cacheService != null && recs != null && !recs.isEmpty()) {
+            cacheService.cacheAiRecommendations(recCacheKey, recs);
+        }
+        return recs;
     }
 
     @PostMapping("/custom-seo-prompt")
